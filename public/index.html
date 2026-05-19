@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <title>🧀 CheeseWithFriends 🧀</title>
+
+  <link rel="stylesheet" href="style.css"/>
+</head>
+
+<body>
+
+  <!-- HOME SCREEN -->
+
+  <div class="screen" id="homeScreen">
+
+    <!-- Falling cheese -->
+
+    <div class="falling" style="left:5%; animation-duration:14s;">🧀</div>
+    <div class="falling" style="left:22%; animation-duration:19s;">🧀</div>
+    <div class="falling" style="left:40%; animation-duration:12s;">🫕</div>
+    <div class="falling" style="left:63%; animation-duration:16s;">🐭</div>
+    <div class="falling" style="left:84%; animation-duration:18s;">🧀</div>
+
+    <div class="title-bubble">
+      <h1>🧀 CheeseWithFriends 🧀</h1>
+    </div>
+
+    <div class="button-row">
+
+      <div class="cheese-button" id="openLogin">
+        <h2>🔐 Login</h2>
+        <p>Return to the cheese.</p>
+      </div>
+
+      <div class="cheese-button" id="openSignup">
+        <h2>🧀 Sign Up</h2>
+        <p>Join the chaos.</p>
+      </div>
+
+    </div>
+
+    <div class="description">
+
+      <h3>Welcome to Cheese Lounge.</h3>
+
+      <p>
+        Chat with people, survive admin chaos events,
+        make friends, DM users, and eventually play games together.
+      </p>
+
+    </div>
+
+  </div>
+
+  <!-- SIGNUP -->
+
+  <div class="screen hidden" id="signupScreen">
+
+    <div class="form-box">
+
+      <h2>🧀 Create Account</h2>
+
+      <input
+        type="text"
+        class="cheese-input"
+        placeholder="Username"
+      >
+
+      <input
+        type="email"
+        class="cheese-input"
+        placeholder="Email"
+      >
+
+      <input
+        type="password"
+        class="cheese-input"
+        placeholder="Password"
+      >
+
+      <button class="submit-btn">
+        Create Account
+      </button>
+
+      <button class="back-btn" id="backSignup">
+        ← Back
+      </button>
+
+    </div>
+
+  </div>
+
+  <!-- LOGIN -->
+
+  <div class="screen hidden" id="loginScreen">
+
+    <div class="form-box">
+
+      <h2>🔐 Login</h2>
+
+      <input
+        type="text"
+        id="usernameInput"
+        class="cheese-input"
+        placeholder="Username"
+      >
+
+      <button
+        class="submit-btn"
+        id="joinBtn"
+      >
+        Enter Cheese Lounge
+      </button>
+
+      <button class="back-btn" id="backLogin">
+        ← Back
+      </button>
+
+    </div>
+
+  </div>
+
+  <!-- CHAT -->
+
+  <div id="chatScreen" class="hidden">
+
+    <!-- LEFT -->
+
+    <div class="sidebar">
+
+      <h2>🧀 Rooms</h2>
+
+      <div class="room active-room">
+        Cheese Lounge
+      </div>
+
+    </div>
+
+    <!-- CENTER -->
+
+    <div class="chat-container">
+
+      <div class="chat-header">
+
+        <h1>🧀 Cheese Lounge</h1>
+
+        <div id="onlineCount">
+          0 online
+        </div>
+
+      </div>
+
+      <div id="messages"></div>
+
+      <div class="message-bar">
+
+        <input
+          id="messageInput"
+          type="text"
+          placeholder="Say something cheesy..."
+        >
+
+        <button id="sendBtn">
+          Send
+        </button>
+
+      </div>
+
+    </div>
+
+    <!-- RIGHT -->
+
+    <div class="users-sidebar">
+
+      <h2>👥 Online</h2>
+
+      <div id="usersList"></div>
+
+    </div>
+
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+
+</body>
+</html>
