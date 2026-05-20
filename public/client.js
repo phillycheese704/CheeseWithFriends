@@ -1,221 +1,165 @@
+alert("CLIENT JS LOADED 🧀");
 const socket = io();
 
-let username = "";
+let currentUser = null;
 
-/* SCREENS */
+// ELEMENTS
+const authScreen = document.getElementById("authScreen");
+const app = document.getElementById("app");
 
-const homeScreen =
-  document.getElementById("homeScreen");
+const usernameInput = document.getElementById("username");
+const passwordInput = document.getElementById("password");
 
-const signupScreen =
-  document.getElementById("signupScreen");
+const authMessage = document.getElementById("authMessage");
 
-const loginScreen =
-  document.getElementById("loginScreen");
+const messages = document.getElementById("messages");
+const messageInput = document.getElementById("messageInput");
 
-const chatScreen =
-  document.getElementById("chatScreen");
+const onlineUsers = document.getElementById("onlineUsers");
 
-/* BUTTONS */
+// =======================
+// SIGN UP
+// =======================
 
-const openSignup =
-  document.getElementById("openSignup");
+function signUp() {
 
-const openLogin =
-  document.getElementById("openLogin");
+  const username = usernameInput.value.trim();
+  const password = passwordInput.value.trim();
 
-const backSignup =
-  document.getElementById("backSignup");
+  if (!username || !password) {
+    authMessage.textContent =
+      "Enter username and password";
+    return;
+  }
 
-const backLogin =
-  document.getElementById("backLogin");
-
-const joinBtn =
-  document.getElementById("joinBtn");
-
-/* CHAT */
-
-const usernameInput =
-  document.getElementById("usernameInput");
-
-const messages =
-  document.getElementById("messages");
-
-const messageInput =
-  document.getElementById("messageInput");
-
-const sendBtn =
-  document.getElementById("sendBtn");
-
-const usersList =
-  document.getElementById("usersList");
-
-const onlineCount =
-  document.getElementById("onlineCount");
-
-/* OPEN SIGNUP */
-
-openSignup.addEventListener("click",()=>{
-
-  homeScreen.classList.add("hidden");
-
-  signupScreen.classList.remove("hidden");
-
-});
-
-/* OPEN LOGIN */
-
-openLogin.addEventListener("click",()=>{
-
-  homeScreen.classList.add("hidden");
-
-  loginScreen.classList.remove("hidden");
-
-});
-
-/* BACK BUTTONS */
-
-backSignup.addEventListener("click",()=>{
-
-  signupScreen.classList.add("hidden");
-
-  homeScreen.classList.remove("hidden");
-
-});
-
-backLogin.addEventListener("click",()=>{
-
-  loginScreen.classList.add("hidden");
-
-  homeScreen.classList.remove("hidden");
-
-});
-
-/* ENTER CHAT */
-
-joinBtn.addEventListener("click",()=>{
-
-  username =
-    usernameInput.value.trim();
-
-  if(!username) return;
-
-  loginScreen.classList.add("hidden");
-
-  chatScreen.classList.remove("hidden");
-
-  socket.emit("join",username);
-
-});
-
-/* SEND MESSAGE */
-
-function sendMessage(){
-
-  const message =
-    messageInput.value.trim();
-
-  if(!message) return;
-
-  socket.emit("chat message",{
-
+  socket.emit("signup", {
     username,
-    message
+    password
+  });
 
+}
+
+// =======================
+// LOGIN
+// =======================
+
+function login() {
+
+  const username = usernameInput.value.trim();
+  const password = passwordInput.value.trim();
+
+  if (!username || !password) {
+    authMessage.textContent =
+      "Enter username and password";
+    return;
+  }
+
+  socket.emit("login", {
+    username,
+    password
+  });
+
+}
+
+// =======================
+// AUTH RESPONSES
+// =======================
+
+socket.on("signup success", () => {
+
+  authMessage.textContent =
+    "Account created! You can login now.";
+
+});
+
+socket.on("signup error", (msg) => {
+
+  authMessage.textContent = msg;
+
+});
+
+socket.on("login success", (username) => {
+
+  currentUser = username;
+
+  authScreen.style.display = "none";
+  app.style.display = "flex";
+
+});
+
+socket.on("login error", (msg) => {
+
+  authMessage.textContent = msg;
+
+});
+
+// =======================
+// SEND MESSAGE
+// =======================
+
+function sendMessage() {
+
+  const message = messageInput.value.trim();
+
+  if (!message) return;
+
+  socket.emit("chat message", {
+    username: currentUser,
+    message
   });
 
   messageInput.value = "";
 
 }
 
-sendBtn.addEventListener(
-  "click",
-  sendMessage
-);
+// ENTER KEY
+messageInput.addEventListener("keydown", (e) => {
 
-messageInput.addEventListener(
-  "keydown",
-  (e)=>{
-
-    if(e.key === "Enter"){
-
-      sendMessage();
-
-    }
-
+  if (e.key === "Enter") {
+    sendMessage();
   }
-);
 
-/* RECEIVE CHAT */
+});
 
-socket.on(
-  "chat message",
-  (data)=>{
+// =======================
+// RECEIVE MESSAGE
+// =======================
 
-    const div =
-      document.createElement("div");
+socket.on("chat message", (data) => {
 
-    div.className = "message";
+  const div = document.createElement("div");
 
-    div.innerHTML = `
-      <strong>${data.username}</strong><br>
-      ${data.message}
-    `;
+  div.className = "message";
 
-    messages.appendChild(div);
+  div.innerHTML = `
+    <strong>${data.username}</strong><br>
+    ${data.message}
+  `;
 
-    messages.scrollTop =
-      messages.scrollHeight;
+  messages.appendChild(div);
 
-  }
-);
+  messages.scrollTop = messages.scrollHeight;
 
-/* SYSTEM MESSAGE */
+});
 
-socket.on(
-  "system message",
-  (msg)=>{
+// =======================
+// ONLINE USERS
+// =======================
 
-    const div =
-      document.createElement("div");
+socket.on("online users", (users) => {
 
-    div.className =
-      "message system";
+  onlineUsers.innerHTML = "";
 
-    div.textContent = msg;
+  users.forEach(user => {
 
-    messages.appendChild(div);
+    const div = document.createElement("div");
 
-    messages.scrollTop =
-      messages.scrollHeight;
+    div.className = "user-tag";
 
-  }
-);
+    div.textContent = user;
 
-/* ONLINE USERS */
+    onlineUsers.appendChild(div);
 
-socket.on(
-  "online users",
-  (users)=>{
+  });
 
-    usersList.innerHTML = "";
-
-    onlineCount.textContent =
-      `${users.length} online`;
-
-    users.forEach(user=>{
-
-      const div =
-        document.createElement("div");
-
-      div.className = "user-tag";
-
-      div.textContent =
-        `🧀 ${user}`;
-
-      usersList.appendChild(div);
-
-    });
-
-  }
-);
+});

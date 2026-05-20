@@ -29,13 +29,13 @@ body{
   display:none !important;
 }
 
-/* FALLING ITEMS */
+/* FALLING CHEESE */
 
 .falling{
   position:absolute;
   top:-100px;
   font-size:50px;
-  opacity:0.15;
+  opacity:0.12;
   pointer-events:none;
   animation:fall linear infinite;
 }
@@ -268,26 +268,65 @@ body{
 #chatScreen{
   display:flex;
   min-height:100vh;
+  width:100%;
 }
 
-.sidebar,
+/* LEFT SIDEBAR */
+
+.sidebar{
+  width:240px;
+  background:#ffe680;
+  padding:20px;
+
+  position:sticky;
+  top:0;
+
+  height:100vh;
+
+  overflow-y:auto;
+
+  border-right:4px solid #d79b00;
+
+  flex-shrink:0;
+}
+
+/* RIGHT SIDEBAR */
+
 .users-sidebar{
   width:240px;
   background:#ffe680;
   padding:20px;
+
+  position:sticky;
+  top:0;
+
+  height:100vh;
+
   overflow-y:auto;
+
+  border-left:4px solid #d79b00;
+
+  flex-shrink:0;
 }
+
+/* CHAT CENTER */
 
 .chat-container{
   flex:1;
+
   display:flex;
   flex-direction:column;
+
   background:#fff9dc;
+
   min-height:100vh;
+
+  min-width:0;
 }
 
 .chat-header{
   padding:20px;
+
   background:#ffd84d;
 
   display:flex;
@@ -295,6 +334,11 @@ body{
   align-items:center;
 
   border-bottom:4px solid #d79b00;
+
+  position:sticky;
+  top:0;
+
+  z-index:50;
 }
 
 .room{
@@ -309,23 +353,51 @@ body{
   font-weight:bold;
 }
 
+/* MESSAGES */
+
 #messages{
   flex:1;
+
   overflow-y:auto;
+  overflow-x:hidden;
 
   padding:20px;
 
   display:flex;
   flex-direction:column;
+
   gap:14px;
+
+  min-width:0;
 }
 
 .message{
   background:white;
-  padding:14px;
+
+  padding:14px 16px;
+
   border-radius:18px;
-  max-width:70%;
+
+  width:fit-content;
+
+  max-width:min(70%,700px);
+
+  min-width:60px;
+
   word-wrap:break-word;
+
+  overflow-wrap:anywhere;
+
+  word-break:break-word;
+
+  white-space:pre-wrap;
+
+  overflow:hidden;
+
+  line-height:1.5;
+
+  box-shadow:
+    0 4px 10px rgba(0,0,0,0.08);
 }
 
 .system{
@@ -333,12 +405,21 @@ body{
   align-self:center;
 }
 
+/* MESSAGE BAR */
+
 .message-bar{
   padding:20px;
+
   display:flex;
+
   gap:12px;
 
   border-top:4px solid #d79b00;
+
+  position:sticky;
+  bottom:0;
+
+  background:#fff9dc;
 }
 
 .message-bar input{
@@ -350,6 +431,8 @@ body{
   padding:12px;
   border-radius:14px;
   margin-top:10px;
+
+  word-break:break-word;
 }
 
 /* MOBILE */
@@ -363,6 +446,8 @@ body{
   .sidebar,
   .users-sidebar{
     width:100%;
+    height:auto;
+    position:relative;
   }
 
   .title-bubble h1{
@@ -401,6 +486,10 @@ body{
 
   .form-box h2{
     font-size:34px;
+  }
+
+  .message{
+    max-width:90%;
   }
 
 }

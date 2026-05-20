@@ -1,6 +1,10 @@
 const express = require("express");
 const http = require("http");
+const session = require("express-session");
+const bcrypt = require("bcrypt");
 const { Server } = require("socket.io");
+
+const db = require("./database");
 
 const app = express();
 
@@ -8,72 +12,219 @@ const server = http.createServer(app);
 
 const io = new Server(server);
 
-/* PUBLIC FOLDER */
+/* MIDDLEWARE */
+
+app.use(express.json());
+
+app.use(express.urlencoded({
+  extended:true
+}));
 
 app.use(express.static("public"));
+
+app.use(session({
+
+  secret:"cheese-secret",
+
+  resave:false,
+
+  saveUninitialized:false
+
+}));
 
 /* ONLINE USERS */
 
 let onlineUsers = [];
 
-/* SOCKET CONNECTION */
+/* SIGNUP */
 
-io.on("connection", (socket) => {
+app.post("/signup", async (req,res)=>{
 
-  console.log("A user connected");
+  const {
+    username,
+    email,
+    password
+  } = req.body;
 
-/* USER JOINS */
+  if(
+    !username ||
+    !email ||
+    !password
+  ){
 
-  socket.on("join", (username) => {
+    return res.json({
+      success:false,
+      message:"Please fill all fields"
+    });
+
+  }
+
+  try{
+
+    const hashedPassword =
+      await bcrypt.hash(password,10);
+
+    db.run(
+
+      `
+      INSERT INTO users(
+        username,
+        email,
+        password
+      )
+      VALUES(?,?,?)
+      `,
+
+      [
+        username,
+        email,
+        hashedPassword
+      ],
+
+      function(err){
+
+        if(err){
+
+          return res.json({
+            success:false,
+            message:"Username or email already exists"
+          });
+
+        }
+
+        res.json({
+          success:true
+        });
+
+      }
+
+    );
+
+  }catch(err){
+
+    console.log(err);
+
+    res.json({
+      success:false,
+      message:"Server error"
+    });
+
+  }
+
+});
+
+/* LOGIN */
+
+app.post("/login",(req,res)=>{
+
+  const {
+    email,
+    password
+  } = req.body;
+
+  db.get(
+
+    `
+    SELECT * FROM users
+    WHERE email = ?
+    `,
+
+    [email],
+
+    async (err,user)=>{
+
+      if(err || !user){
+
+        return res.json({
+          success:false,
+          message:"User not found"
+        });
+
+      }
+
+      const validPassword =
+        await bcrypt.compare(
+          password,
+          user.password
+        );
+
+      if(!validPassword){
+
+        return res.json({
+          success:false,
+          message:"Wrong password"
+        });
+
+      }
+
+      req.session.user = {
+        id:user.id,
+        username:user.username
+      };
+
+      res.json({
+        success:true,
+        username:user.username
+      });
+
+    }
+
+  );
+
+});
+
+/* SOCKETS */
+
+io.on("connection",(socket)=>{
+
+  socket.on("join",(username)=>{
 
     socket.username = username;
 
     onlineUsers.push(username);
 
     io.emit(
-      "system message",
-      `${username} joined Cheese Lounge 🧀`
-    );
-
-    io.emit(
       "online users",
       onlineUsers
     );
 
-  });
-
-/* CHAT MESSAGE */
-
-  socket.on("chat message", (data) => {
-
     io.emit(
-      "chat message",
-      data
+      "system message",
+      `${username} joined Cheese Lounge 🧀`
     );
 
   });
 
-/* DISCONNECT */
+  socket.on(
+    "chat message",
+    (data)=>{
 
-  socket.on("disconnect", () => {
+      io.emit(
+        "chat message",
+        data
+      );
 
-    console.log("User disconnected");
+    }
+  );
+
+  socket.on("disconnect",()=>{
 
     if(socket.username){
 
       onlineUsers =
         onlineUsers.filter(
-          user => user !== socket.username
+          user =>
+            user !== socket.username
         );
-
-      io.emit(
-        "system message",
-        `${socket.username} left`
-      );
 
       io.emit(
         "online users",
         onlineUsers
+      );
+
+      io.emit(
+        "system message",
+        `${socket.username} left`
       );
 
     }
@@ -84,10 +235,13 @@ io.on("connection", (socket) => {
 
 /* START SERVER */
 
-server.listen(5000, "0.0.0.0", () => {
+const PORT =
+  process.env.PORT || 3000;
+
+server.listen(PORT,()=>{
 
   console.log(
-    "Server running on http://localhost:5000"
+    `Server running on port ${PORT}`
   );
 
 });
