@@ -24,18 +24,27 @@ db.serialize(() => {
     `);
 });
 
+/* =========================
+   ROOMS
+========================= */
+
 const rooms = {
     cheeseLounge: {
         id: "cheeseLounge",
         name: "Cheese Lounge",
         filtered: true
     },
+
     blueCheese: {
         id: "blueCheese",
         name: "Blue Cheese",
         filtered: false
     }
 };
+
+/* =========================
+   LIVE STATE
+========================= */
 
 const onlineUsers = {};
 const userMessageMemory = {};
@@ -46,6 +55,10 @@ function getOnlineUsers() {
         room: user.room
     }));
 }
+
+/* =========================
+   NORMALIZATION / BYPASS DEFENSE
+========================= */
 
 function cleanUsername(username) {
     return String(username || "")
@@ -61,13 +74,31 @@ function normalizeText(text) {
         .toLowerCase();
 }
 
+/*
+   Converts common bypass characters into letters.
+
+   Examples:
+   1 -> i
+   ! -> i
+   3 -> e
+   @ -> a
+   5 -> s
+   $ -> s
+   7 -> t
+   + -> t
+   9 -> g
+   0 -> o
+*/
 function leetNormalize(text) {
     return normalizeText(text)
         .replace(/0/g, "o")
         .replace(/1/g, "i")
         .replace(/!/g, "i")
         .replace(/\|/g, "i")
+        .replace(/ı/g, "i")
+        .replace(/l/g, "i")
         .replace(/3/g, "e")
+        .replace(/€/g, "e")
         .replace(/4/g, "a")
         .replace(/@/g, "a")
         .replace(/5/g, "s")
@@ -75,17 +106,46 @@ function leetNormalize(text) {
         .replace(/7/g, "t")
         .replace(/\+/g, "t")
         .replace(/8/g, "b")
-        .replace(/9/g, "g");
+        .replace(/9/g, "g")
+        .replace(/\(/g, "c")
+        .replace(/\{/g, "c")
+        .replace(/\[/g, "c")
+        .replace(/\)/g, "o");
 }
 
+/*
+   Super compact text:
+   - turns leetspeak into normal letters
+   - removes punctuation/spaces/symbols
+   - collapses repeated letters
+
+   Examples:
+   f.u.c.k -> fuck
+   fuuuuck -> fuck
+   n1gga -> niga
+   sh!t -> shit
+*/
 function compactText(text) {
     return leetNormalize(text)
         .replace(/[^a-z0-9]/g, "")
         .replace(/(.)\1+/g, "$1");
 }
 
-/* CHEESE LOUNGE BLOCKED WORDS */
+/*
+   Less aggressive compact:
+   Keeps repeated letters.
+*/
+function compactTextKeepRepeats(text) {
+    return leetNormalize(text)
+        .replace(/[^a-z0-9]/g, "");
+}
+
+/* =========================
+   FILTER LISTS
+========================= */
+
 const BLOCKED_MESSAGE_TERMS = [
+    // general swears
     "fuck",
     "fuk",
     "fck",
@@ -113,16 +173,61 @@ const BLOCKED_MESSAGE_TERMS = [
     "bollocks",
     "bugger",
     "motherfucker",
+
+    // sexual / unsafe
     "porn",
     "sex",
     "nude",
     "nudes",
     "nsfw",
+
+    // spam / scam
     "scam",
     "phishing",
     "hack",
     "hacker",
-    "spam"
+    "spam",
+
+    // slurs / identity attacks
+    "nigga",
+    "nigger",
+    "niga",
+    "niger",
+    "chink",
+    "spic",
+    "kike",
+    "fag",
+    "faggot",
+    "tranny",
+    "retard",
+    "coon",
+    "gook",
+    "wetback",
+    "beaner"
+];
+
+const HARD_BLOCKED_COMPACTS = [
+    "fuck",
+    "fuk",
+    "fck",
+    "shit",
+    "shite",
+    "bitch",
+    "btch",
+    "cunt",
+    "niga",
+    "niger",
+    "chink",
+    "spic",
+    "kike",
+    "fag",
+    "fagot",
+    "trany",
+    "retard",
+    "coon",
+    "gook",
+    "wetback",
+    "beaner"
 ];
 
 const BLOCKED_USERNAME_TERMS = [
@@ -154,14 +259,26 @@ const RESERVED_EXACT_USERNAMES = [
     "blue cheese"
 ];
 
+/* =========================
+   USERNAME FILTER
+========================= */
+
 function checkUsername(username) {
     const cleaned = cleanUsername(username);
     const normalized = normalizeText(cleaned);
     const compact = compactText(cleaned);
 
-    if (!cleaned) return "Enter a username.";
-    if (cleaned.length < 3) return "Username must be at least 3 characters.";
-    if (cleaned.length > 20) return "Username must be 20 characters or less.";
+    if (!cleaned) {
+        return "Enter a username.";
+    }
+
+    if (cleaned.length < 3) {
+        return "Username must be at least 3 characters.";
+    }
+
+    if (cleaned.length > 20) {
+        return "Username must be 20 characters or less.";
+    }
 
     if (/[\u200B-\u200D\uFEFF]/.test(username)) {
         return "Username cannot use invisible characters.";
@@ -184,9 +301,12 @@ function checkUsername(username) {
     }
 
     for (const term of BLOCKED_USERNAME_TERMS) {
+        const normalTerm = normalizeText(term);
+        const compactTerm = compactText(term);
+
         if (
-            normalized.includes(normalizeText(term)) ||
-            compact.includes(compactText(term))
+            normalized.includes(normalTerm) ||
+            compact.includes(compactTerm)
         ) {
             return "That username is not allowed.";
         }
@@ -194,6 +314,10 @@ function checkUsername(username) {
 
     return null;
 }
+
+/* =========================
+   MESSAGE FILTER
+========================= */
 
 function checkMessage(text, roomId, socketId) {
     const raw = String(text || "");
@@ -258,11 +382,17 @@ function checkMessage(text, roomId, socketId) {
     const room = rooms[roomId] || rooms.cheeseLounge;
 
     /*
-       Blue Cheese has no word/link filters.
-       It still has anti-crash safety:
-       - 100 char limit
+       BLUE CHEESE:
+       - no word filters
+       - no link filters
+       - no swear filters
+
+       Still keeps:
+       - 100 character limit
        - anti-spam
-       - invisible character block
+       - invisible character blocking
+
+       This prevents UI breaking.
     */
     if (room.filtered === false) {
         return {
@@ -271,8 +401,15 @@ function checkMessage(text, roomId, socketId) {
         };
     }
 
+    /*
+       CHEESE LOUNGE:
+       full filter mode.
+    */
+
     const normalized = normalizeText(message);
+    const leeted = leetNormalize(message);
     const compact = compactText(message);
+    const compactRepeats = compactTextKeepRepeats(message);
 
     const blockedPatterns = [
         /https?:\/\//i,
@@ -297,14 +434,48 @@ function checkMessage(text, roomId, socketId) {
         }
     }
 
+    /*
+       Main blocked word check.
+       Checks:
+       - normal lowercase text
+       - leetspeak normalized text
+       - compact punctuationless text
+       - compact text with repeated letters
+    */
     for (const term of BLOCKED_MESSAGE_TERMS) {
         const normalTerm = normalizeText(term);
+        const leetTerm = leetNormalize(term);
         const compactTerm = compactText(term);
+        const compactRepeatTerm = compactTextKeepRepeats(term);
 
         if (
             normalized.includes(normalTerm) ||
-            compact.includes(compactTerm)
+            leeted.includes(leetTerm) ||
+            compact.includes(compactTerm) ||
+            compactRepeats.includes(compactRepeatTerm)
         ) {
+            return {
+                ok: false,
+                message: "Cheese Lounge filter blocked that message."
+            };
+        }
+    }
+
+    /*
+       Extra hard compact checks.
+       Catches:
+       - n1gga
+       - n!gga
+       - n i g g a
+       - n.i.g.g.a
+       - sh!t
+       - f.u.c.k
+       - fuuuuuck
+    */
+    for (const bad of HARD_BLOCKED_COMPACTS) {
+        const compactBad = compactText(bad);
+
+        if (compact.includes(compactBad)) {
             return {
                 ok: false,
                 message: "Cheese Lounge filter blocked that message."
@@ -318,7 +489,9 @@ function checkMessage(text, roomId, socketId) {
     };
 }
 
-/* SIGNUP */
+/* =========================
+   SIGN UP
+========================= */
 
 app.post("/signup", async (req, res) => {
     let { username, password } = req.body;
@@ -390,7 +563,9 @@ app.post("/signup", async (req, res) => {
     );
 });
 
-/* LOGIN */
+/* =========================
+   LOGIN
+========================= */
 
 app.post("/login", (req, res) => {
     let { username, password } = req.body;
@@ -442,7 +617,9 @@ app.post("/login", (req, res) => {
     );
 });
 
-/* SOCKETS */
+/* =========================
+   SOCKETS
+========================= */
 
 io.on("connection", socket => {
     socket.on("user joined", data => {
@@ -570,6 +747,10 @@ io.on("connection", socket => {
         }
     });
 });
+
+/* =========================
+   START SERVER
+========================= */
 
 const PORT = process.env.PORT || 3000;
 
