@@ -2,93 +2,215 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
     <title>🧀 CheeseWithFriends 🧀</title>
 
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<div id="authScreen">
-
-    <h1>🧀 CheeseWithFriends 🧀</h1>
-
-    <div class="authBox">
-
-        <input
-            type="text"
-            id="username"
-            placeholder="Username"
-        >
-
-        <input
-            type="password"
-            id="password"
-            placeholder="Password"
-        >
-
-        <button onclick="login()">
-            Login
-        </button>
-
-        <button onclick="signUp()">
-            Create Account
-        </button>
-
-        <p id="authMessage"></p>
-
+    <div class="background-cheese">
+        <span>🧀</span>
+        <span>🫕</span>
+        <span>🐭</span>
+        <span>🧀</span>
+        <span>🎮</span>
     </div>
 
-    <div class="tabBox">
+    <section id="authScreen" class="auth-screen">
 
-        <input
-            type="text"
-            id="tabNameInput"
-            placeholder="Rename tab"
-        >
+        <div class="auth-card">
 
-        <button onclick="changeTabName()">
-            Rename Tab
-        </button>
+            <div class="logo-bubble">
+                <h1>🧀 CheeseWithFriends 🧀</h1>
+            </div>
 
-    </div>
+            <p class="tagline">
+                A cozy little internet lounge with just enough cheese-powered chaos.
+            </p>
 
-</div>
+            <div class="auth-box">
 
-<div id="app">
+                <input
+                    id="username"
+                    maxlength="20"
+                    placeholder="Username"
+                    autocomplete="username"
+                >
 
-    <div id="sidebar">
+                <input
+                    id="password"
+                    type="password"
+                    placeholder="Password"
+                    autocomplete="current-password"
+                >
 
-        <h2>Online</h2>
+                <div class="auth-buttons">
+                    <button onclick="login()">Login</button>
+                    <button onclick="signUp()">Create Account</button>
+                </div>
 
-        <div id="onlineUsers"></div>
+                <p id="authMessage"></p>
 
-    </div>
+            </div>
 
-    <div id="chatContainer">
+            <div class="tab-renamer">
 
-        <div id="messages"></div>
+                <input
+                    id="tabNameInput"
+                    maxlength="30"
+                    placeholder="Rename browser tab..."
+                >
 
-        <div id="inputArea">
+                <button onclick="changeTabName()">
+                    Rename Tab
+                </button>
 
-            <input
-                type="text"
-                id="messageInput"
-                placeholder="Type a message..."
-            >
+            </div>
 
-            <button onclick="sendMessage()">
-                Send
-            </button>
+            <p class="tiny-note">
+                Cheese Lounge is filtered. Blue Cheese is not. Be normal-ish.
+            </p>
 
         </div>
 
-    </div>
+    </section>
 
-</div>
+    <main id="app" class="app hidden">
 
-<script src="/socket.io/socket.io.js"></script>
-<script src="client.js"></script>
+        <aside class="rooms-sidebar">
+
+            <div class="sidebar-title">
+                <span>🧀</span>
+                <div>
+                    <strong>Groups</strong>
+                    <small>choose your cheese</small>
+                </div>
+            </div>
+
+            <button
+                class="room-button active"
+                id="room-cheeseLounge"
+                onclick="switchRoom('cheeseLounge')"
+            >
+                <span class="room-icon">🧀</span>
+                <span>
+                    <strong>Cheese Lounge</strong>
+                    <small>filtered main chat</small>
+                </span>
+            </button>
+
+            <button
+                class="room-button"
+                id="room-blueCheese"
+                onclick="switchRoom('blueCheese')"
+            >
+                <span class="room-icon blue">🧀</span>
+                <span>
+                    <strong>Blue Cheese</strong>
+                    <small>no filters</small>
+                </span>
+            </button>
+
+            <button
+                class="arcade-button"
+                onclick="openArcade()"
+            >
+                CHEESE ARCADE 🧀🎮
+            </button>
+
+            <div class="server-card">
+                <strong>Server Status</strong>
+                <span>🟢 extra melty</span>
+            </div>
+
+        </aside>
+
+        <section id="chatPage" class="chat-page">
+
+            <header class="chat-header">
+
+                <div>
+                    <h2 id="roomTitle">🧀 Cheese Lounge</h2>
+                    <p id="roomSubtitle">
+                        Filtered main room • 100 character messages
+                    </p>
+                </div>
+
+                <div class="chat-header-pill">
+                    <span id="onlineCount">0 online</span>
+                </div>
+
+            </header>
+
+            <div id="messages" class="messages">
+
+                <div class="empty-state">
+                    Nobody is talking yet. Suspiciously cheesy.
+                </div>
+
+            </div>
+
+            <div id="typingIndicator" class="typing-indicator"></div>
+
+            <div class="message-bar">
+
+                <div class="input-wrap">
+
+                    <input
+                        id="messageInput"
+                        maxlength="100"
+                        placeholder="Say something cheesy..."
+                    >
+
+                    <span id="charCounter">
+                        0/100
+                    </span>
+
+                </div>
+
+                <button onclick="sendMessage()">
+                    Send
+                </button>
+
+            </div>
+
+        </section>
+
+        <section id="arcadePage" class="arcade-page hidden">
+
+            <div class="coming-soon-card">
+                <h2>CHEESE ARCADE 🧀🎮</h2>
+                <p>Coming soon.</p>
+                <button onclick="closeArcade()">Back to Chat</button>
+            </div>
+
+        </section>
+
+        <aside class="users-sidebar">
+
+            <div class="sidebar-title">
+                <span>🟢</span>
+                <div>
+                    <strong>Online Users</strong>
+                    <small>currently lurking</small>
+                </div>
+            </div>
+
+            <div id="onlineUsers" class="online-users"></div>
+
+        </aside>
+
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
 
 </body>
 </html>
