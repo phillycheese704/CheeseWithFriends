@@ -25,6 +25,20 @@ db.serialize(() => {
 });
 
 /* =========================
+   INVITE CODE
+========================= */
+
+/*
+   Case sensitive.
+   This means:
+   PhillyCheese2500; works
+   phillycheese2500; does NOT work
+   PHILLYCHEESE2500; does NOT work
+*/
+
+const INVITE_CODE = "PhillyCheese2500;";
+
+/* =========================
    ROOMS
 ========================= */
 
@@ -57,7 +71,7 @@ function getOnlineUsers() {
 }
 
 /* =========================
-   NORMALIZATION / BYPASS DEFENSE
+   NORMALIZATION / FILTERING
 ========================= */
 
 function cleanUsername(username) {
@@ -74,21 +88,6 @@ function normalizeText(text) {
         .toLowerCase();
 }
 
-/*
-   Converts common bypass characters into letters.
-
-   Examples:
-   1 -> i
-   ! -> i
-   3 -> e
-   @ -> a
-   5 -> s
-   $ -> s
-   7 -> t
-   + -> t
-   9 -> g
-   0 -> o
-*/
 function leetNormalize(text) {
     return normalizeText(text)
         .replace(/0/g, "o")
@@ -113,28 +112,12 @@ function leetNormalize(text) {
         .replace(/\)/g, "o");
 }
 
-/*
-   Super compact text:
-   - turns leetspeak into normal letters
-   - removes punctuation/spaces/symbols
-   - collapses repeated letters
-
-   Examples:
-   f.u.c.k -> fuck
-   fuuuuck -> fuck
-   n1gga -> niga
-   sh!t -> shit
-*/
 function compactText(text) {
     return leetNormalize(text)
         .replace(/[^a-z0-9]/g, "")
         .replace(/(.)\1+/g, "$1");
 }
 
-/*
-   Less aggressive compact:
-   Keeps repeated letters.
-*/
 function compactTextKeepRepeats(text) {
     return leetNormalize(text)
         .replace(/[^a-z0-9]/g, "");
@@ -145,7 +128,6 @@ function compactTextKeepRepeats(text) {
 ========================= */
 
 const BLOCKED_MESSAGE_TERMS = [
-    // general swears
     "fuck",
     "fuk",
     "fck",
@@ -174,21 +156,18 @@ const BLOCKED_MESSAGE_TERMS = [
     "bugger",
     "motherfucker",
 
-    // sexual / unsafe
     "porn",
     "sex",
     "nude",
     "nudes",
     "nsfw",
 
-    // spam / scam
     "scam",
     "phishing",
     "hack",
     "hacker",
     "spam",
 
-    // slurs / identity attacks
     "nigga",
     "nigger",
     "niga",
@@ -381,30 +360,12 @@ function checkMessage(text, roomId, socketId) {
 
     const room = rooms[roomId] || rooms.cheeseLounge;
 
-    /*
-       BLUE CHEESE:
-       - no word filters
-       - no link filters
-       - no swear filters
-
-       Still keeps:
-       - 100 character limit
-       - anti-spam
-       - invisible character blocking
-
-       This prevents UI breaking.
-    */
     if (room.filtered === false) {
         return {
             ok: true,
             text: message
         };
     }
-
-    /*
-       CHEESE LOUNGE:
-       full filter mode.
-    */
 
     const normalized = normalizeText(message);
     const leeted = leetNormalize(message);
@@ -434,14 +395,6 @@ function checkMessage(text, roomId, socketId) {
         }
     }
 
-    /*
-       Main blocked word check.
-       Checks:
-       - normal lowercase text
-       - leetspeak normalized text
-       - compact punctuationless text
-       - compact text with repeated letters
-    */
     for (const term of BLOCKED_MESSAGE_TERMS) {
         const normalTerm = normalizeText(term);
         const leetTerm = leetNormalize(term);
@@ -461,17 +414,6 @@ function checkMessage(text, roomId, socketId) {
         }
     }
 
-    /*
-       Extra hard compact checks.
-       Catches:
-       - n1gga
-       - n!gga
-       - n i g g a
-       - n.i.g.g.a
-       - sh!t
-       - f.u.c.k
-       - fuuuuuck
-    */
     for (const bad of HARD_BLOCKED_COMPACTS) {
         const compactBad = compactText(bad);
 
@@ -494,15 +436,23 @@ function checkMessage(text, roomId, socketId) {
 ========================= */
 
 app.post("/signup", async (req, res) => {
-    let { username, password } = req.body;
+    let { username, password, inviteCode } = req.body;
 
     username = cleanUsername(username);
     password = String(password || "");
+    inviteCode = String(inviteCode || "");
 
-    if (!username || !password) {
+    if (!username || !password || !inviteCode) {
         return res.json({
             success: false,
-            message: "Enter a username and password."
+            message: "Enter a username, password, and invite code."
+        });
+    }
+
+    if (inviteCode !== INVITE_CODE) {
+        return res.json({
+            success: false,
+            message: "Invalid invite code."
         });
     }
 

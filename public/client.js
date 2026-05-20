@@ -9,6 +9,7 @@ const app = document.getElementById("app");
 
 const usernameInput = document.getElementById("username");
 const passwordInput = document.getElementById("password");
+const inviteCodeInput = document.getElementById("inviteCode");
 const authMessage = document.getElementById("authMessage");
 
 const messages = document.getElementById("messages");
@@ -33,9 +34,10 @@ function setAuthMessage(text, type = "error") {
 async function signUp() {
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
+    const inviteCode = inviteCodeInput.value;
 
-    if (!username || !password) {
-        setAuthMessage("Enter a username and password.");
+    if (!username || !password || !inviteCode) {
+        setAuthMessage("Enter username, password, and invite code.");
         return;
     }
 
@@ -46,7 +48,8 @@ async function signUp() {
         },
         body: JSON.stringify({
             username,
-            password
+            password,
+            inviteCode
         })
     });
 
