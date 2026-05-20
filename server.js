@@ -28,18 +28,17 @@ const rooms = {
     cheeseLounge: {
         id: "cheeseLounge",
         name: "Cheese Lounge",
-        icon: "🧀",
         filtered: true
     },
     blueCheese: {
         id: "blueCheese",
         name: "Blue Cheese",
-        icon: "🧀",
         filtered: false
     }
 };
 
 const onlineUsers = {};
+const userMessageMemory = {};
 
 function getOnlineUsers() {
     return Object.values(onlineUsers).map(user => ({
@@ -54,35 +53,151 @@ function cleanUsername(username) {
         .replace(/\s+/g, " ");
 }
 
-function isBadUsername(username) {
-    const lower = username.toLowerCase();
+function normalizeText(text) {
+    return String(text || "")
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[\u200B-\u200D\uFEFF]/g, "")
+        .toLowerCase();
+}
 
-    const blocked = [
-        "admin",
-        "owner",
-        "moderator",
-        "mod",
-        "system",
-        "server",
-        "null",
-        "undefined"
-    ];
+function leetNormalize(text) {
+    return normalizeText(text)
+        .replace(/0/g, "o")
+        .replace(/1/g, "i")
+        .replace(/!/g, "i")
+        .replace(/\|/g, "i")
+        .replace(/3/g, "e")
+        .replace(/4/g, "a")
+        .replace(/@/g, "a")
+        .replace(/5/g, "s")
+        .replace(/\$/g, "s")
+        .replace(/7/g, "t")
+        .replace(/\+/g, "t")
+        .replace(/8/g, "b")
+        .replace(/9/g, "g");
+}
 
-    if (username.length < 3) return "Username must be at least 3 characters.";
-    if (username.length > 20) return "Username must be 20 characters or less.";
-    if (!/^[a-zA-Z0-9_ -]+$/.test(username)) return "Username can only use letters, numbers, spaces, hyphens, and underscores.";
+function compactText(text) {
+    return leetNormalize(text)
+        .replace(/[^a-z0-9]/g, "")
+        .replace(/(.)\1+/g, "$1");
+}
 
-    for (const word of blocked) {
-        if (lower.includes(word)) {
-            return "That username is reserved.";
+/* CHEESE LOUNGE BLOCKED WORDS */
+const BLOCKED_MESSAGE_TERMS = [
+    "fuck",
+    "fuk",
+    "fck",
+    "shit",
+    "shite",
+    "bitch",
+    "btch",
+    "asshole",
+    "arsehole",
+    "bastard",
+    "dick",
+    "dickhead",
+    "cock",
+    "piss",
+    "crap",
+    "damn",
+    "slut",
+    "whore",
+    "hoe",
+    "cunt",
+    "twat",
+    "wanker",
+    "prick",
+    "tosser",
+    "bollocks",
+    "bugger",
+    "motherfucker",
+    "porn",
+    "sex",
+    "nude",
+    "nudes",
+    "nsfw",
+    "scam",
+    "phishing",
+    "hack",
+    "hacker",
+    "spam"
+];
+
+const BLOCKED_USERNAME_TERMS = [
+    "admin",
+    "owner",
+    "moderator",
+    "mod",
+    "system",
+    "server",
+    "staff",
+    "support",
+    "official",
+    "null",
+    "undefined"
+];
+
+const RESERVED_EXACT_USERNAMES = [
+    "admin",
+    "owner",
+    "moderator",
+    "mod",
+    "system",
+    "server",
+    "staff",
+    "support",
+    "cheesewithfriends",
+    "cheese with friends",
+    "cheese lounge",
+    "blue cheese"
+];
+
+function checkUsername(username) {
+    const cleaned = cleanUsername(username);
+    const normalized = normalizeText(cleaned);
+    const compact = compactText(cleaned);
+
+    if (!cleaned) return "Enter a username.";
+    if (cleaned.length < 3) return "Username must be at least 3 characters.";
+    if (cleaned.length > 20) return "Username must be 20 characters or less.";
+
+    if (/[\u200B-\u200D\uFEFF]/.test(username)) {
+        return "Username cannot use invisible characters.";
+    }
+
+    if (!/^[a-zA-Z0-9_ -]+$/.test(cleaned)) {
+        return "Username can only use letters, numbers, spaces, hyphens, and underscores.";
+    }
+
+    if (/(.)\1{4,}/i.test(cleaned)) {
+        return "Username has too many repeated characters.";
+    }
+
+    if (/^\d+$/.test(cleaned)) {
+        return "Username cannot be only numbers.";
+    }
+
+    if (RESERVED_EXACT_USERNAMES.includes(normalized)) {
+        return "That username is reserved.";
+    }
+
+    for (const term of BLOCKED_USERNAME_TERMS) {
+        if (
+            normalized.includes(normalizeText(term)) ||
+            compact.includes(compactText(term))
+        ) {
+            return "That username is not allowed.";
         }
     }
 
     return null;
 }
 
-function filterMessage(text, roomId) {
-    let message = String(text || "").trim();
+function checkMessage(text, roomId, socketId) {
+    const raw = String(text || "");
+    const message = raw.trim();
 
     if (!message) {
         return {
@@ -98,19 +213,79 @@ function filterMessage(text, roomId) {
         };
     }
 
-    if (roomId === "blueCheese") {
+    if (/[\u200B-\u200D\uFEFF]/.test(message)) {
+        return {
+            ok: false,
+            message: "Message contains invisible characters."
+        };
+    }
+
+    const now = Date.now();
+
+    if (!userMessageMemory[socketId]) {
+        userMessageMemory[socketId] = {
+            lastMessage: "",
+            lastTime: 0,
+            repeatCount: 0
+        };
+    }
+
+    const memory = userMessageMemory[socketId];
+
+    if (now - memory.lastTime < 650) {
+        return {
+            ok: false,
+            message: "Slow down a little."
+        };
+    }
+
+    if (message === memory.lastMessage) {
+        memory.repeatCount++;
+
+        if (memory.repeatCount >= 2) {
+            return {
+                ok: false,
+                message: "Stop repeating the same message."
+            };
+        }
+    } else {
+        memory.repeatCount = 0;
+    }
+
+    memory.lastMessage = message;
+    memory.lastTime = now;
+
+    const room = rooms[roomId] || rooms.cheeseLounge;
+
+    /*
+       Blue Cheese has no word/link filters.
+       It still has anti-crash safety:
+       - 100 char limit
+       - anti-spam
+       - invisible character block
+    */
+    if (room.filtered === false) {
         return {
             ok: true,
             text: message
         };
     }
 
-    const lower = message.toLowerCase();
+    const normalized = normalizeText(message);
+    const compact = compactText(message);
 
     const blockedPatterns = [
         /https?:\/\//i,
+        /www\./i,
+        /\.com/i,
+        /\.net/i,
+        /\.org/i,
+        /\.gg/i,
         /discord\.gg/i,
-        /(?:.)\1{12,}/i
+        /discord\.com\/invite/i,
+        /@everyone/i,
+        /@here/i,
+        /(?:.)\1{14,}/i
     ];
 
     for (const pattern of blockedPatterns) {
@@ -122,14 +297,14 @@ function filterMessage(text, roomId) {
         }
     }
 
-    const blockedWords = [
-        "hack",
-        "scam",
-        "spam"
-    ];
+    for (const term of BLOCKED_MESSAGE_TERMS) {
+        const normalTerm = normalizeText(term);
+        const compactTerm = compactText(term);
 
-    for (const word of blockedWords) {
-        if (lower.includes(word)) {
+        if (
+            normalized.includes(normalTerm) ||
+            compact.includes(compactTerm)
+        ) {
             return {
                 ok: false,
                 message: "Cheese Lounge filter blocked that message."
@@ -142,6 +317,8 @@ function filterMessage(text, roomId) {
         text: message
     };
 }
+
+/* SIGNUP */
 
 app.post("/signup", async (req, res) => {
     let { username, password } = req.body;
@@ -156,7 +333,7 @@ app.post("/signup", async (req, res) => {
         });
     }
 
-    const usernameIssue = isBadUsername(username);
+    const usernameIssue = checkUsername(username);
 
     if (usernameIssue) {
         return res.json({
@@ -213,6 +390,8 @@ app.post("/signup", async (req, res) => {
     );
 });
 
+/* LOGIN */
+
 app.post("/login", (req, res) => {
     let { username, password } = req.body;
 
@@ -239,7 +418,10 @@ app.post("/login", (req, res) => {
 
             let validPassword = false;
 
-            if (user.password.startsWith("$2a$") || user.password.startsWith("$2b$")) {
+            if (
+                user.password.startsWith("$2a$") ||
+                user.password.startsWith("$2b$")
+            ) {
                 validPassword = await bcrypt.compare(password, user.password);
             } else {
                 validPassword = password === user.password;
@@ -259,6 +441,8 @@ app.post("/login", (req, res) => {
         }
     );
 });
+
+/* SOCKETS */
 
 io.on("connection", socket => {
     socket.on("user joined", data => {
@@ -290,7 +474,6 @@ io.on("connection", socket => {
         const oldRoom = socket.room || "cheeseLounge";
 
         socket.leave(oldRoom);
-
         socket.room = roomId;
 
         if (onlineUsers[socket.id]) {
@@ -316,9 +499,16 @@ io.on("connection", socket => {
     socket.on("chat message", data => {
         if (!socket.username) return;
 
-        const room = rooms[data.room] ? data.room : socket.room || "cheeseLounge";
+        const room =
+            rooms[data.room]
+                ? data.room
+                : socket.room || "cheeseLounge";
 
-        const result = filterMessage(data.text, room);
+        const result = checkMessage(
+            data.text,
+            room,
+            socket.id
+        );
 
         if (!result.ok) {
             socket.emit("message rejected", result.message);
@@ -339,7 +529,10 @@ io.on("connection", socket => {
     socket.on("typing", data => {
         if (!socket.username) return;
 
-        const room = rooms[data.room] ? data.room : socket.room || "cheeseLounge";
+        const room =
+            rooms[data.room]
+                ? data.room
+                : socket.room || "cheeseLounge";
 
         socket.to(room).emit("typing", {
             username: socket.username,
@@ -350,7 +543,10 @@ io.on("connection", socket => {
     socket.on("stop typing", data => {
         if (!socket.username) return;
 
-        const room = rooms[data.room] ? data.room : socket.room || "cheeseLounge";
+        const room =
+            rooms[data.room]
+                ? data.room
+                : socket.room || "cheeseLounge";
 
         socket.to(room).emit("stop typing", {
             username: socket.username,
@@ -362,6 +558,7 @@ io.on("connection", socket => {
         const user = onlineUsers[socket.id];
 
         delete onlineUsers[socket.id];
+        delete userMessageMemory[socket.id];
 
         io.emit("online users", getOnlineUsers());
 
