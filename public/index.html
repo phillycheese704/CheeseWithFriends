@@ -1,88 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CheeseWithFriends</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧀 CheeseWithFriends 🧀</title>
 
-  <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- LOGIN SCREEN -->
-  <div id="authScreen" class="auth-screen">
+<div id="authScreen">
 
-    <h1>🧀 CheeseWithFriends</h1>
+    <h1>🧀 CheeseWithFriends 🧀</h1>
 
-    <input
-      type="text"
-      id="username"
-      placeholder="Username"
-    >
-
-    <input
-      type="password"
-      id="password"
-      placeholder="Password"
-    >
-
-    <div class="auth-buttons">
-
-      <button onclick="login()">
-        Login
-      </button>
-
-      <button onclick="signUp()">
-        Create Account
-      </button>
-
-    </div>
-
-    <p id="authMessage"></p>
-
-  </div>
-
-  <!-- CHAT -->
-  <div id="app" style="display:none;">
-
-    <!-- SIDEBAR -->
-    <div class="sidebar">
-
-      <h2>🟢 Online</h2>
-
-      <div id="onlineUsers"></div>
-
-    </div>
-
-    <!-- MAIN -->
-    <div class="main-chat">
-
-      <div class="topbar">
-        <h2>🧀 CheeseWithFriends</h2>
-      </div>
-
-      <div id="messages" class="messages"></div>
-
-      <div class="input-area">
+    <div class="authBox">
 
         <input
-          type="text"
-          id="messageInput"
-          placeholder="Say something cheesy..."
+            type="text"
+            id="username"
+            placeholder="Username"
         >
 
-        <button onclick="sendMessage()">
-          Send
+        <input
+            type="password"
+            id="password"
+            placeholder="Password"
+        >
+
+        <button onclick="login()">
+            Login
         </button>
 
-      </div>
+        <button onclick="signUp()">
+            Create Account
+        </button>
+
+        <p id="authMessage"></p>
 
     </div>
 
-  </div>
+    <div class="tabBox">
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="client.js"></script>
+        <input
+            type="text"
+            id="tabNameInput"
+            placeholder="Rename tab"
+        >
+
+        <button onclick="changeTabName()">
+            Rename Tab
+        </button>
+
+    </div>
+
+</div>
+
+<div id="app">
+
+    <div id="sidebar">
+
+        <h2>Online</h2>
+
+        <div id="onlineUsers"></div>
+
+    </div>
+
+    <div id="chatContainer">
+
+        <div id="messages"></div>
+
+        <div id="inputArea">
+
+            <input
+                type="text"
+                id="messageInput"
+                placeholder="Type a message..."
+            >
+
+            <button onclick="sendMessage()">
+                Send
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="client.js"></script>
 
 </body>
 </html>
