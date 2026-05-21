@@ -24,24 +24,6 @@ db.serialize(() => {
     `);
 });
 
-/* =========================
-   INVITE CODE
-========================= */
-
-/*
-   Case sensitive.
-   This means:
-   PhillyCheese2500; works
-   phillycheese2500; does NOT work
-   PHILLYCHEESE2500; does NOT work
-*/
-
-const INVITE_CODE = "PhillyCheese2500;";
-
-/* =========================
-   ROOMS
-========================= */
-
 const rooms = {
     cheeseLounge: {
         id: "cheeseLounge",
@@ -56,10 +38,6 @@ const rooms = {
     }
 };
 
-/* =========================
-   LIVE STATE
-========================= */
-
 const onlineUsers = {};
 const userMessageMemory = {};
 
@@ -70,14 +48,8 @@ function getOnlineUsers() {
     }));
 }
 
-/* =========================
-   NORMALIZATION / FILTERING
-========================= */
-
 function cleanUsername(username) {
-    return String(username || "")
-        .trim()
-        .replace(/\s+/g, " ");
+    return String(username || "").trim().replace(/\s+/g, " ");
 }
 
 function normalizeText(text) {
@@ -119,173 +91,56 @@ function compactText(text) {
 }
 
 function compactTextKeepRepeats(text) {
-    return leetNormalize(text)
-        .replace(/[^a-z0-9]/g, "");
+    return leetNormalize(text).replace(/[^a-z0-9]/g, "");
 }
 
-/* =========================
-   FILTER LISTS
-========================= */
-
 const BLOCKED_MESSAGE_TERMS = [
-    "fuck",
-    "fuk",
-    "fck",
-    "shit",
-    "shite",
-    "bitch",
-    "btch",
-    "asshole",
-    "arsehole",
-    "bastard",
-    "dick",
-    "dickhead",
-    "cock",
-    "piss",
-    "crap",
-    "damn",
-    "slut",
-    "whore",
-    "hoe",
-    "cunt",
-    "twat",
-    "wanker",
-    "prick",
-    "tosser",
-    "bollocks",
-    "bugger",
-    "motherfucker",
-
-    "porn",
-    "sex",
-    "nude",
-    "nudes",
-    "nsfw",
-
-    "scam",
-    "phishing",
-    "hack",
-    "hacker",
-    "spam",
-
-    "nigga",
-    "nigger",
-    "niga",
-    "niger",
-    "chink",
-    "spic",
-    "kike",
-    "fag",
-    "faggot",
-    "tranny",
-    "retard",
-    "coon",
-    "gook",
-    "wetback",
-    "beaner"
+    "fuck", "fuk", "fck", "shit", "shite", "bitch", "btch",
+    "asshole", "arsehole", "bastard", "dick", "dickhead",
+    "cock", "piss", "crap", "damn", "slut", "whore", "hoe",
+    "cunt", "twat", "wanker", "prick", "tosser", "bollocks",
+    "bugger", "motherfucker", "porn", "sex", "nude", "nudes",
+    "nsfw", "scam", "phishing", "hack", "hacker", "spam",
+    "nigga", "nigger", "niga", "niger", "chink", "spic",
+    "kike", "fag", "faggot", "tranny", "retard", "coon",
+    "gook", "wetback", "beaner"
 ];
 
 const HARD_BLOCKED_COMPACTS = [
-    "fuck",
-    "fuk",
-    "fck",
-    "shit",
-    "shite",
-    "bitch",
-    "btch",
-    "cunt",
-    "niga",
-    "niger",
-    "chink",
-    "spic",
-    "kike",
-    "fag",
-    "fagot",
-    "trany",
-    "retard",
-    "coon",
-    "gook",
-    "wetback",
-    "beaner"
+    "fuck", "fuk", "fck", "shit", "shite", "bitch", "btch",
+    "cunt", "niga", "niger", "chink", "spic", "kike", "fag",
+    "fagot", "trany", "retard", "coon", "gook", "wetback", "beaner"
 ];
 
 const BLOCKED_USERNAME_TERMS = [
-    "admin",
-    "owner",
-    "moderator",
-    "mod",
-    "system",
-    "server",
-    "staff",
-    "support",
-    "official",
-    "null",
-    "undefined"
+    "admin", "owner", "moderator", "mod", "system", "server",
+    "staff", "support", "official", "null", "undefined"
 ];
 
 const RESERVED_EXACT_USERNAMES = [
-    "admin",
-    "owner",
-    "moderator",
-    "mod",
-    "system",
-    "server",
-    "staff",
-    "support",
-    "cheesewithfriends",
-    "cheese with friends",
-    "cheese lounge",
-    "blue cheese"
+    "admin", "owner", "moderator", "mod", "system", "server",
+    "staff", "support", "cheesewithfriends", "cheese with friends",
+    "cheese lounge", "blue cheese"
 ];
-
-/* =========================
-   USERNAME FILTER
-========================= */
 
 function checkUsername(username) {
     const cleaned = cleanUsername(username);
     const normalized = normalizeText(cleaned);
     const compact = compactText(cleaned);
 
-    if (!cleaned) {
-        return "Enter a username.";
-    }
-
-    if (cleaned.length < 3) {
-        return "Username must be at least 3 characters.";
-    }
-
-    if (cleaned.length > 20) {
-        return "Username must be 20 characters or less.";
-    }
-
-    if (/[\u200B-\u200D\uFEFF]/.test(username)) {
-        return "Username cannot use invisible characters.";
-    }
-
-    if (!/^[a-zA-Z0-9_ -]+$/.test(cleaned)) {
-        return "Username can only use letters, numbers, spaces, hyphens, and underscores.";
-    }
-
-    if (/(.)\1{4,}/i.test(cleaned)) {
-        return "Username has too many repeated characters.";
-    }
-
-    if (/^\d+$/.test(cleaned)) {
-        return "Username cannot be only numbers.";
-    }
-
-    if (RESERVED_EXACT_USERNAMES.includes(normalized)) {
-        return "That username is reserved.";
-    }
+    if (!cleaned) return "Enter a username.";
+    if (cleaned.length < 3) return "Username must be at least 3 characters.";
+    if (cleaned.length > 20) return "Username must be 20 characters or less.";
+    if (/[\u200B-\u200D\uFEFF]/.test(username)) return "Username cannot use invisible characters.";
+    if (!/^[a-zA-Z0-9_ -]+$/.test(cleaned)) return "Username can only use letters, numbers, spaces, hyphens, and underscores.";
+    if (/(.)\1{4,}/i.test(cleaned)) return "Username has too many repeated characters.";
+    if (/^\d+$/.test(cleaned)) return "Username cannot be only numbers.";
+    if (RESERVED_EXACT_USERNAMES.includes(normalized)) return "That username is reserved.";
 
     for (const term of BLOCKED_USERNAME_TERMS) {
-        const normalTerm = normalizeText(term);
-        const compactTerm = compactText(term);
-
         if (
-            normalized.includes(normalTerm) ||
-            compact.includes(compactTerm)
+            normalized.includes(normalizeText(term)) ||
+            compact.includes(compactText(term))
         ) {
             return "That username is not allowed.";
         }
@@ -294,34 +149,12 @@ function checkUsername(username) {
     return null;
 }
 
-/* =========================
-   MESSAGE FILTER
-========================= */
-
 function checkMessage(text, roomId, socketId) {
-    const raw = String(text || "");
-    const message = raw.trim();
+    const message = String(text || "").trim();
 
-    if (!message) {
-        return {
-            ok: false,
-            message: "Message is empty."
-        };
-    }
-
-    if (message.length > 100) {
-        return {
-            ok: false,
-            message: "Messages can only be 100 characters."
-        };
-    }
-
-    if (/[\u200B-\u200D\uFEFF]/.test(message)) {
-        return {
-            ok: false,
-            message: "Message contains invisible characters."
-        };
-    }
+    if (!message) return { ok: false, message: "Message is empty." };
+    if (message.length > 100) return { ok: false, message: "Messages can only be 100 characters." };
+    if (/[\u200B-\u200D\uFEFF]/.test(message)) return { ok: false, message: "Message contains invisible characters." };
 
     const now = Date.now();
 
@@ -336,20 +169,14 @@ function checkMessage(text, roomId, socketId) {
     const memory = userMessageMemory[socketId];
 
     if (now - memory.lastTime < 650) {
-        return {
-            ok: false,
-            message: "Slow down a little."
-        };
+        return { ok: false, message: "Slow down a little." };
     }
 
     if (message === memory.lastMessage) {
         memory.repeatCount++;
 
         if (memory.repeatCount >= 2) {
-            return {
-                ok: false,
-                message: "Stop repeating the same message."
-            };
+            return { ok: false, message: "Stop repeating the same message." };
         }
     } else {
         memory.repeatCount = 0;
@@ -361,10 +188,7 @@ function checkMessage(text, roomId, socketId) {
     const room = rooms[roomId] || rooms.cheeseLounge;
 
     if (room.filtered === false) {
-        return {
-            ok: true,
-            text: message
-        };
+        return { ok: true, text: message };
     }
 
     const normalized = normalizeText(message);
@@ -388,71 +212,40 @@ function checkMessage(text, roomId, socketId) {
 
     for (const pattern of blockedPatterns) {
         if (pattern.test(message)) {
-            return {
-                ok: false,
-                message: "Cheese Lounge filter blocked that message."
-            };
+            return { ok: false, message: "Cheese Lounge filter blocked that message." };
         }
     }
 
     for (const term of BLOCKED_MESSAGE_TERMS) {
-        const normalTerm = normalizeText(term);
-        const leetTerm = leetNormalize(term);
-        const compactTerm = compactText(term);
-        const compactRepeatTerm = compactTextKeepRepeats(term);
-
         if (
-            normalized.includes(normalTerm) ||
-            leeted.includes(leetTerm) ||
-            compact.includes(compactTerm) ||
-            compactRepeats.includes(compactRepeatTerm)
+            normalized.includes(normalizeText(term)) ||
+            leeted.includes(leetNormalize(term)) ||
+            compact.includes(compactText(term)) ||
+            compactRepeats.includes(compactTextKeepRepeats(term))
         ) {
-            return {
-                ok: false,
-                message: "Cheese Lounge filter blocked that message."
-            };
+            return { ok: false, message: "Cheese Lounge filter blocked that message." };
         }
     }
 
     for (const bad of HARD_BLOCKED_COMPACTS) {
-        const compactBad = compactText(bad);
-
-        if (compact.includes(compactBad)) {
-            return {
-                ok: false,
-                message: "Cheese Lounge filter blocked that message."
-            };
+        if (compact.includes(compactText(bad))) {
+            return { ok: false, message: "Cheese Lounge filter blocked that message." };
         }
     }
 
-    return {
-        ok: true,
-        text: message
-    };
+    return { ok: true, text: message };
 }
 
-/* =========================
-   SIGN UP
-========================= */
-
 app.post("/signup", async (req, res) => {
-    let { username, password, inviteCode } = req.body;
+    let { username, password } = req.body;
 
     username = cleanUsername(username);
     password = String(password || "");
-    inviteCode = String(inviteCode || "");
 
-    if (!username || !password || !inviteCode) {
+    if (!username || !password) {
         return res.json({
             success: false,
-            message: "Enter a username, password, and invite code."
-        });
-    }
-
-    if (inviteCode !== INVITE_CODE) {
-        return res.json({
-            success: false,
-            message: "Invalid invite code."
+            message: "Enter a username and password."
         });
     }
 
@@ -513,10 +306,6 @@ app.post("/signup", async (req, res) => {
     );
 });
 
-/* =========================
-   LOGIN
-========================= */
-
 app.post("/login", (req, res) => {
     let { username, password } = req.body;
 
@@ -566,10 +355,6 @@ app.post("/login", (req, res) => {
         }
     );
 });
-
-/* =========================
-   SOCKETS
-========================= */
 
 io.on("connection", socket => {
     socket.on("user joined", data => {
@@ -631,11 +416,7 @@ io.on("connection", socket => {
                 ? data.room
                 : socket.room || "cheeseLounge";
 
-        const result = checkMessage(
-            data.text,
-            room,
-            socket.id
-        );
+        const result = checkMessage(data.text, room, socket.id);
 
         if (!result.ok) {
             socket.emit("message rejected", result.message);
@@ -697,10 +478,6 @@ io.on("connection", socket => {
         }
     });
 });
-
-/* =========================
-   START SERVER
-========================= */
 
 const PORT = process.env.PORT || 3000;
 
