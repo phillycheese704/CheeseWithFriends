@@ -108,7 +108,7 @@ const roomHistory = {
             id: "update-001",
             room: "updateLog",
             username: "CheeseWithFriends",
-            text: "🧀 Version 0.8.1 — Added message stability fixes, compact admin panel, iPad dragging, logout, and Cheese Lounge schedule popup.",
+            text: "🧀 Version 0.8.2 — Fixed admin panel buttons, improved chaos meter drain, and patched visual drift.",
             time: "Update",
             replyTo: null,
             reactions: {}
@@ -226,14 +226,19 @@ function addChaos(amount) {
 
     io.emit("chaos level", chaosLevel);
     broadcastAdminState();
+}
 
-    setTimeout(() => {
-        chaosLevel = Math.max(0, chaosLevel - Math.ceil(amount / 2));
-
+/*
+   Chaos slowly cools down when nothing is happening.
+   This fixes the meter staying high forever.
+*/
+setInterval(() => {
+    if (chaosLevel > 0) {
+        chaosLevel = Math.max(0, chaosLevel - 1);
         io.emit("chaos level", chaosLevel);
         broadcastAdminState();
-    }, 15000);
-}
+    }
+}, 3000);
 
 function publicMessage(message) {
     const reactions = {};

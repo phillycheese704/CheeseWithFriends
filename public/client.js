@@ -647,13 +647,17 @@ setInterval(() => {
     }
 }, 1000);
 
-/* iPad / mouse draggable admin panel */
+/* iPad + PC draggable admin panel */
 
 let draggingAdmin = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 
 adminHeader.addEventListener("pointerdown", event => {
+    if (event.target.closest("button")) {
+        return;
+    }
+
     draggingAdmin = true;
 
     const rect = adminPanel.getBoundingClientRect();
@@ -661,11 +665,17 @@ adminHeader.addEventListener("pointerdown", event => {
     dragOffsetX = event.clientX - rect.left;
     dragOffsetY = event.clientY - rect.top;
 
-    adminHeader.setPointerCapture(event.pointerId);
+    try {
+        adminHeader.setPointerCapture(event.pointerId);
+    } catch (err) {
+        console.warn(err);
+    }
 });
 
 adminHeader.addEventListener("pointermove", event => {
     if (!draggingAdmin) return;
+
+    event.preventDefault();
 
     adminPanel.style.left = `${event.clientX - dragOffsetX}px`;
     adminPanel.style.top = `${event.clientY - dragOffsetY}px`;
@@ -687,86 +697,371 @@ adminHeader.addEventListener("pointercancel", () => {
 });
 
 /* =========================
-   EFFECTS
+   BIG CHAOS EFFECTS
 ========================= */
 
-function clearEffects() {
-    effectLayer.innerHTML = "";
+function hardResetVisuals() {
     document.body.classList.remove(
         "melt-ui",
         "butter-flood",
         "cheese-storm",
-        "singularity-active"
+        "singularity-active",
+        "singularity-background",
+        "singularity-spit",
+        "mouse-invasion-active",
+        "butter-bomb-active",
+        "cheese-rain-active"
     );
+
+    app.style.transform = "";
+    app.style.filter = "";
+    messages.style.transform = "";
+    messages.style.filter = "";
+
+    document
+        .querySelectorAll(".singularity-hidden-original")
+        .forEach(element => {
+            element.classList.remove("singularity-hidden-original");
+        });
 }
 
-function cheeseRain(count = 45) {
+function clearEffects() {
+    effectLayer.innerHTML = "";
+    hardResetVisuals();
+}
+
+function makeImpactText(text) {
+    const impact = document.createElement("div");
+    impact.className = "chaos-impact-text";
+    impact.textContent = text;
+    effectLayer.appendChild(impact);
+
+    setTimeout(() => impact.remove(), 1800);
+}
+
+function cheeseRain(count = 70) {
+    document.body.classList.add("cheese-rain-active");
+    makeImpactText("CHEESE RAIN");
+
     for (let i = 0; i < count; i++) {
         const cheese = document.createElement("div");
 
         cheese.className = "falling-cheese";
-        cheese.textContent = "🧀";
+        cheese.textContent = Math.random() > 0.15 ? "🧀" : "🫕";
         cheese.style.left = `${Math.random() * 100}vw`;
-        cheese.style.animationDuration = `${2 + Math.random() * 3}s`;
-        cheese.style.fontSize = `${24 + Math.random() * 26}px`;
+        cheese.style.animationDuration = `${1.9 + Math.random() * 3.2}s`;
+        cheese.style.fontSize = `${22 + Math.random() * 34}px`;
+        cheese.style.animationDelay = `${Math.random() * 1.1}s`;
+        cheese.style.setProperty("--sway", `${-80 + Math.random() * 160}px`);
 
         effectLayer.appendChild(cheese);
 
-        setTimeout(() => cheese.remove(), 6000);
+        setTimeout(() => cheese.remove(), 6500);
     }
+
+    for (let i = 0; i < 18; i++) {
+        const splat = document.createElement("div");
+        splat.className = "cheese-splat";
+        splat.style.left = `${Math.random() * 100}vw`;
+        splat.style.bottom = `${Math.random() * 28}vh`;
+        splat.style.animationDelay = `${1.1 + Math.random() * 2.8}s`;
+        splat.style.transform = `rotate(${Math.random() * 360}deg) scale(${0.5 + Math.random() * 0.8})`;
+
+        effectLayer.appendChild(splat);
+
+        setTimeout(() => splat.remove(), 5800);
+    }
+
+    setTimeout(() => {
+        document.body.classList.remove("cheese-rain-active");
+    }, 5500);
+}
+
+function cheeseStorm() {
+    clearEffects();
+
+    document.body.classList.add("cheese-storm");
+    makeImpactText("CHEESE STORM");
+
+    const clouds = document.createElement("div");
+    clouds.className = "storm-clouds";
+    effectLayer.appendChild(clouds);
+
+    for (let i = 0; i < 5; i++) {
+        const lightning = document.createElement("div");
+        lightning.className = "cheese-lightning";
+        lightning.style.left = `${10 + Math.random() * 80}vw`;
+        lightning.style.animationDelay = `${Math.random() * 3.8}s`;
+        effectLayer.appendChild(lightning);
+    }
+
+    cheeseRain(160);
+
+    for (let i = 0; i < 28; i++) {
+        const chunk = document.createElement("div");
+        chunk.className = "storm-cheese-chunk";
+        chunk.textContent = "🧀";
+        chunk.style.left = `${Math.random() * 100}vw`;
+        chunk.style.top = `${Math.random() * 100}vh`;
+        chunk.style.animationDelay = `${Math.random() * 2}s`;
+
+        effectLayer.appendChild(chunk);
+
+        setTimeout(() => chunk.remove(), 6200);
+    }
+
+    setTimeout(() => {
+        hardResetVisuals();
+        effectLayer.innerHTML = "";
+    }, 6500);
 }
 
 function mouseRun() {
-    for (let i = 0; i < 18; i++) {
+    document.body.classList.add("mouse-invasion-active");
+    makeImpactText("MOUSE RUN");
+
+    for (let i = 0; i < 34; i++) {
         const mouse = document.createElement("div");
 
-        mouse.className = "running-mouse";
-        mouse.textContent = "🐭";
-        mouse.style.top = `${20 + Math.random() * 70}vh`;
-        mouse.style.animationDelay = `${Math.random() * 1.5}s`;
+        mouse.className = Math.random() > 0.5 ? "running-mouse" : "running-mouse reverse";
+        mouse.textContent = Math.random() > 0.15 ? "🐭" : "🐁";
+        mouse.style.top = `${12 + Math.random() * 78}vh`;
+        mouse.style.animationDelay = `${Math.random() * 2.2}s`;
+        mouse.style.fontSize = `${22 + Math.random() * 24}px`;
+        mouse.style.setProperty("--mouse-speed", `${2.4 + Math.random() * 2.2}s`);
 
         effectLayer.appendChild(mouse);
 
-        setTimeout(() => mouse.remove(), 5000);
+        setTimeout(() => mouse.remove(), 6200);
     }
+
+    for (let i = 0; i < 16; i++) {
+        const cheeseCrumb = document.createElement("div");
+        cheeseCrumb.className = "cheese-crumb";
+        cheeseCrumb.textContent = "·";
+        cheeseCrumb.style.left = `${Math.random() * 100}vw`;
+        cheeseCrumb.style.top = `${Math.random() * 100}vh`;
+        effectLayer.appendChild(cheeseCrumb);
+
+        setTimeout(() => cheeseCrumb.remove(), 5200);
+    }
+
+    setTimeout(() => {
+        document.body.classList.remove("mouse-invasion-active");
+    }, 5600);
 }
 
 function butterBomb() {
+    document.body.classList.add("butter-bomb-active");
+    makeImpactText("BUTTER BOMB");
+
+    const x = 12 + Math.random() * 74;
+
+    const shadow = document.createElement("div");
+    shadow.className = "butter-shadow";
+    shadow.style.left = `${x}vw`;
+
     const bomb = document.createElement("div");
     bomb.className = "butter-bomb";
     bomb.textContent = "🧈";
+    bomb.style.left = `${x}vw`;
 
-    const splat = document.createElement("div");
-    splat.className = "butter-splat";
-
+    effectLayer.appendChild(shadow);
     effectLayer.appendChild(bomb);
 
     setTimeout(() => {
         bomb.remove();
+
+        const splat = document.createElement("div");
+        splat.className = "butter-splat";
+        splat.style.left = `${x - 6}vw`;
+
         effectLayer.appendChild(splat);
 
-        setTimeout(() => splat.remove(), 5000);
-    }, 900);
+        for (let i = 0; i < 18; i++) {
+            const drop = document.createElement("div");
+            drop.className = "butter-drop";
+            drop.style.left = `${x}vw`;
+            drop.style.top = "56vh";
+            drop.style.setProperty("--drop-x", `${-160 + Math.random() * 320}px`);
+            drop.style.setProperty("--drop-y", `${-100 + Math.random() * 190}px`);
+            effectLayer.appendChild(drop);
+
+            setTimeout(() => drop.remove(), 2200);
+        }
+
+        setTimeout(() => splat.remove(), 5600);
+        setTimeout(() => shadow.remove(), 1200);
+    }, 930);
+
+    setTimeout(() => {
+        document.body.classList.remove("butter-bomb-active");
+    }, 5600);
+}
+
+function butterFlood() {
+    clearEffects();
+
+    document.body.classList.add("butter-flood");
+    makeImpactText("BUTTER FLOOD");
+
+    const wave = document.createElement("div");
+    wave.className = "butter-wave";
+    effectLayer.appendChild(wave);
+
+    for (let i = 0; i < 28; i++) {
+        const bubble = document.createElement("div");
+        bubble.className = "butter-bubble";
+        bubble.textContent = Math.random() > 0.5 ? "🧈" : "○";
+        bubble.style.left = `${Math.random() * 100}vw`;
+        bubble.style.animationDelay = `${Math.random() * 3}s`;
+        bubble.style.fontSize = `${18 + Math.random() * 28}px`;
+
+        effectLayer.appendChild(bubble);
+
+        setTimeout(() => bubble.remove(), 6500);
+    }
+
+    setTimeout(() => {
+        hardResetVisuals();
+        effectLayer.innerHTML = "";
+    }, 6500);
+}
+
+function meltUI() {
+    clearEffects();
+
+    document.body.classList.add("melt-ui");
+    makeImpactText("MELT UI");
+
+    for (let i = 0; i < 42; i++) {
+        const drip = document.createElement("div");
+        drip.className = "melt-drip";
+        drip.style.left = `${Math.random() * 100}vw`;
+        drip.style.top = `${Math.random() * 50}vh`;
+        drip.style.height = `${42 + Math.random() * 120}px`;
+        drip.style.animationDelay = `${Math.random() * 2.2}s`;
+
+        effectLayer.appendChild(drip);
+
+        setTimeout(() => drip.remove(), 6500);
+    }
+
+    const heat = document.createElement("div");
+    heat.className = "heat-warp";
+    effectLayer.appendChild(heat);
+
+    setTimeout(() => {
+        hardResetVisuals();
+        effectLayer.innerHTML = "";
+    }, 6500);
 }
 
 function singularicheese() {
+    clearEffects();
+
+    const targets = [
+        ...document.querySelectorAll(
+            ".message, .system-message, .room-button, .online-user, .chat-header h2, .chat-header p, .sidebar-title, .server-card, .schedule-popup, .message-bar, .chat-header-pill"
+        )
+    ].filter(element => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+    });
+
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+
     const hole = document.createElement("div");
+    hole.className = "singularicheese-super";
+    hole.innerHTML = `
+        <div class="singularity-core">🧀</div>
+        <div class="singularity-ring ring-one"></div>
+        <div class="singularity-ring ring-two"></div>
+        <div class="singularity-ring ring-three"></div>
+        <div class="singularity-label">SINGULARICHEESE</div>
+    `;
 
-    hole.className = "singularicheese";
-    hole.textContent = "🧀";
+    const flash = document.createElement("div");
+    flash.className = "singularity-flash";
 
+    const vortex = document.createElement("div");
+    vortex.className = "singularity-vortex";
+
+    effectLayer.appendChild(vortex);
+    effectLayer.appendChild(flash);
     effectLayer.appendChild(hole);
-    document.body.classList.add("singularity-active");
+
+    document.body.classList.add("singularity-active", "singularity-background");
+
+    targets.forEach((element, index) => {
+        const rect = element.getBoundingClientRect();
+
+        const clone = element.cloneNode(true);
+        clone.classList.add("singularity-clone");
+
+        clone.style.left = `${rect.left}px`;
+        clone.style.top = `${rect.top}px`;
+        clone.style.width = `${rect.width}px`;
+        clone.style.height = `${rect.height}px`;
+
+        const startX = rect.left + rect.width / 2;
+        const startY = rect.top + rect.height / 2;
+
+        const pullX = centerX - startX;
+        const pullY = centerY - startY;
+
+        const blastX = (Math.random() - 0.5) * window.innerWidth * 1.4;
+        const blastY = (Math.random() - 0.5) * window.innerHeight * 1.1;
+
+        clone.style.setProperty("--pull-x", `${pullX}px`);
+        clone.style.setProperty("--pull-y", `${pullY}px`);
+        clone.style.setProperty("--blast-x", `${blastX}px`);
+        clone.style.setProperty("--blast-y", `${blastY}px`);
+        clone.style.setProperty("--spin", `${360 + Math.random() * 900}deg`);
+        clone.style.animationDelay = `${index * 0.014}s`;
+
+        effectLayer.appendChild(clone);
+
+        element.classList.add("singularity-hidden-original");
+    });
+
+    for (let i = 0; i < 90; i++) {
+        const particle = document.createElement("div");
+        particle.className = "singularity-particle";
+        particle.textContent = Math.random() > 0.42 ? "🧀" : "✨";
+
+        const angle = Math.random() * Math.PI * 2;
+        const distance = 180 + Math.random() * 620;
+
+        particle.style.left = `${centerX + Math.cos(angle) * distance}px`;
+        particle.style.top = `${centerY + Math.sin(angle) * distance}px`;
+        particle.style.setProperty("--particle-x", `${Math.cos(angle) * -distance}px`);
+        particle.style.setProperty("--particle-y", `${Math.sin(angle) * -distance}px`);
+        particle.style.animationDelay = `${Math.random() * 0.85}s`;
+
+        effectLayer.appendChild(particle);
+    }
 
     setTimeout(() => {
-        document.body.classList.remove("singularity-active");
-        hole.remove();
-    }, 3500);
+        document.body.classList.add("singularity-spit");
+    }, 2200);
+
+    setTimeout(() => {
+        targets.forEach(element => {
+            element.classList.remove("singularity-hidden-original");
+        });
+
+        hardResetVisuals();
+        effectLayer.innerHTML = "";
+        document.body.classList.remove("singularity-background", "singularity-spit");
+    }, 4700);
 }
 
 function runChaosEvent(type) {
     if (type === "clearVisuals") {
         clearEffects();
+        return;
     }
 
     if (type === "cheeseRain") {
@@ -774,12 +1069,7 @@ function runChaosEvent(type) {
     }
 
     if (type === "cheeseStorm") {
-        document.body.classList.add("cheese-storm");
-        cheeseRain(120);
-
-        setTimeout(() => {
-            document.body.classList.remove("cheese-storm");
-        }, 5500);
+        cheeseStorm();
     }
 
     if (type === "mouseRun") {
@@ -795,19 +1085,11 @@ function runChaosEvent(type) {
     }
 
     if (type === "meltUI") {
-        document.body.classList.add("melt-ui");
-
-        setTimeout(() => {
-            document.body.classList.remove("melt-ui");
-        }, 5500);
+        meltUI();
     }
 
     if (type === "butterFlood") {
-        document.body.classList.add("butter-flood");
-
-        setTimeout(() => {
-            document.body.classList.remove("butter-flood");
-        }, 5500);
+        butterFlood();
     }
 }
 
