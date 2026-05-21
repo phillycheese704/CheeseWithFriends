@@ -245,9 +245,7 @@ input:disabled {
 .auth-box button,
 .tab-renamer button,
 .message-bar button,
-.snek-topbar button,
-.snek-controls button,
-.sidebar-arcade-card button {
+.coming-soon-card button {
     padding: 13px 16px;
     border-radius: 16px;
     background: linear-gradient(135deg, var(--accent), var(--accent2));
@@ -259,9 +257,9 @@ input:disabled {
 .auth-box button:hover,
 .tab-renamer button:hover,
 .message-bar button:hover,
-.snek-topbar button:hover,
-.snek-controls button:hover,
+.coming-soon-card button:hover,
 .room-button:hover,
+.arcade-button:hover,
 .admin-open-btn:hover,
 .logout-button:hover,
 .sidebar-arcade-card button:hover {
@@ -341,6 +339,7 @@ input:disabled {
 }
 
 .room-button,
+.arcade-button,
 .admin-open-btn,
 .logout-button,
 .server-card {
@@ -386,6 +385,14 @@ input:disabled {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.arcade-button {
+    justify-content: center;
+    font-weight: 900;
+    text-align: center;
+    background: #4b3400;
+    color: #fff3b0;
 }
 
 .admin-open-btn {
@@ -819,6 +826,26 @@ input:disabled {
     padding: 20px;
 }
 
+.coming-soon-card {
+    width: min(92vw, 560px);
+    padding: 34px;
+    border-radius: 30px;
+    background: rgba(255, 255, 255, 0.68);
+    border: 3px solid #ffd84d;
+    text-align: center;
+    box-shadow: 0 18px 44px rgba(75, 52, 0, 0.16);
+}
+
+.coming-soon-card h2 {
+    margin-top: 0;
+    font-size: clamp(30px, 6vw, 54px);
+}
+
+.coming-soon-card p {
+    font-size: 22px;
+    font-weight: 800;
+}
+
 .sidebar-arcade-card {
     margin-top: 18px;
     padding: 16px;
@@ -847,77 +874,7 @@ input:disabled {
     background: linear-gradient(135deg, var(--accent), var(--accent2));
     color: #3a2600;
     font-weight: 900;
-}
-
-.snek-game-card {
-    width: min(94vw, 560px);
-    padding: 22px;
-    border-radius: 30px;
-    background: rgba(255, 255, 255, 0.72);
-    border: 3px solid #ffd84d;
-    box-shadow: 0 18px 44px rgba(75, 52, 0, 0.16);
-    color: #4b3400;
-    text-align: center;
-}
-
-.snek-topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 14px;
-    margin-bottom: 14px;
-}
-
-.snek-topbar h2 {
-    margin: 0;
-    font-size: clamp(30px, 6vw, 48px);
-}
-
-.snek-topbar p {
-    margin: 6px 0 0;
-    font-weight: 800;
-    opacity: 0.72;
-}
-
-.snek-score-row {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 12px;
-}
-
-.snek-score-row span {
-    padding: 8px 12px;
-    border-radius: 999px;
-    background: rgba(255, 216, 77, 0.7);
-    font-weight: 900;
-}
-
-#snekCanvas {
-    width: min(320px, 86vw);
-    height: min(320px, 86vw);
-    border-radius: 18px;
-    border: 4px solid #d89b00;
-    background: #fff6c7;
-    box-shadow:
-        inset 0 0 0 4px rgba(255, 255, 255, 0.35),
-        0 12px 26px rgba(75, 52, 0, 0.16);
-    touch-action: none;
-}
-
-.snek-controls {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 14px;
-}
-
-.snek-help {
-    margin: 14px 0 0;
-    font-weight: 800;
-    opacity: 0.72;
+    transition: transform 0.15s, box-shadow 0.15s;
 }
 
 /* ADMIN PANEL */
@@ -1067,6 +1024,7 @@ input:disabled {
 
 /* CHAOS BASE */
 
+/* This protects real UI from drifting */
 .app,
 .chat-page,
 .messages,
@@ -1084,6 +1042,7 @@ input:disabled {
     animation-name: none !important;
 }
 
+/* Do NOT set animation-name on #effectLayer * */
 #effectLayer {
     position: fixed;
     inset: 0;
@@ -2262,18 +2221,5 @@ input:disabled {
     .toast-notice {
         bottom: 18px;
         font-size: 13px;
-    }
-
-    .snek-topbar {
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .snek-game-card {
-        padding: 16px;
-    }
-
-    .snek-topbar button {
-        width: 100%;
     }
 }

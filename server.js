@@ -17,7 +17,7 @@ const USERS_FILE = path.join(DATA_DIR, "users.json");
 
 const ADMIN_LOGIN_USERNAME = "PhillyCheese#;";
 const ADMIN_DISPLAY_NAME = "PhillyCheese";
-const ADMIN_PASSWORD = "AdminAccount##;";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "AdminAccount##;";
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
@@ -192,21 +192,6 @@ let scheduledEvents = [];
    MESSAGE FILTERS
 ========================= */
 
-/*
-   Cheese Lounge:
-   - strict main filter
-   - blocks swearing + racist / homophobic / transphobic / extreme language
-
-   Butter:
-   - mild filter
-   - swearing allowed
-   - blocks racism / homophobic / transphobic language
-   - trusted links allowed
-
-   Blue Cheese:
-   - zero word filter
-*/
-
 function normaliseForFilter(text) {
     return String(text || "")
         .toLowerCase()
@@ -223,14 +208,7 @@ function normaliseForFilter(text) {
         .replace(/[^a-z0-9]/g, "");
 }
 
-/*
-   These are checked after normalisation, so bypasses like:
-   n1gga, n!gga, n9gga, spaces, dots, underscores, etc.
-   become normal plain text before checking.
-*/
-
 const strictBlockedRoots = [
-    // racism / slurs
     "nigga",
     "nigger",
     "nigg",
@@ -240,19 +218,13 @@ const strictBlockedRoots = [
     "spic",
     "paki",
     "kike",
-
-    // homophobic / transphobic
     "faggot",
     "fag",
     "tranny",
     "shemale",
-
-    // ableist / harmful
     "retard",
     "retarded",
     "kys",
-
-    // swearing blocked in Cheese Lounge only
     "fuck",
     "fucking",
     "shit",
@@ -265,7 +237,6 @@ const strictBlockedRoots = [
 ];
 
 const mildBlockedRoots = [
-    // racism / slurs
     "nigga",
     "nigger",
     "nigg",
@@ -275,8 +246,6 @@ const mildBlockedRoots = [
     "spic",
     "paki",
     "kike",
-
-    // homophobic / transphobic
     "faggot",
     "fag",
     "tranny",
@@ -763,14 +732,16 @@ function handleAdminTextCommand(socket, session, command) {
     }
 
     if (commandName === "offline") {
-        adminAppearsOffline = !adminAppearsOffline;
+        adminAppearsOffline = true;
         emitOnlineUsers();
-        socket.emit(
-            "admin reply",
-            adminAppearsOffline
-                ? "You now appear offline."
-                : "You now appear online."
-        );
+        socket.emit("admin reply", "You now appear offline.");
+        return;
+    }
+
+    if (commandName === "online") {
+        adminAppearsOffline = false;
+        emitOnlineUsers();
+        socket.emit("admin reply", "You now appear online.");
         return;
     }
 
