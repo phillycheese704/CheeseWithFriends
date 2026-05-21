@@ -152,13 +152,6 @@
             </button>
 
             <button
-                class="arcade-button"
-                onclick="openArcade()"
-            >
-                CHEESE ARCADE 🧀🎮
-            </button>
-
-            <button
                 id="adminOpenBtn"
                 class="admin-open-btn hidden"
                 onclick="openAdminPanel()"
@@ -243,10 +236,38 @@
 
         <section id="arcadePage" class="arcade-page hidden">
 
-            <div class="coming-soon-card">
-                <h2>CHEESE ARCADE 🧀🎮</h2>
-                <p>Coming soon.</p>
-                <button onclick="closeArcade()">Back to Chat</button>
+            <div class="snek-game-card">
+                <div class="snek-topbar">
+                    <div>
+                        <h2>🐭 Snek 🧀</h2>
+                        <p>Eat cheese, grow the mouse trail, and avoid crashing!</p>
+                    </div>
+
+                    <button onclick="closeArcade()">Back to Chat</button>
+                </div>
+
+                <div class="snek-score-row">
+                    <span id="snekScore">Score: 0</span>
+                    <span id="snekBest">Best: 0</span>
+                    <span id="snekStatus">Press Start</span>
+                </div>
+
+                <canvas
+                    id="snekCanvas"
+                    width="320"
+                    height="320"
+                    aria-label="Snek cheese snake game"
+                ></canvas>
+
+                <div class="snek-controls">
+                    <button onclick="startSnekGame()">Start</button>
+                    <button onclick="pauseSnekGame()">Pause</button>
+                    <button onclick="resetSnekGame()">Reset</button>
+                </div>
+
+                <p class="snek-help">
+                    💻 WASD to move • 📱 Swipe on the game board to move
+                </p>
             </div>
 
         </section>
@@ -262,6 +283,15 @@
             </div>
 
             <div id="onlineUsers" class="online-users"></div>
+
+            <div class="sidebar-arcade-card">
+                <h3>🧀 Cheese Arcade 🎮</h3>
+                <p>First game: <strong>Snek</strong> 🐭🧀</p>
+
+                <button onclick="openArcade()">
+                    Play Snek
+                </button>
+            </div>
 
         </aside>
 
