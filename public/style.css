@@ -487,6 +487,7 @@ input:disabled {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    transform: none !important;
 }
 
 .empty-state {
@@ -513,7 +514,13 @@ input:disabled {
     white-space: pre-wrap;
     overflow: hidden;
     font-size: 13px;
-    transform: none;
+    transform: none !important;
+    translate: none !important;
+}
+
+.message * {
+    transform: none !important;
+    translate: none !important;
 }
 
 .message-meta {
@@ -621,6 +628,8 @@ input:disabled {
     font-weight: 800;
     text-align: center;
     overflow-wrap: anywhere;
+    transform: none !important;
+    translate: none !important;
 }
 
 .warning-message {
@@ -989,20 +998,6 @@ input:disabled {
 
 /* CHEESE RAIN */
 
-.cheese-rain-active .chat-page {
-    animation: softCheeseGlow 1.6s ease-in-out infinite alternate;
-}
-
-@keyframes softCheeseGlow {
-    from {
-        filter: brightness(1);
-    }
-
-    to {
-        filter: brightness(1.06) saturate(1.08);
-    }
-}
-
 .falling-cheese {
     position: absolute;
     top: -90px;
@@ -1054,10 +1049,6 @@ input:disabled {
 
 /* CHEESE STORM */
 
-.cheese-storm .app {
-    animation: stormShake 0.16s linear infinite;
-}
-
 .storm-clouds {
     position: fixed;
     inset: 0;
@@ -1088,24 +1079,6 @@ input:disabled {
     font-size: 32px;
     animation: stormChunk 2.8s ease-in-out infinite;
     filter: drop-shadow(0 0 10px rgba(255, 225, 70, 0.8));
-}
-
-@keyframes stormShake {
-    0%, 100% {
-        transform: translate(0,0);
-    }
-
-    25% {
-        transform: translate(2px,-2px);
-    }
-
-    50% {
-        transform: translate(-2px,1px);
-    }
-
-    75% {
-        transform: translate(1px,2px);
-    }
 }
 
 @keyframes stormClouds {
@@ -1147,10 +1120,6 @@ input:disabled {
 }
 
 /* MOUSE RUN */
-
-.mouse-invasion-active .message {
-    animation: mouseNudge 0.8s ease-in-out infinite alternate;
-}
 
 .running-mouse {
     position: absolute;
@@ -1204,16 +1173,6 @@ input:disabled {
     }
 }
 
-@keyframes mouseNudge {
-    from {
-        transform: translateX(0);
-    }
-
-    to {
-        transform: translateX(2px);
-    }
-}
-
 @keyframes crumbFade {
     0%, 70% {
         opacity: 0.8;
@@ -1226,8 +1185,12 @@ input:disabled {
 
 /* BUTTER BOMB */
 
-.butter-bomb-active .app {
-    animation: butterImpactShake 0.32s ease-in-out 3;
+.butter-screen-pulse {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    background: rgba(255, 221, 91, 0.22);
+    animation: butterPulse 1.2s ease-out forwards;
 }
 
 .butter-bomb {
@@ -1275,6 +1238,20 @@ input:disabled {
     animation: butterDropSplash 2.2s ease-out forwards;
 }
 
+@keyframes butterPulse {
+    0% {
+        opacity: 0;
+    }
+
+    30% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
 @keyframes butterDrop {
     0% {
         transform: translateY(0) rotate(-30deg) scale(0.7);
@@ -1289,16 +1266,6 @@ input:disabled {
     to {
         transform: translateX(-45px) scale(1.25);
         opacity: 0.45;
-    }
-}
-
-@keyframes butterImpactShake {
-    0%, 100% {
-        transform: translate(0,0);
-    }
-
-    50% {
-        transform: translate(0,4px);
     }
 }
 
@@ -1333,12 +1300,6 @@ input:disabled {
 
 /* BUTTER FLOOD */
 
-.butter-flood .message,
-.butter-flood .room-button,
-.butter-flood .online-user {
-    animation: butterSlide 1.1s ease-in-out infinite alternate;
-}
-
 .butter-wave {
     position: fixed;
     left: -10vw;
@@ -1360,16 +1321,6 @@ input:disabled {
     z-index: 20010;
     animation: butterBubbleRise 5.8s ease-out forwards;
     filter: drop-shadow(0 0 8px rgba(255, 220, 80, 0.7));
-}
-
-@keyframes butterSlide {
-    from {
-        transform: translateX(-5px) rotate(-0.3deg);
-    }
-
-    to {
-        transform: translateX(7px) rotate(0.3deg);
-    }
 }
 
 @keyframes butterWave {
@@ -1408,14 +1359,6 @@ input:disabled {
 
 /* MELT UI */
 
-.melt-ui .message,
-.melt-ui .room-button,
-.melt-ui .online-user,
-.melt-ui .chat-header,
-.melt-ui .message-bar {
-    animation: safeMelt 6.5s ease-in-out;
-}
-
 .melt-drip {
     position: fixed;
     width: 18px;
@@ -1437,22 +1380,6 @@ input:disabled {
             rgba(255, 255, 255, 0.05) 12px 24px
         );
     animation: heatWarp 6.5s ease-in-out forwards;
-}
-
-@keyframes safeMelt {
-    0%, 100% {
-        transform: none;
-        filter: none;
-    }
-
-    42% {
-        transform: skewY(1.8deg) scaleY(1.018);
-        filter: saturate(1.15);
-    }
-
-    70% {
-        transform: skewY(-0.8deg) scaleY(0.99);
-    }
 }
 
 @keyframes dripFall {
@@ -1840,6 +1767,46 @@ input:disabled {
     100% {
         transform: translateX(0);
     }
+}
+
+/* EMERGENCY REAL TEXT LOCK */
+
+.app,
+.chat-page,
+.messages,
+.message,
+.message *,
+.system-message,
+.system-message *,
+.message-bar,
+.chat-header,
+.rooms-sidebar,
+.users-sidebar,
+.room-button,
+.online-user {
+    animation-name: none !important;
+}
+
+.message,
+.message *,
+.system-message,
+.system-message * {
+    transform: none !important;
+    translate: none !important;
+    position: relative;
+    top: auto !important;
+    bottom: auto !important;
+}
+
+.messages {
+    transform: none !important;
+    translate: none !important;
+}
+
+/* Let overlay animations still work */
+#effectLayer,
+#effectLayer * {
+    animation-name: initial;
 }
 
 /* MOBILE */

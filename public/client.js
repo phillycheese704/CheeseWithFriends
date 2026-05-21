@@ -697,7 +697,10 @@ adminHeader.addEventListener("pointercancel", () => {
 });
 
 /* =========================
-   BIG CHAOS EFFECTS
+   CHAOS EFFECTS
+   IMPORTANT:
+   These effects only animate overlay elements inside #effectLayer.
+   They do NOT animate .message, .app, .chat-page, or real text.
 ========================= */
 
 function hardResetVisuals() {
@@ -715,8 +718,24 @@ function hardResetVisuals() {
 
     app.style.transform = "";
     app.style.filter = "";
+    app.style.animation = "";
+
     messages.style.transform = "";
     messages.style.filter = "";
+    messages.style.animation = "";
+
+    document
+        .querySelectorAll(
+            ".message, .message *, .system-message, .system-message *, .chat-page, .message-bar, .chat-header, .room-button, .online-user"
+        )
+        .forEach(element => {
+            element.style.transform = "";
+            element.style.translate = "";
+            element.style.top = "";
+            element.style.bottom = "";
+            element.style.animation = "";
+            element.style.filter = "";
+        });
 
     document
         .querySelectorAll(".singularity-hidden-original")
@@ -740,7 +759,7 @@ function makeImpactText(text) {
 }
 
 function cheeseRain(count = 70) {
-    document.body.classList.add("cheese-rain-active");
+    clearEffects();
     makeImpactText("CHEESE RAIN");
 
     for (let i = 0; i < count; i++) {
@@ -773,14 +792,12 @@ function cheeseRain(count = 70) {
     }
 
     setTimeout(() => {
-        document.body.classList.remove("cheese-rain-active");
-    }, 5500);
+        hardResetVisuals();
+    }, 6500);
 }
 
 function cheeseStorm() {
     clearEffects();
-
-    document.body.classList.add("cheese-storm");
     makeImpactText("CHEESE STORM");
 
     const clouds = document.createElement("div");
@@ -795,7 +812,21 @@ function cheeseStorm() {
         effectLayer.appendChild(lightning);
     }
 
-    cheeseRain(160);
+    for (let i = 0; i < 160; i++) {
+        const cheese = document.createElement("div");
+
+        cheese.className = "falling-cheese storm-fall";
+        cheese.textContent = "🧀";
+        cheese.style.left = `${Math.random() * 100}vw`;
+        cheese.style.animationDuration = `${1.4 + Math.random() * 2.4}s`;
+        cheese.style.fontSize = `${22 + Math.random() * 36}px`;
+        cheese.style.animationDelay = `${Math.random() * 1.2}s`;
+        cheese.style.setProperty("--sway", `${-140 + Math.random() * 280}px`);
+
+        effectLayer.appendChild(cheese);
+
+        setTimeout(() => cheese.remove(), 6500);
+    }
 
     for (let i = 0; i < 28; i++) {
         const chunk = document.createElement("div");
@@ -817,7 +848,7 @@ function cheeseStorm() {
 }
 
 function mouseRun() {
-    document.body.classList.add("mouse-invasion-active");
+    clearEffects();
     makeImpactText("MOUSE RUN");
 
     for (let i = 0; i < 34; i++) {
@@ -847,15 +878,19 @@ function mouseRun() {
     }
 
     setTimeout(() => {
-        document.body.classList.remove("mouse-invasion-active");
-    }, 5600);
+        hardResetVisuals();
+    }, 6200);
 }
 
 function butterBomb() {
-    document.body.classList.add("butter-bomb-active");
+    clearEffects();
     makeImpactText("BUTTER BOMB");
 
     const x = 12 + Math.random() * 74;
+
+    const screenPulse = document.createElement("div");
+    screenPulse.className = "butter-screen-pulse";
+    effectLayer.appendChild(screenPulse);
 
     const shadow = document.createElement("div");
     shadow.className = "butter-shadow";
@@ -895,14 +930,13 @@ function butterBomb() {
     }, 930);
 
     setTimeout(() => {
-        document.body.classList.remove("butter-bomb-active");
+        hardResetVisuals();
+        effectLayer.innerHTML = "";
     }, 5600);
 }
 
 function butterFlood() {
     clearEffects();
-
-    document.body.classList.add("butter-flood");
     makeImpactText("BUTTER FLOOD");
 
     const wave = document.createElement("div");
@@ -930,8 +964,6 @@ function butterFlood() {
 
 function meltUI() {
     clearEffects();
-
-    document.body.classList.add("melt-ui");
     makeImpactText("MELT UI");
 
     for (let i = 0; i < 42; i++) {
@@ -992,7 +1024,7 @@ function singularicheese() {
     effectLayer.appendChild(flash);
     effectLayer.appendChild(hole);
 
-    document.body.classList.add("singularity-active", "singularity-background");
+    document.body.classList.add("singularity-background");
 
     targets.forEach((element, index) => {
         const rect = element.getBoundingClientRect();
@@ -1064,33 +1096,13 @@ function runChaosEvent(type) {
         return;
     }
 
-    if (type === "cheeseRain") {
-        cheeseRain();
-    }
-
-    if (type === "cheeseStorm") {
-        cheeseStorm();
-    }
-
-    if (type === "mouseRun") {
-        mouseRun();
-    }
-
-    if (type === "butterBomb") {
-        butterBomb();
-    }
-
-    if (type === "singularicheese") {
-        singularicheese();
-    }
-
-    if (type === "meltUI") {
-        meltUI();
-    }
-
-    if (type === "butterFlood") {
-        butterFlood();
-    }
+    if (type === "cheeseRain") cheeseRain();
+    if (type === "cheeseStorm") cheeseStorm();
+    if (type === "mouseRun") mouseRun();
+    if (type === "butterBomb") butterBomb();
+    if (type === "singularicheese") singularicheese();
+    if (type === "meltUI") meltUI();
+    if (type === "butterFlood") butterFlood();
 }
 
 /* =========================
