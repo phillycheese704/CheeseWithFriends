@@ -243,7 +243,8 @@ input:disabled {
 .coming-soon-card button:hover,
 .room-button:hover,
 .arcade-button:hover,
-.admin-open-btn:hover {
+.admin-open-btn:hover,
+.logout-button:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 18px rgba(110, 73, 0, 0.16);
 }
@@ -319,6 +320,7 @@ input:disabled {
 .room-button,
 .arcade-button,
 .admin-open-btn,
+.logout-button,
 .server-card {
     width: 100%;
     margin-bottom: 12px;
@@ -377,6 +379,11 @@ input:disabled {
     font-weight: 900;
     background: #6b3d14;
     color: #ffe9a6;
+}
+
+.logout-button {
+    justify-content: center;
+    font-weight: 900;
 }
 
 .server-card {
@@ -448,6 +455,29 @@ input:disabled {
     font-weight: 800;
 }
 
+.schedule-popup {
+    margin: 10px 14px 0;
+    padding: 10px 12px;
+    border-radius: 16px;
+    background: rgba(255, 245, 190, 0.92);
+    border: 2px solid var(--panel-border);
+    color: #4b3400;
+    box-shadow: 0 6px 18px rgba(75, 52, 0, 0.12);
+    font-size: 13px;
+    display: grid;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.schedule-popup strong {
+    font-size: 14px;
+}
+
+.schedule-row {
+    font-weight: 800;
+    opacity: 0.82;
+}
+
 .messages {
     flex: 1;
     overflow-y: auto;
@@ -476,7 +506,7 @@ input:disabled {
     padding: 6px 9px;
     border-radius: 12px;
     background: var(--bubble);
-    color: #3a2600;
+    color: #3a2600 !important;
     box-shadow: 0 2px 7px rgba(75, 52, 0, 0.07);
     overflow-wrap: anywhere;
     word-break: break-word;
@@ -512,6 +542,7 @@ input:disabled {
 .message p {
     margin: 0;
     line-height: 1.25;
+    color: inherit;
 }
 
 .reply-quote {
@@ -594,6 +625,46 @@ input:disabled {
 .warning-message {
     background: rgba(255, 120, 80, 0.18);
     color: #8a2300;
+}
+
+.toast-notice {
+    position: fixed;
+    left: 50%;
+    bottom: 26px;
+    transform: translateX(-50%);
+    z-index: 20000;
+    max-width: min(520px, 92vw);
+    padding: 11px 16px;
+    border-radius: 999px;
+    background: rgba(75, 43, 8, 0.92);
+    color: #fff1a8;
+    font-weight: 900;
+    font-size: 14px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+    animation: toastIn 0.2s ease-out;
+}
+
+.toast-notice.leaving {
+    animation: toastOut 0.35s ease-in forwards;
+}
+
+@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+@keyframes toastOut {
+    to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(12px);
+    }
 }
 
 .typing-indicator {
@@ -724,9 +795,9 @@ input:disabled {
 
 .admin-panel {
     position: fixed;
-    top: 80px;
-    right: 80px;
-    width: min(760px, 92vw);
+    top: 70px;
+    right: 50px;
+    width: min(620px, 90vw);
     z-index: 10000;
     border-radius: 26px;
     border: 5px solid #4b2b08;
@@ -740,7 +811,10 @@ input:disabled {
 }
 
 .admin-panel.collapsed {
-    width: 290px;
+    width: 220px;
+    height: auto;
+    border-radius: 999px;
+    overflow: hidden;
 }
 
 .admin-header {
@@ -749,8 +823,17 @@ input:disabled {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    cursor: move;
+    cursor: grab;
     user-select: none;
+    touch-action: none;
+}
+
+.admin-panel.collapsed .admin-header {
+    border-radius: 999px;
+}
+
+.admin-panel.collapsed .admin-header strong {
+    font-size: 13px;
 }
 
 .admin-header button {
@@ -761,11 +844,16 @@ input:disabled {
     margin-left: 5px;
 }
 
+.admin-panel.collapsed .admin-header button:first-child {
+    background: #fff1a8;
+    color: #4b2b08;
+}
+
 .admin-body {
-    padding: 16px;
+    padding: 12px;
     display: grid;
-    grid-template-columns: 1fr 260px;
-    gap: 14px;
+    grid-template-columns: 1fr 220px;
+    gap: 12px;
 }
 
 .admin-body h3 {
@@ -774,14 +862,14 @@ input:disabled {
 
 .admin-command-box,
 .event-scheduler {
-    padding: 14px;
+    padding: 12px;
     border-radius: 20px;
     background: rgba(255,255,255,0.45);
 }
 
 #adminCommandInput {
     width: 100%;
-    height: 90px;
+    height: 72px;
     border-radius: 14px;
     border: 3px solid #4b2b08;
     padding: 10px;
@@ -809,6 +897,9 @@ input:disabled {
     gap: 5px;
     margin-top: 10px;
     font-size: 12px;
+    max-height: 210px;
+    overflow-y: auto;
+    padding-right: 4px;
 }
 
 .admin-help strong {
@@ -1062,8 +1153,23 @@ input:disabled {
         overflow-x: hidden;
     }
 
+    .admin-panel {
+        top: 24px;
+        left: 18px;
+        right: auto;
+        width: min(560px, calc(100vw - 36px));
+    }
+
     .admin-body {
         grid-template-columns: 1fr;
+    }
+
+    .admin-help {
+        max-height: 150px;
+    }
+
+    .schedule-popup {
+        margin: 8px 10px 0;
     }
 }
 
@@ -1102,9 +1208,17 @@ input:disabled {
     }
 
     .admin-panel {
-        top: 20px;
+        top: 16px;
         left: 10px;
-        right: auto;
         width: calc(100vw - 20px);
+    }
+
+    .admin-panel.collapsed {
+        width: 210px;
+    }
+
+    .toast-notice {
+        bottom: 18px;
+        font-size: 13px;
     }
 }

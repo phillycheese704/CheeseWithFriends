@@ -108,7 +108,7 @@ const roomHistory = {
             id: "update-001",
             room: "updateLog",
             username: "CheeseWithFriends",
-            text: "🧀 Version 0.8.0 — Admin panel, Butter room, Blue Cheese theme, Update Log, reactions, replies, chaos events, and safer message rendering.",
+            text: "🧀 Version 0.8.1 — Added message stability fixes, compact admin panel, iPad dragging, logout, and Cheese Lounge schedule popup.",
             time: "Update",
             replyTo: null,
             reactions: {}
@@ -117,7 +117,7 @@ const roomHistory = {
             id: "update-002",
             room: "updateLog",
             username: "CheeseWithFriends",
-            text: "Admin login is now virtual. The owner appears publicly as PhillyCheese.",
+            text: "Admin login is virtual. The owner appears publicly as PhillyCheese.",
             time: "Update",
             replyTo: null,
             reactions: {}
@@ -207,6 +207,18 @@ function broadcastAdminState() {
             roomFiltersEnabled
         });
     });
+}
+
+function getPublicScheduledEvents() {
+    return Object.values(scheduledEvents).map(event => ({
+        id: event.id,
+        commandText: event.commandText,
+        runAt: event.runAt
+    }));
+}
+
+function broadcastScheduleState() {
+    io.emit("schedule state", getPublicScheduledEvents());
 }
 
 function addChaos(amount) {
@@ -749,10 +761,6 @@ app.post("/login", (req, res) => {
         });
     }
 
-    /*
-       Virtual admin account.
-       This account always exists and does not need to be created.
-    */
     if (username === OWNER_USERNAME) {
         if (password !== OWNER_PASSWORD) {
             return res.json({
@@ -1128,6 +1136,7 @@ function scheduleAdminEvent(socket, commandText, delaySeconds) {
     };
 
     broadcastAdminState();
+    broadcastScheduleState();
 
     setTimeout(() => {
         if (!scheduledEvents[id]) return;
@@ -1137,6 +1146,7 @@ function scheduleAdminEvent(socket, commandText, delaySeconds) {
         delete scheduledEvents[id];
 
         broadcastAdminState();
+        broadcastScheduleState();
     }, delay * 1000);
 }
 
@@ -1179,6 +1189,8 @@ io.on("connection", socket => {
             messages: roomHistory[room].map(publicMessage),
             readOnly: rooms[room].readOnly
         });
+
+        socket.emit("schedule state", getPublicScheduledEvents());
 
         if (isAdminUsername(rawUsername)) {
             socket.emit("admin state", {
@@ -1364,6 +1376,7 @@ io.on("connection", socket => {
         delete scheduledEvents[id];
 
         broadcastAdminState();
+        broadcastScheduleState();
     });
 
     socket.on("disconnect", () => {

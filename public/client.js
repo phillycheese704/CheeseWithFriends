@@ -10,6 +10,13 @@ let replyingTo = null;
 let adminCollapsed = false;
 let latestScheduledEvents = [];
 
+const roomMessageCache = {
+    cheeseLounge: [],
+    butter: [],
+    blueCheese: [],
+    updateLog: []
+};
+
 const authScreen = document.getElementById("authScreen");
 const app = document.getElementById("app");
 
@@ -44,6 +51,8 @@ const chaosFill = document.getElementById("chaosFill");
 const chaosText = document.getElementById("chaosText");
 const effectLayer = document.getElementById("effectLayer");
 
+const schedulePopup = document.getElementById("schedulePopup");
+
 function setAuthMessage(text, type = "error") {
     authMessage.textContent = text;
     authMessage.className = type;
@@ -54,6 +63,16 @@ function togglePassword() {
         passwordInput.type === "password"
             ? "text"
             : "password";
+}
+
+function logout() {
+    try {
+        socket.disconnect();
+    } catch (err) {
+        console.warn(err);
+    }
+
+    location.reload();
 }
 
 async function signUp() {
@@ -157,6 +176,10 @@ function switchRoom(roomId) {
 
     currentRoom = roomId;
 
+    typingIndicator.textContent = "";
+    replyingTo = null;
+    replyPreview.classList.add("hidden");
+
     clearMessages();
 
     const loading = document.createElement("div");
@@ -164,11 +187,8 @@ function switchRoom(roomId) {
     loading.textContent = "Loading room...";
     messages.appendChild(loading);
 
-    typingIndicator.textContent = "";
-    replyingTo = null;
-    replyPreview.classList.add("hidden");
-
     socket.emit("switch room", roomId);
+    renderSchedulePopup();
 }
 
 function updateRoomUI(roomId, roomInfo) {
@@ -217,6 +237,8 @@ function updateRoomUI(roomId, roomInfo) {
     if (sendButton) {
         sendButton.disabled = isReadOnly;
     }
+
+    renderSchedulePopup();
 }
 
 function clearMessages() {
@@ -225,18 +247,65 @@ function clearMessages() {
     }
 }
 
-function renderRoomMessages(list) {
+function cacheRoomMessages(room, list) {
+    roomMessageCache[room] = [];
+
+    list.forEach(message => {
+        roomMessageCache[room].push({
+            type: "message",
+            data: message
+        });
+    });
+}
+
+function pushCachedItem(room, item) {
+    if (!roomMessageCache[room]) {
+        roomMessageCache[room] = [];
+    }
+
+    roomMessageCache[room].push(item);
+
+    if (roomMessageCache[room].length > 120) {
+        roomMessageCache[room].shift();
+    }
+}
+
+function renderCurrentRoomFromCache() {
     clearMessages();
 
-    if (!list || list.length === 0) {
+    const list = roomMessageCache[currentRoom] || [];
+
+    if (list.length === 0) {
         const empty = document.createElement("div");
         empty.className = "empty-state";
-        empty.textContent = "Nobody is talking yet. Suspiciously cheesy.";
+        empty.textContent = getEmptyStateText(currentRoom);
         messages.appendChild(empty);
         return;
     }
 
-    list.forEach(addMessage);
+    list.forEach(item => {
+        if (item.type === "message") {
+            renderMessageNode(item.data);
+        }
+
+        if (item.type === "system") {
+            renderSystemNode(item.text);
+        }
+    });
+
+    scrollToBottom();
+}
+
+function getEmptyStateText(room) {
+    if (room === "butter") return "Smooth silence. Suspiciously spreadable.";
+    if (room === "blueCheese") return "The mould is quiet... for now.";
+    if (room === "updateLog") return "Patch notes live here.";
+    return "Nobody is talking yet. Suspiciously cheesy.";
+}
+
+function renderRoomMessages(list) {
+    cacheRoomMessages(currentRoom, list || []);
+    renderCurrentRoomFromCache();
 }
 
 function openArcade() {
@@ -270,6 +339,17 @@ function updateCounter() {
 }
 
 function addMessage(data) {
+    pushCachedItem(data.room || currentRoom, {
+        type: "message",
+        data
+    });
+
+    if ((data.room || currentRoom) === currentRoom) {
+        renderCurrentRoomFromCache();
+    }
+}
+
+function renderMessageNode(data) {
     removeEmptyState();
 
     const div = document.createElement("div");
@@ -346,10 +426,21 @@ function addMessage(data) {
     messages.appendChild(div);
 
     updateReactions(data.id, data.reactions || {});
-    scrollToBottom();
 }
 
 function updateReactions(messageId, reactions) {
+    for (const room in roomMessageCache) {
+        roomMessageCache[room].forEach(item => {
+            if (
+                item.type === "message" &&
+                item.data &&
+                item.data.id === messageId
+            ) {
+                item.data.reactions = reactions;
+            }
+        });
+    }
+
     const message = messages.querySelector(`[data-message-id="${messageId}"]`);
 
     if (!message) return;
@@ -369,7 +460,18 @@ function updateReactions(messageId, reactions) {
     });
 }
 
-function addSystemMessage(text) {
+function addSystemMessage(text, room = currentRoom) {
+    pushCachedItem(room, {
+        type: "system",
+        text
+    });
+
+    if (room === currentRoom) {
+        renderCurrentRoomFromCache();
+    }
+}
+
+function renderSystemNode(text) {
     removeEmptyState();
 
     const div = document.createElement("div");
@@ -377,21 +479,21 @@ function addSystemMessage(text) {
     div.textContent = text;
 
     messages.appendChild(div);
-    scrollToBottom();
 }
 
 function showChatNotice(text) {
-    removeEmptyState();
+    const notice = document.createElement("div");
+    notice.className = "toast-notice";
+    notice.textContent = text;
 
-    const div = document.createElement("div");
-    div.className = "system-message warning-message";
-    div.textContent = text;
-
-    messages.appendChild(div);
-    scrollToBottom();
+    document.body.appendChild(notice);
 
     setTimeout(() => {
-        div.remove();
+        notice.classList.add("leaving");
+    }, 2400);
+
+    setTimeout(() => {
+        notice.remove();
     }, 3000);
 }
 
@@ -413,11 +515,56 @@ function cancelReply() {
 }
 
 /* =========================
+   SCHEDULE POPUP
+========================= */
+
+function renderSchedulePopup() {
+    if (!schedulePopup) return;
+
+    if (currentRoom !== "cheeseLounge" || latestScheduledEvents.length === 0) {
+        schedulePopup.classList.add("hidden");
+        schedulePopup.innerHTML = "";
+        return;
+    }
+
+    schedulePopup.classList.remove("hidden");
+    schedulePopup.innerHTML = "";
+
+    const title = document.createElement("strong");
+    title.textContent = "🧀 Upcoming Chaos";
+    schedulePopup.appendChild(title);
+
+    latestScheduledEvents.slice(0, 3).forEach(event => {
+        const row = document.createElement("div");
+        row.className = "schedule-row";
+
+        const secondsLeft = Math.max(
+            0,
+            Math.ceil((event.runAt - Date.now()) / 1000)
+        );
+
+        row.textContent = `${cleanCommandName(event.commandText)} in ${secondsLeft}s`;
+        schedulePopup.appendChild(row);
+    });
+}
+
+function cleanCommandName(command) {
+    return String(command || "")
+        .replace("+/", "")
+        .replace("\\", "")
+        .replace(";/", "")
+        .trim();
+}
+
+/* =========================
    ADMIN PANEL
 ========================= */
 
 function openAdminPanel() {
     adminPanel.classList.remove("hidden");
+    adminPanel.classList.remove("collapsed");
+    adminBody.classList.remove("hidden");
+    adminCollapsed = false;
 }
 
 function closeAdminPanel() {
@@ -462,6 +609,8 @@ function renderScheduledEvents(events) {
 
     const box = document.getElementById("scheduledEvents");
 
+    if (!box) return;
+
     box.innerHTML = "";
 
     latestScheduledEvents.forEach(event => {
@@ -474,7 +623,7 @@ function renderScheduledEvents(events) {
         );
 
         const label = document.createElement("span");
-        label.textContent = `${event.commandText} in ${secondsLeft}s`;
+        label.textContent = `${cleanCommandName(event.commandText)} in ${secondsLeft}s`;
 
         const cancel = document.createElement("button");
         cancel.textContent = "×";
@@ -486,28 +635,36 @@ function renderScheduledEvents(events) {
         div.appendChild(cancel);
         box.appendChild(div);
     });
+
+    renderSchedulePopup();
 }
 
 setInterval(() => {
     if (latestScheduledEvents.length > 0) {
         renderScheduledEvents(latestScheduledEvents);
+    } else {
+        renderSchedulePopup();
     }
 }, 1000);
+
+/* iPad / mouse draggable admin panel */
 
 let draggingAdmin = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 
-adminHeader.addEventListener("mousedown", event => {
+adminHeader.addEventListener("pointerdown", event => {
     draggingAdmin = true;
 
     const rect = adminPanel.getBoundingClientRect();
 
     dragOffsetX = event.clientX - rect.left;
     dragOffsetY = event.clientY - rect.top;
+
+    adminHeader.setPointerCapture(event.pointerId);
 });
 
-window.addEventListener("mousemove", event => {
+adminHeader.addEventListener("pointermove", event => {
     if (!draggingAdmin) return;
 
     adminPanel.style.left = `${event.clientX - dragOffsetX}px`;
@@ -515,7 +672,17 @@ window.addEventListener("mousemove", event => {
     adminPanel.style.right = "auto";
 });
 
-window.addEventListener("mouseup", () => {
+adminHeader.addEventListener("pointerup", event => {
+    draggingAdmin = false;
+
+    try {
+        adminHeader.releasePointerCapture(event.pointerId);
+    } catch (err) {
+        console.warn(err);
+    }
+});
+
+adminHeader.addEventListener("pointercancel", () => {
     draggingAdmin = false;
 });
 
@@ -693,8 +860,6 @@ socket.on("room data", data => {
 });
 
 socket.on("chat message", data => {
-    if (data.room !== currentRoom) return;
-
     addMessage(data);
 });
 
@@ -705,9 +870,7 @@ socket.on("reaction update", data => {
 });
 
 socket.on("system message", data => {
-    if (data.room !== currentRoom) return;
-
-    addSystemMessage(data.text);
+    addSystemMessage(data.text, data.room || currentRoom);
 });
 
 socket.on("online users", users => {
@@ -775,6 +938,10 @@ socket.on("admin reply", message => {
 
 socket.on("admin state", data => {
     renderScheduledEvents(data.scheduledEvents || []);
+});
+
+socket.on("schedule state", events => {
+    renderScheduledEvents(events || []);
 });
 
 socket.on("chaos level", level => {
