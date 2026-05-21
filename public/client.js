@@ -53,10 +53,6 @@ const effectLayer = document.getElementById("effectLayer");
 
 const schedulePopup = document.getElementById("schedulePopup");
 
-/* =========================
-   AUTH
-========================= */
-
 function setAuthMessage(text, type = "error") {
     authMessage.textContent = text;
     authMessage.className = type;
@@ -148,10 +144,6 @@ async function login() {
         room: currentRoom
     });
 }
-
-/* =========================
-   CHAT
-========================= */
 
 function sendMessage() {
     const text = messageInput.value.trim();
@@ -462,59 +454,6 @@ function renderSystemNode(text) {
     messages.appendChild(div);
 }
 
-function resetTextPosition() {
-    clearEffects();
-
-    document.body.classList.remove(
-        "singularity-background",
-        "singularity-spit",
-        "melt-ui",
-        "butter-flood",
-        "cheese-storm",
-        "mouse-invasion-active",
-        "butter-bomb-active",
-        "cheese-rain-active"
-    );
-
-    app.style.transform = "";
-    app.style.translate = "";
-    app.style.top = "";
-    app.style.bottom = "";
-    app.style.animation = "";
-    app.style.filter = "";
-    app.style.position = "";
-
-    messages.style.transform = "";
-    messages.style.translate = "";
-    messages.style.top = "";
-    messages.style.bottom = "";
-    messages.style.animation = "";
-    messages.style.filter = "";
-    messages.style.position = "";
-
-    document
-        .querySelectorAll(
-            ".message, .message *, .system-message, .system-message *, .messages, .chat-page, .chat-header, .message-bar, .rooms-sidebar, .users-sidebar"
-        )
-        .forEach(element => {
-            element.style.transform = "";
-            element.style.translate = "";
-            element.style.top = "";
-            element.style.bottom = "";
-            element.style.animation = "";
-            element.style.filter = "";
-            element.style.position = "";
-        });
-
-    renderCurrentRoomFromCache();
-
-    setTimeout(() => {
-        scrollToBottom();
-    }, 50);
-
-    showChatNotice("Text reset.");
-}
-
 function showChatNotice(text) {
     const notice = document.createElement("div");
     notice.className = "toast-notice";
@@ -557,10 +496,6 @@ function cancelReply() {
     replyPreview.classList.add("hidden");
 }
 
-/* =========================
-   EXTRA UI
-========================= */
-
 function openArcade() {
     chatPage.classList.add("hidden");
     arcadePage.classList.remove("hidden");
@@ -590,10 +525,6 @@ function updateCounter() {
         charCounter.classList.remove("danger");
     }
 }
-
-/* =========================
-   SCHEDULE POPUP
-========================= */
 
 function renderSchedulePopup() {
     if (!schedulePopup) return;
@@ -632,10 +563,6 @@ function cleanCommandName(command) {
         .replace(";/", "")
         .trim();
 }
-
-/* =========================
-   ADMIN PANEL
-========================= */
 
 function openAdminPanel() {
     adminPanel.classList.remove("hidden");
@@ -724,18 +651,12 @@ setInterval(() => {
     }
 }, 1000);
 
-/* =========================
-   DRAG ADMIN PANEL
-========================= */
-
 let draggingAdmin = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 
 adminHeader.addEventListener("pointerdown", event => {
-    if (event.target.closest("button")) {
-        return;
-    }
+    if (event.target.closest("button")) return;
 
     draggingAdmin = true;
 
@@ -774,10 +695,6 @@ adminHeader.addEventListener("pointerup", event => {
 adminHeader.addEventListener("pointercancel", () => {
     draggingAdmin = false;
 });
-
-/* =========================
-   CHAOS EFFECTS
-========================= */
 
 function hardResetVisuals() {
     document.body.classList.remove(
@@ -996,6 +913,111 @@ function meltUI() {
     }, 6500);
 }
 
+function cheeseQuake() {
+    clearEffects();
+    makeImpactText("CHEESEQUAKE");
+
+    const quakeOverlay = document.createElement("div");
+    quakeOverlay.className = "quake-overlay";
+    effectLayer.appendChild(quakeOverlay);
+
+    for (let i = 0; i < 14; i++) {
+        const crack = document.createElement("div");
+        crack.className = "quake-crack";
+        crack.style.left = `${Math.random() * 100}vw`;
+        crack.style.top = `${Math.random() * 100}vh`;
+        crack.style.height = `${80 + Math.random() * 220}px`;
+        crack.style.transform = `rotate(${-35 + Math.random() * 70}deg)`;
+        crack.style.animationDelay = `${Math.random() * 1.2}s`;
+        effectLayer.appendChild(crack);
+    }
+
+    for (let i = 0; i < 80; i++) {
+        const crumb = document.createElement("div");
+        crumb.className = "quake-crumb";
+        crumb.textContent = Math.random() > 0.35 ? "🧀" : "•";
+        crumb.style.left = `${Math.random() * 100}vw`;
+        crumb.style.top = `${Math.random() * 100}vh`;
+        crumb.style.animationDelay = `${Math.random() * 2}s`;
+        crumb.style.fontSize = `${10 + Math.random() * 24}px`;
+        effectLayer.appendChild(crumb);
+    }
+
+    setTimeout(() => {
+        hardResetVisuals();
+        effectLayer.innerHTML = "";
+    }, 5200);
+}
+
+function cheesePortal() {
+    clearEffects();
+    makeImpactText("CHEESE PORTAL");
+
+    const portal = document.createElement("div");
+    portal.className = "cheese-portal";
+    portal.innerHTML = `
+        <div class="portal-ring portal-ring-one"></div>
+        <div class="portal-ring portal-ring-two"></div>
+        <div class="portal-core">🧀</div>
+    `;
+    effectLayer.appendChild(portal);
+
+    for (let i = 0; i < 70; i++) {
+        const bit = document.createElement("div");
+        bit.className = "portal-cheese-bit";
+        bit.textContent = Math.random() > 0.35 ? "🧀" : "✨";
+        bit.style.setProperty("--angle", `${Math.random() * 360}deg`);
+        bit.style.setProperty("--distance", `${120 + Math.random() * 520}px`);
+        bit.style.animationDelay = `${Math.random() * 3.2}s`;
+        bit.style.fontSize = `${18 + Math.random() * 28}px`;
+        effectLayer.appendChild(bit);
+    }
+
+    const flash = document.createElement("div");
+    flash.className = "portal-flash";
+    effectLayer.appendChild(flash);
+
+    setTimeout(() => {
+        hardResetVisuals();
+        effectLayer.innerHTML = "";
+    }, 5600);
+}
+
+function mouldTakeover() {
+    clearEffects();
+    makeImpactText("MOULD TAKEOVER");
+
+    const mould = document.createElement("div");
+    mould.className = "mould-overlay";
+    effectLayer.appendChild(mould);
+
+    for (let i = 0; i < 34; i++) {
+        const patch = document.createElement("div");
+        patch.className = "mould-patch";
+        patch.style.left = `${Math.random() * 100}vw`;
+        patch.style.top = `${Math.random() * 100}vh`;
+        patch.style.width = `${50 + Math.random() * 190}px`;
+        patch.style.height = `${50 + Math.random() * 190}px`;
+        patch.style.animationDelay = `${Math.random() * 2.4}s`;
+        effectLayer.appendChild(patch);
+    }
+
+    for (let i = 0; i < 90; i++) {
+        const spore = document.createElement("div");
+        spore.className = "mould-spore";
+        spore.textContent = Math.random() > 0.5 ? "•" : "✦";
+        spore.style.left = `${Math.random() * 100}vw`;
+        spore.style.top = `${Math.random() * 100}vh`;
+        spore.style.animationDelay = `${Math.random() * 2.8}s`;
+        effectLayer.appendChild(spore);
+    }
+
+    setTimeout(() => {
+        hardResetVisuals();
+        effectLayer.innerHTML = "";
+    }, 6500);
+}
+
 function singularicheese() {
     clearEffects();
 
@@ -1109,11 +1131,10 @@ function runChaosEvent(type) {
     if (type === "singularicheese") singularicheese();
     if (type === "meltUI") meltUI();
     if (type === "butterFlood") butterFlood();
+    if (type === "cheeseQuake") cheeseQuake();
+    if (type === "cheesePortal") cheesePortal();
+    if (type === "mouldTakeover") mouldTakeover();
 }
-
-/* =========================
-   INPUT EVENTS
-========================= */
 
 messageInput.addEventListener("input", () => {
     updateCounter();
@@ -1138,10 +1159,6 @@ messageInput.addEventListener("keydown", event => {
         sendMessage();
     }
 });
-
-/* =========================
-   SOCKET EVENTS
-========================= */
 
 socket.on("admin status", data => {
     isAdmin = data.admin;
