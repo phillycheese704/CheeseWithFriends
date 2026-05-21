@@ -53,6 +53,10 @@ const effectLayer = document.getElementById("effectLayer");
 
 const schedulePopup = document.getElementById("schedulePopup");
 
+/* =========================
+   AUTH
+========================= */
+
 function setAuthMessage(text, type = "error") {
     authMessage.textContent = text;
     authMessage.className = type;
@@ -144,6 +148,10 @@ async function login() {
         room: currentRoom
     });
 }
+
+/* =========================
+   CHAT
+========================= */
 
 function sendMessage() {
     const text = messageInput.value.trim();
@@ -496,6 +504,10 @@ function cancelReply() {
     replyPreview.classList.add("hidden");
 }
 
+/* =========================
+   EXTRA UI
+========================= */
+
 function openArcade() {
     chatPage.classList.add("hidden");
     arcadePage.classList.remove("hidden");
@@ -525,6 +537,10 @@ function updateCounter() {
         charCounter.classList.remove("danger");
     }
 }
+
+/* =========================
+   SCHEDULE POPUP
+========================= */
 
 function renderSchedulePopup() {
     if (!schedulePopup) return;
@@ -563,6 +579,10 @@ function cleanCommandName(command) {
         .replace(";/", "")
         .trim();
 }
+
+/* =========================
+   ADMIN PANEL
+========================= */
 
 function openAdminPanel() {
     adminPanel.classList.remove("hidden");
@@ -651,6 +671,10 @@ setInterval(() => {
     }
 }, 1000);
 
+/* =========================
+   DRAG ADMIN PANEL
+========================= */
+
 let draggingAdmin = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
@@ -696,6 +720,10 @@ adminHeader.addEventListener("pointercancel", () => {
     draggingAdmin = false;
 });
 
+/* =========================
+   CHAOS EFFECTS
+========================= */
+
 function hardResetVisuals() {
     document.body.classList.remove(
         "singularity-background",
@@ -740,10 +768,8 @@ function cheeseRain(count = 70) {
 
         effectLayer.appendChild(cheese);
 
-        setTimeout(() => cheese.remove(), 6500);
+        setTimeout(() => cheese.remove(), 6800);
     }
-
-    setTimeout(() => hardResetVisuals(), 6500);
 }
 
 function cheeseStorm() {
@@ -754,34 +780,34 @@ function cheeseStorm() {
     clouds.className = "storm-clouds";
     effectLayer.appendChild(clouds);
 
-    for (let i = 0; i < 160; i++) {
+    for (let i = 0; i < 140; i++) {
         const cheese = document.createElement("div");
 
         cheese.className = "falling-cheese storm-fall";
-        cheese.textContent = "🧀";
+        cheese.textContent = Math.random() > 0.18 ? "🧀" : "🫕";
         cheese.style.left = `${Math.random() * 100}vw`;
-        cheese.style.animationDuration = `${1.4 + Math.random() * 2.4}s`;
-        cheese.style.fontSize = `${22 + Math.random() * 36}px`;
-        cheese.style.animationDelay = `${Math.random() * 1.2}s`;
-        cheese.style.setProperty("--sway", `${-140 + Math.random() * 280}px`);
+        cheese.style.animationDuration = `${1.25 + Math.random() * 2.2}s`;
+        cheese.style.fontSize = `${20 + Math.random() * 34}px`;
+        cheese.style.animationDelay = `${Math.random() * 1.3}s`;
+        cheese.style.setProperty("--sway", `${-170 + Math.random() * 340}px`);
 
         effectLayer.appendChild(cheese);
 
-        setTimeout(() => cheese.remove(), 6500);
+        setTimeout(() => cheese.remove(), 6800);
     }
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
         const lightning = document.createElement("div");
         lightning.className = "cheese-lightning";
         lightning.style.left = `${10 + Math.random() * 80}vw`;
-        lightning.style.animationDelay = `${Math.random() * 3.8}s`;
+        lightning.style.animationDelay = `${Math.random() * 4.5}s`;
         effectLayer.appendChild(lightning);
     }
 
     setTimeout(() => {
-        hardResetVisuals();
         effectLayer.innerHTML = "";
-    }, 6500);
+        hardResetVisuals();
+    }, 6800);
 }
 
 function mouseRun() {
@@ -804,10 +830,8 @@ function mouseRun() {
 
         effectLayer.appendChild(mouse);
 
-        setTimeout(() => mouse.remove(), 6200);
+        setTimeout(() => mouse.remove(), 6500);
     }
-
-    setTimeout(() => hardResetVisuals(), 6200);
 }
 
 function butterBomb() {
@@ -840,23 +864,23 @@ function butterBomb() {
         splat.style.left = `${x - 6}vw`;
         effectLayer.appendChild(splat);
 
-        for (let i = 0; i < 18; i++) {
+        for (let i = 0; i < 22; i++) {
             const drop = document.createElement("div");
             drop.className = "butter-drop";
             drop.style.left = `${x}vw`;
             drop.style.top = "56vh";
-            drop.style.setProperty("--drop-x", `${-160 + Math.random() * 320}px`);
-            drop.style.setProperty("--drop-y", `${-100 + Math.random() * 190}px`);
+            drop.style.setProperty("--drop-x", `${-180 + Math.random() * 360}px`);
+            drop.style.setProperty("--drop-y", `${-110 + Math.random() * 210}px`);
             effectLayer.appendChild(drop);
 
-            setTimeout(() => drop.remove(), 2200);
+            setTimeout(() => drop.remove(), 2300);
         }
     }, 930);
 
     setTimeout(() => {
-        hardResetVisuals();
         effectLayer.innerHTML = "";
-    }, 5600);
+        hardResetVisuals();
+    }, 5700);
 }
 
 function butterFlood() {
@@ -867,7 +891,7 @@ function butterFlood() {
     wave.className = "butter-wave";
     effectLayer.appendChild(wave);
 
-    for (let i = 0; i < 28; i++) {
+    for (let i = 0; i < 34; i++) {
         const bubble = document.createElement("div");
         bubble.className = "butter-bubble";
         bubble.textContent = Math.random() > 0.5 ? "🧈" : "○";
@@ -877,40 +901,40 @@ function butterFlood() {
 
         effectLayer.appendChild(bubble);
 
-        setTimeout(() => bubble.remove(), 6500);
+        setTimeout(() => bubble.remove(), 6600);
     }
 
     setTimeout(() => {
-        hardResetVisuals();
         effectLayer.innerHTML = "";
-    }, 6500);
+        hardResetVisuals();
+    }, 6600);
 }
 
 function meltUI() {
     clearEffects();
     makeImpactText("MELT UI");
 
-    for (let i = 0; i < 42; i++) {
-        const drip = document.createElement("div");
-        drip.className = "melt-drip";
-        drip.style.left = `${Math.random() * 100}vw`;
-        drip.style.top = `${Math.random() * 50}vh`;
-        drip.style.height = `${42 + Math.random() * 120}px`;
-        drip.style.animationDelay = `${Math.random() * 2.2}s`;
-
-        effectLayer.appendChild(drip);
-
-        setTimeout(() => drip.remove(), 6500);
-    }
-
     const heat = document.createElement("div");
     heat.className = "heat-warp";
     effectLayer.appendChild(heat);
 
+    for (let i = 0; i < 48; i++) {
+        const drip = document.createElement("div");
+        drip.className = "melt-drip";
+        drip.style.left = `${Math.random() * 100}vw`;
+        drip.style.top = `${Math.random() * 48}vh`;
+        drip.style.height = `${42 + Math.random() * 130}px`;
+        drip.style.animationDelay = `${Math.random() * 2.4}s`;
+
+        effectLayer.appendChild(drip);
+
+        setTimeout(() => drip.remove(), 6600);
+    }
+
     setTimeout(() => {
-        hardResetVisuals();
         effectLayer.innerHTML = "";
-    }, 6500);
+        hardResetVisuals();
+    }, 6600);
 }
 
 function cheeseQuake() {
@@ -921,18 +945,18 @@ function cheeseQuake() {
     quakeOverlay.className = "quake-overlay";
     effectLayer.appendChild(quakeOverlay);
 
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 16; i++) {
         const crack = document.createElement("div");
         crack.className = "quake-crack";
         crack.style.left = `${Math.random() * 100}vw`;
         crack.style.top = `${Math.random() * 100}vh`;
-        crack.style.height = `${80 + Math.random() * 220}px`;
-        crack.style.transform = `rotate(${-35 + Math.random() * 70}deg)`;
+        crack.style.height = `${80 + Math.random() * 230}px`;
+        crack.style.setProperty("--crack-rotate", `${-35 + Math.random() * 70}deg`);
         crack.style.animationDelay = `${Math.random() * 1.2}s`;
         effectLayer.appendChild(crack);
     }
 
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 90; i++) {
         const crumb = document.createElement("div");
         crumb.className = "quake-crumb";
         crumb.textContent = Math.random() > 0.35 ? "🧀" : "•";
@@ -940,13 +964,14 @@ function cheeseQuake() {
         crumb.style.top = `${Math.random() * 100}vh`;
         crumb.style.animationDelay = `${Math.random() * 2}s`;
         crumb.style.fontSize = `${10 + Math.random() * 24}px`;
+        crumb.style.setProperty("--crumb-x", `${-80 + Math.random() * 160}px`);
         effectLayer.appendChild(crumb);
     }
 
     setTimeout(() => {
-        hardResetVisuals();
         effectLayer.innerHTML = "";
-    }, 5200);
+        hardResetVisuals();
+    }, 5400);
 }
 
 function cheesePortal() {
@@ -962,7 +987,11 @@ function cheesePortal() {
     `;
     effectLayer.appendChild(portal);
 
-    for (let i = 0; i < 70; i++) {
+    const flash = document.createElement("div");
+    flash.className = "portal-flash";
+    effectLayer.appendChild(flash);
+
+    for (let i = 0; i < 75; i++) {
         const bit = document.createElement("div");
         bit.className = "portal-cheese-bit";
         bit.textContent = Math.random() > 0.35 ? "🧀" : "✨";
@@ -973,14 +1002,10 @@ function cheesePortal() {
         effectLayer.appendChild(bit);
     }
 
-    const flash = document.createElement("div");
-    flash.className = "portal-flash";
-    effectLayer.appendChild(flash);
-
     setTimeout(() => {
-        hardResetVisuals();
         effectLayer.innerHTML = "";
-    }, 5600);
+        hardResetVisuals();
+    }, 5700);
 }
 
 function mouldTakeover() {
@@ -991,7 +1016,7 @@ function mouldTakeover() {
     mould.className = "mould-overlay";
     effectLayer.appendChild(mould);
 
-    for (let i = 0; i < 34; i++) {
+    for (let i = 0; i < 38; i++) {
         const patch = document.createElement("div");
         patch.className = "mould-patch";
         patch.style.left = `${Math.random() * 100}vw`;
@@ -1002,7 +1027,7 @@ function mouldTakeover() {
         effectLayer.appendChild(patch);
     }
 
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 95; i++) {
         const spore = document.createElement("div");
         spore.className = "mould-spore";
         spore.textContent = Math.random() > 0.5 ? "•" : "✦";
@@ -1013,13 +1038,14 @@ function mouldTakeover() {
     }
 
     setTimeout(() => {
-        hardResetVisuals();
         effectLayer.innerHTML = "";
-    }, 6500);
+        hardResetVisuals();
+    }, 6700);
 }
 
 function singularicheese() {
     clearEffects();
+    makeImpactText("SINGULARICHEESE");
 
     const targets = [
         ...document.querySelectorAll(
@@ -1059,7 +1085,13 @@ function singularicheese() {
         const rect = element.getBoundingClientRect();
 
         const clone = element.cloneNode(true);
-        clone.classList.add("singularity-clone");
+
+        /*
+           Important:
+           The clone MUST NOT keep .message or .system-message classes.
+           The real UI lock blocks animation on those classes.
+        */
+        clone.className = "singularity-clone";
 
         clone.style.left = `${rect.left}px`;
         clone.style.top = `${rect.top}px`;
@@ -1086,7 +1118,7 @@ function singularicheese() {
         element.classList.add("singularity-hidden-original");
     });
 
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 100; i++) {
         const particle = document.createElement("div");
         particle.className = "singularity-particle";
         particle.textContent = Math.random() > 0.42 ? "🧀" : "✨";
@@ -1112,10 +1144,10 @@ function singularicheese() {
             element.classList.remove("singularity-hidden-original");
         });
 
-        hardResetVisuals();
         effectLayer.innerHTML = "";
         document.body.classList.remove("singularity-background", "singularity-spit");
-    }, 4700);
+        hardResetVisuals();
+    }, 4900);
 }
 
 function runChaosEvent(type) {
@@ -1135,6 +1167,10 @@ function runChaosEvent(type) {
     if (type === "cheesePortal") cheesePortal();
     if (type === "mouldTakeover") mouldTakeover();
 }
+
+/* =========================
+   INPUT EVENTS
+========================= */
 
 messageInput.addEventListener("input", () => {
     updateCounter();
@@ -1159,6 +1195,10 @@ messageInput.addEventListener("keydown", event => {
         sendMessage();
     }
 });
+
+/* =========================
+   SOCKET EVENTS
+========================= */
 
 socket.on("admin status", data => {
     isAdmin = data.admin;
