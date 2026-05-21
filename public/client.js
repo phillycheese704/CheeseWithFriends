@@ -278,10 +278,6 @@ function pushCachedItem(room, item) {
     }
 }
 
-/*
-   This redraws the whole chat ONLY when loading or switching rooms.
-   It does NOT run every time a new message arrives.
-*/
 function renderCurrentRoomFromCache() {
     clearMessages();
 
@@ -320,11 +316,6 @@ function renderRoomMessages(list) {
     renderCurrentRoomFromCache();
 }
 
-/*
-   MAIN TEXT BUG FIX:
-   New messages are appended.
-   The chat no longer deletes and redraws every message each time.
-*/
 function addMessage(data) {
     const room = data.room || currentRoom;
 
@@ -469,6 +460,59 @@ function renderSystemNode(text) {
     div.textContent = text;
 
     messages.appendChild(div);
+}
+
+function resetTextPosition() {
+    clearEffects();
+
+    document.body.classList.remove(
+        "singularity-background",
+        "singularity-spit",
+        "melt-ui",
+        "butter-flood",
+        "cheese-storm",
+        "mouse-invasion-active",
+        "butter-bomb-active",
+        "cheese-rain-active"
+    );
+
+    app.style.transform = "";
+    app.style.translate = "";
+    app.style.top = "";
+    app.style.bottom = "";
+    app.style.animation = "";
+    app.style.filter = "";
+    app.style.position = "";
+
+    messages.style.transform = "";
+    messages.style.translate = "";
+    messages.style.top = "";
+    messages.style.bottom = "";
+    messages.style.animation = "";
+    messages.style.filter = "";
+    messages.style.position = "";
+
+    document
+        .querySelectorAll(
+            ".message, .message *, .system-message, .system-message *, .messages, .chat-page, .chat-header, .message-bar, .rooms-sidebar, .users-sidebar"
+        )
+        .forEach(element => {
+            element.style.transform = "";
+            element.style.translate = "";
+            element.style.top = "";
+            element.style.bottom = "";
+            element.style.animation = "";
+            element.style.filter = "";
+            element.style.position = "";
+        });
+
+    renderCurrentRoomFromCache();
+
+    setTimeout(() => {
+        scrollToBottom();
+    }, 50);
+
+    showChatNotice("Text reset.");
 }
 
 function showChatNotice(text) {
@@ -733,7 +777,6 @@ adminHeader.addEventListener("pointercancel", () => {
 
 /* =========================
    CHAOS EFFECTS
-   Kept overlay-only.
 ========================= */
 
 function hardResetVisuals() {
