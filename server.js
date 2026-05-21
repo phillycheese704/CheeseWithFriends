@@ -63,14 +63,6 @@ function cleanUsername(username) {
         .slice(0, 24);
 }
 
-function publicUsername(username) {
-    if (username === ADMIN_LOGIN_USERNAME) {
-        return ADMIN_DISPLAY_NAME;
-    }
-
-    return username;
-}
-
 function nowTime() {
     return new Date().toLocaleTimeString([], {
         hour: "2-digit",
@@ -187,11 +179,8 @@ const filterEnabled = {
 ========================= */
 
 const sessions = new Map();
-
 const onlineUsers = new Map();
-
 const bannedUsers = new Map();
-
 const mutedUsers = new Map();
 
 let adminAppearsOffline = false;
@@ -200,8 +189,23 @@ let chaosLevel = 0;
 let scheduledEvents = [];
 
 /* =========================
-   FILTERS
+   MESSAGE FILTERS
 ========================= */
+
+/*
+   Cheese Lounge:
+   - strict main filter
+   - blocks swearing + racist / homophobic / transphobic / extreme language
+
+   Butter:
+   - mild filter
+   - swearing allowed
+   - blocks racism / homophobic / transphobic language
+   - trusted links allowed
+
+   Blue Cheese:
+   - zero word filter
+*/
 
 function normaliseForFilter(text) {
     return String(text || "")
@@ -219,20 +223,64 @@ function normaliseForFilter(text) {
         .replace(/[^a-z0-9]/g, "");
 }
 
+/*
+   These are checked after normalisation, so bypasses like:
+   n1gga, n!gga, n9gga, spaces, dots, underscores, etc.
+   become normal plain text before checking.
+*/
+
 const strictBlockedRoots = [
+    // racism / slurs
     "nigga",
     "nigger",
+    "nigg",
+    "niga",
+    "coon",
+    "chink",
+    "spic",
+    "paki",
+    "kike",
+
+    // homophobic / transphobic
     "faggot",
+    "fag",
     "tranny",
+    "shemale",
+
+    // ableist / harmful
     "retard",
-    "kys"
+    "retarded",
+    "kys",
+
+    // swearing blocked in Cheese Lounge only
+    "fuck",
+    "fucking",
+    "shit",
+    "bitch",
+    "bastard",
+    "asshole",
+    "dickhead",
+    "cunt",
+    "wanker"
 ];
 
 const mildBlockedRoots = [
+    // racism / slurs
     "nigga",
     "nigger",
+    "nigg",
+    "niga",
+    "coon",
+    "chink",
+    "spic",
+    "paki",
+    "kike",
+
+    // homophobic / transphobic
     "faggot",
-    "tranny"
+    "fag",
+    "tranny",
+    "shemale"
 ];
 
 function containsBlockedLanguage(text, roomId) {
@@ -324,11 +372,9 @@ const chaosCommands = {
     meltui: "meltui",
     butterflood: "butterflood",
     butterbomb: "butterbomb",
-
     cheesequake: "cheesequake",
     cheeseportal: "cheeseportal",
     mouldtakeover: "mouldtakeover",
-
     clearvisuals: "clearvisuals"
 };
 
@@ -458,13 +504,6 @@ app.post("/signup", async (req, res) => {
         return res.json({
             success: false,
             message: "That username is reserved."
-        });
-    }
-
-    if (username.includes("#;")) {
-        return res.json({
-            success: false,
-            message: "That username ending is reserved."
         });
     }
 
