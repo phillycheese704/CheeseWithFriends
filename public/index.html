@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 
-<body>
+<body data-theme="cheese">
 
     <div class="background-cheese">
         <span>🧀</span>
@@ -39,17 +39,26 @@
 
                 <input
                     id="username"
-                    maxlength="20"
+                    maxlength="24"
                     placeholder="Username"
                     autocomplete="username"
                 >
 
-                <input
-                    id="password"
-                    type="password"
-                    placeholder="Password"
-                    autocomplete="current-password"
-                >
+                <div class="password-wrap">
+                    <input
+                        id="password"
+                        type="password"
+                        placeholder="Password"
+                        autocomplete="current-password"
+                    >
+
+                    <button
+                        class="see-password-btn"
+                        onclick="togglePassword()"
+                    >
+                        👁️
+                    </button>
+                </div>
 
                 <div class="auth-buttons">
                     <button onclick="login()">Login</button>
@@ -75,7 +84,7 @@
             </div>
 
             <p class="tiny-note">
-                Cheese Lounge is filtered. Blue Cheese is not.
+                Cheese Lounge is filtered. Butter is mild. Blue Cheese is chaos. Update Log is read-only.
             </p>
 
         </div>
@@ -108,13 +117,37 @@
 
             <button
                 class="room-button"
+                id="room-butter"
+                onclick="switchRoom('butter')"
+            >
+                <span class="room-icon">🧈</span>
+                <span>
+                    <strong>Butter</strong>
+                    <small>mild filter room</small>
+                </span>
+            </button>
+
+            <button
+                class="room-button"
                 id="room-blueCheese"
                 onclick="switchRoom('blueCheese')"
             >
                 <span class="room-icon blue">🧀</span>
                 <span>
                     <strong>Blue Cheese</strong>
-                    <small>no filters</small>
+                    <small>no word filters</small>
+                </span>
+            </button>
+
+            <button
+                class="room-button"
+                id="room-updateLog"
+                onclick="switchRoom('updateLog')"
+            >
+                <span class="room-icon">📢</span>
+                <span>
+                    <strong>Update Log</strong>
+                    <small>official patch notes</small>
                 </span>
             </button>
 
@@ -125,9 +158,20 @@
                 CHEESE ARCADE 🧀🎮
             </button>
 
+            <button
+                id="adminOpenBtn"
+                class="admin-open-btn hidden"
+                onclick="openAdminPanel()"
+            >
+                🧀 Admin Panel
+            </button>
+
             <div class="server-card">
-                <strong>Server Status</strong>
-                <span>🟢 extra melty</span>
+                <strong>Chaos Meter</strong>
+                <div class="chaos-bar">
+                    <div id="chaosFill"></div>
+                </div>
+                <span id="chaosText">0% chaotic</span>
             </div>
 
         </aside>
@@ -155,6 +199,11 @@
                     Nobody is talking yet. Suspiciously cheesy.
                 </div>
 
+            </div>
+
+            <div id="replyPreview" class="reply-preview hidden">
+                <span id="replyPreviewText"></span>
+                <button onclick="cancelReply()">×</button>
             </div>
 
             <div id="typingIndicator" class="typing-indicator"></div>
@@ -208,6 +257,94 @@
         </aside>
 
     </main>
+
+    <section id="adminPanel" class="admin-panel hidden">
+
+        <div id="adminHeader" class="admin-header">
+            <strong>🧀 Swiss Admin Console</strong>
+
+            <div>
+                <button onclick="collapseAdminPanel()">_</button>
+                <button onclick="closeAdminPanel()">×</button>
+            </div>
+        </div>
+
+        <div id="adminBody" class="admin-body">
+
+            <div class="admin-command-box">
+
+                <h3>Command Box</h3>
+
+                <textarea
+                    id="adminCommandInput"
+                    placeholder=";/Warning: <PlayerName>, <WarningText>"
+                ></textarea>
+
+                <button onclick="sendAdminCommand()">
+                    Run Command
+                </button>
+
+                <p id="adminReply"></p>
+
+                <div class="admin-help">
+                    <strong>Moderation</strong>
+                    <span>;/Warning: &lt;Player&gt;, &lt;Text&gt;</span>
+                    <span>;/Ban: &lt;Player&gt;, &lt;Reason&gt;</span>
+                    <span>;/TempBan: &lt;Player&gt;, &lt;10m&gt;, &lt;Reason&gt;</span>
+                    <span>;/Mute: &lt;Player&gt;, &lt;10m&gt;, &lt;Reason&gt;</span>
+                    <span>;/Offline</span>
+                    <span>;/Announcement: &lt;Message&gt;</span>
+
+                    <strong>Chaos</strong>
+                    <span>+/CheeseRain\</span>
+                    <span>+/CheeseStorm\</span>
+                    <span>+/Singularicheese\</span>
+                    <span>+/MouseRun\</span>
+                    <span>+/MeltUI\</span>
+                    <span>+/ButterFlood\</span>
+                    <span>+/ButterBomb\</span>
+                    <span>+/Filter: &lt;Room&gt;, &lt;On/Off&gt;\</span>
+                    <span>+/SetName: &lt;Name&gt;\</span>
+                    <span>+/ClearVisuals\</span>
+                </div>
+
+            </div>
+
+            <div class="event-scheduler">
+
+                <h3>Event Scheduling</h3>
+
+                <select id="scheduleCommand">
+                    <option value="+/CheeseRain\">Cheese Rain</option>
+                    <option value="+/CheeseStorm\">Cheese Storm</option>
+                    <option value="+/Singularicheese\">Singularicheese</option>
+                    <option value="+/MouseRun\">Mouse Run</option>
+                    <option value="+/MeltUI\">Melt UI</option>
+                    <option value="+/ButterFlood\">Butter Flood</option>
+                    <option value="+/ButterBomb\">Butter Bomb</option>
+                </select>
+
+                <input
+                    id="scheduleDelay"
+                    type="number"
+                    min="1"
+                    max="3600"
+                    value="10"
+                >
+
+                <button onclick="scheduleAdminEvent()">
+                    Schedule
+                </button>
+
+                <div id="scheduledEvents" class="scheduled-events"></div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    <div id="effectLayer"></div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="client.js"></script>
