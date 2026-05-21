@@ -53,6 +53,10 @@ const effectLayer = document.getElementById("effectLayer");
 
 const schedulePopup = document.getElementById("schedulePopup");
 
+/* =========================
+   AUTH
+========================= */
+
 function setAuthMessage(text, type = "error") {
     authMessage.textContent = text;
     authMessage.className = type;
@@ -144,6 +148,10 @@ async function login() {
         room: currentRoom
     });
 }
+
+/* =========================
+   CHAT
+========================= */
 
 function sendMessage() {
     const text = messageInput.value.trim();
@@ -270,6 +278,10 @@ function pushCachedItem(room, item) {
     }
 }
 
+/*
+   This redraws the whole chat ONLY when loading or switching rooms.
+   It does NOT run every time a new message arrives.
+*/
 function renderCurrentRoomFromCache() {
     clearMessages();
 
@@ -308,50 +320,27 @@ function renderRoomMessages(list) {
     renderCurrentRoomFromCache();
 }
 
-function openArcade() {
-    chatPage.classList.add("hidden");
-    arcadePage.classList.remove("hidden");
-}
-
-function closeArcade() {
-    arcadePage.classList.add("hidden");
-    chatPage.classList.remove("hidden");
-}
-
-function changeTabName() {
-    const input = document.getElementById("tabNameInput");
-    const value = input.value.trim();
-
-    if (!value) return;
-
-    document.title = value;
-}
-
-function updateCounter() {
-    const length = messageInput.value.length;
-    charCounter.textContent = `${length}/100`;
-
-    if (length >= 90) {
-        charCounter.classList.add("danger");
-    } else {
-        charCounter.classList.remove("danger");
-    }
-}
-
+/*
+   MAIN TEXT BUG FIX:
+   New messages are appended.
+   The chat no longer deletes and redraws every message each time.
+*/
 function addMessage(data) {
-    pushCachedItem(data.room || currentRoom, {
+    const room = data.room || currentRoom;
+
+    pushCachedItem(room, {
         type: "message",
         data
     });
 
-    if ((data.room || currentRoom) === currentRoom) {
-        renderCurrentRoomFromCache();
-    }
+    if (room !== currentRoom) return;
+
+    removeEmptyState();
+    renderMessageNode(data);
+    safeScrollToBottom();
 }
 
 function renderMessageNode(data) {
-    removeEmptyState();
-
     const div = document.createElement("div");
     div.className = "message";
     div.dataset.messageId = data.id;
@@ -384,6 +373,7 @@ function renderMessageNode(data) {
 
     const replyBtn = document.createElement("button");
     replyBtn.textContent = "Reply";
+
     replyBtn.onclick = () => {
         replyingTo = {
             id: data.id,
@@ -466,14 +456,14 @@ function addSystemMessage(text, room = currentRoom) {
         text
     });
 
-    if (room === currentRoom) {
-        renderCurrentRoomFromCache();
-    }
+    if (room !== currentRoom) return;
+
+    removeEmptyState();
+    renderSystemNode(text);
+    safeScrollToBottom();
 }
 
 function renderSystemNode(text) {
-    removeEmptyState();
-
     const div = document.createElement("div");
     div.className = "system-message";
     div.textContent = text;
@@ -509,9 +499,52 @@ function scrollToBottom() {
     messages.scrollTop = messages.scrollHeight;
 }
 
+function safeScrollToBottom() {
+    const distanceFromBottom =
+        messages.scrollHeight - messages.scrollTop - messages.clientHeight;
+
+    if (distanceFromBottom < 140) {
+        messages.scrollTop = messages.scrollHeight;
+    }
+}
+
 function cancelReply() {
     replyingTo = null;
     replyPreview.classList.add("hidden");
+}
+
+/* =========================
+   EXTRA UI
+========================= */
+
+function openArcade() {
+    chatPage.classList.add("hidden");
+    arcadePage.classList.remove("hidden");
+}
+
+function closeArcade() {
+    arcadePage.classList.add("hidden");
+    chatPage.classList.remove("hidden");
+}
+
+function changeTabName() {
+    const input = document.getElementById("tabNameInput");
+    const value = input.value.trim();
+
+    if (!value) return;
+
+    document.title = value;
+}
+
+function updateCounter() {
+    const length = messageInput.value.length;
+    charCounter.textContent = `${length}/100`;
+
+    if (length >= 90) {
+        charCounter.classList.add("danger");
+    } else {
+        charCounter.classList.remove("danger");
+    }
 }
 
 /* =========================
@@ -647,7 +680,9 @@ setInterval(() => {
     }
 }, 1000);
 
-/* iPad + PC draggable admin panel */
+/* =========================
+   DRAG ADMIN PANEL
+========================= */
 
 let draggingAdmin = false;
 let dragOffsetX = 0;
@@ -698,44 +733,14 @@ adminHeader.addEventListener("pointercancel", () => {
 
 /* =========================
    CHAOS EFFECTS
-   IMPORTANT:
-   These effects only animate overlay elements inside #effectLayer.
-   They do NOT animate .message, .app, .chat-page, or real text.
+   Kept overlay-only.
 ========================= */
 
 function hardResetVisuals() {
     document.body.classList.remove(
-        "melt-ui",
-        "butter-flood",
-        "cheese-storm",
-        "singularity-active",
         "singularity-background",
-        "singularity-spit",
-        "mouse-invasion-active",
-        "butter-bomb-active",
-        "cheese-rain-active"
+        "singularity-spit"
     );
-
-    app.style.transform = "";
-    app.style.filter = "";
-    app.style.animation = "";
-
-    messages.style.transform = "";
-    messages.style.filter = "";
-    messages.style.animation = "";
-
-    document
-        .querySelectorAll(
-            ".message, .message *, .system-message, .system-message *, .chat-page, .message-bar, .chat-header, .room-button, .online-user"
-        )
-        .forEach(element => {
-            element.style.transform = "";
-            element.style.translate = "";
-            element.style.top = "";
-            element.style.bottom = "";
-            element.style.animation = "";
-            element.style.filter = "";
-        });
 
     document
         .querySelectorAll(".singularity-hidden-original")
@@ -778,22 +783,7 @@ function cheeseRain(count = 70) {
         setTimeout(() => cheese.remove(), 6500);
     }
 
-    for (let i = 0; i < 18; i++) {
-        const splat = document.createElement("div");
-        splat.className = "cheese-splat";
-        splat.style.left = `${Math.random() * 100}vw`;
-        splat.style.bottom = `${Math.random() * 28}vh`;
-        splat.style.animationDelay = `${1.1 + Math.random() * 2.8}s`;
-        splat.style.transform = `rotate(${Math.random() * 360}deg) scale(${0.5 + Math.random() * 0.8})`;
-
-        effectLayer.appendChild(splat);
-
-        setTimeout(() => splat.remove(), 5800);
-    }
-
-    setTimeout(() => {
-        hardResetVisuals();
-    }, 6500);
+    setTimeout(() => hardResetVisuals(), 6500);
 }
 
 function cheeseStorm() {
@@ -803,14 +793,6 @@ function cheeseStorm() {
     const clouds = document.createElement("div");
     clouds.className = "storm-clouds";
     effectLayer.appendChild(clouds);
-
-    for (let i = 0; i < 5; i++) {
-        const lightning = document.createElement("div");
-        lightning.className = "cheese-lightning";
-        lightning.style.left = `${10 + Math.random() * 80}vw`;
-        lightning.style.animationDelay = `${Math.random() * 3.8}s`;
-        effectLayer.appendChild(lightning);
-    }
 
     for (let i = 0; i < 160; i++) {
         const cheese = document.createElement("div");
@@ -828,17 +810,12 @@ function cheeseStorm() {
         setTimeout(() => cheese.remove(), 6500);
     }
 
-    for (let i = 0; i < 28; i++) {
-        const chunk = document.createElement("div");
-        chunk.className = "storm-cheese-chunk";
-        chunk.textContent = "🧀";
-        chunk.style.left = `${Math.random() * 100}vw`;
-        chunk.style.top = `${Math.random() * 100}vh`;
-        chunk.style.animationDelay = `${Math.random() * 2}s`;
-
-        effectLayer.appendChild(chunk);
-
-        setTimeout(() => chunk.remove(), 6200);
+    for (let i = 0; i < 5; i++) {
+        const lightning = document.createElement("div");
+        lightning.className = "cheese-lightning";
+        lightning.style.left = `${10 + Math.random() * 80}vw`;
+        lightning.style.animationDelay = `${Math.random() * 3.8}s`;
+        effectLayer.appendChild(lightning);
     }
 
     setTimeout(() => {
@@ -854,7 +831,11 @@ function mouseRun() {
     for (let i = 0; i < 34; i++) {
         const mouse = document.createElement("div");
 
-        mouse.className = Math.random() > 0.5 ? "running-mouse" : "running-mouse reverse";
+        mouse.className =
+            Math.random() > 0.5
+                ? "running-mouse"
+                : "running-mouse reverse";
+
         mouse.textContent = Math.random() > 0.15 ? "🐭" : "🐁";
         mouse.style.top = `${12 + Math.random() * 78}vh`;
         mouse.style.animationDelay = `${Math.random() * 2.2}s`;
@@ -866,20 +847,7 @@ function mouseRun() {
         setTimeout(() => mouse.remove(), 6200);
     }
 
-    for (let i = 0; i < 16; i++) {
-        const cheeseCrumb = document.createElement("div");
-        cheeseCrumb.className = "cheese-crumb";
-        cheeseCrumb.textContent = "·";
-        cheeseCrumb.style.left = `${Math.random() * 100}vw`;
-        cheeseCrumb.style.top = `${Math.random() * 100}vh`;
-        effectLayer.appendChild(cheeseCrumb);
-
-        setTimeout(() => cheeseCrumb.remove(), 5200);
-    }
-
-    setTimeout(() => {
-        hardResetVisuals();
-    }, 6200);
+    setTimeout(() => hardResetVisuals(), 6200);
 }
 
 function butterBomb() {
@@ -888,9 +856,9 @@ function butterBomb() {
 
     const x = 12 + Math.random() * 74;
 
-    const screenPulse = document.createElement("div");
-    screenPulse.className = "butter-screen-pulse";
-    effectLayer.appendChild(screenPulse);
+    const pulse = document.createElement("div");
+    pulse.className = "butter-screen-pulse";
+    effectLayer.appendChild(pulse);
 
     const shadow = document.createElement("div");
     shadow.className = "butter-shadow";
@@ -910,7 +878,6 @@ function butterBomb() {
         const splat = document.createElement("div");
         splat.className = "butter-splat";
         splat.style.left = `${x - 6}vw`;
-
         effectLayer.appendChild(splat);
 
         for (let i = 0; i < 18; i++) {
@@ -924,9 +891,6 @@ function butterBomb() {
 
             setTimeout(() => drop.remove(), 2200);
         }
-
-        setTimeout(() => splat.remove(), 5600);
-        setTimeout(() => shadow.remove(), 1200);
     }, 930);
 
     setTimeout(() => {
@@ -1014,11 +978,11 @@ function singularicheese() {
         <div class="singularity-label">SINGULARICHEESE</div>
     `;
 
-    const flash = document.createElement("div");
-    flash.className = "singularity-flash";
-
     const vortex = document.createElement("div");
     vortex.className = "singularity-vortex";
+
+    const flash = document.createElement("div");
+    flash.className = "singularity-flash";
 
     effectLayer.appendChild(vortex);
     effectLayer.appendChild(flash);
@@ -1054,7 +1018,6 @@ function singularicheese() {
         clone.style.animationDelay = `${index * 0.014}s`;
 
         effectLayer.appendChild(clone);
-
         element.classList.add("singularity-hidden-original");
     });
 
