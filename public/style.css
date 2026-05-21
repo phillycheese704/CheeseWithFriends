@@ -1002,6 +1002,7 @@ input:disabled {
 
 /* CHAOS BASE */
 
+/* Real UI never animates. This protects chat text from drifting. */
 .app,
 .chat-page,
 .messages,
@@ -1018,17 +1019,16 @@ input:disabled {
     animation-name: none !important;
 }
 
+/* IMPORTANT:
+   Do NOT put animation-name: revert on #effectLayer *.
+   That breaks chaos animations.
+*/
 #effectLayer {
     position: fixed;
     inset: 0;
     pointer-events: none;
     z-index: 9999;
     overflow: hidden;
-}
-
-#effectLayer,
-#effectLayer * {
-    animation-name: revert;
 }
 
 .chaos-impact-text {
@@ -1071,7 +1071,7 @@ input:disabled {
     }
 }
 
-/* CHAOS EFFECTS */
+/* CHAOS EFFECTS 🧀 */
 
 .falling-cheese {
     position: absolute;
