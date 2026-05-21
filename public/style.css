@@ -14,6 +14,19 @@ body {
     transition: background 0.35s ease, color 0.35s ease;
 }
 
+/* Allows login screen to scroll before the app is opened */
+html:has(#authScreen:not(.hidden)),
+body:has(#authScreen:not(.hidden)) {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* Locks the app after login */
+html:has(#app:not(.hidden)),
+body:has(#app:not(.hidden)) {
+    overflow: hidden !important;
+}
+
 body[data-theme="cheese"] {
     --text: #4b3400;
     --page-bg:
@@ -134,11 +147,14 @@ input:disabled {
 
 .auth-screen {
     min-height: 100vh;
+    height: auto;
     padding: 24px;
     display: grid;
     place-items: center;
     position: relative;
     z-index: 2;
+    overflow-y: visible;
+    overflow-x: hidden;
 }
 
 .auth-card {
@@ -486,7 +502,6 @@ input:disabled {
     opacity: 0.82;
 }
 
-/* THIS IS THE IMPORTANT FIX */
 .messages {
     flex: 1 1 0;
     height: 0;
@@ -1056,7 +1071,7 @@ input:disabled {
     }
 }
 
-/* Keep your existing chaos effect classes working */
+/* CHAOS EFFECTS */
 
 .falling-cheese {
     position: absolute;
