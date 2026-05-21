@@ -1085,12 +1085,6 @@ function singularicheese() {
         const rect = element.getBoundingClientRect();
 
         const clone = element.cloneNode(true);
-
-        /*
-           Important:
-           The clone MUST NOT keep .message or .system-message classes.
-           The real UI lock blocks animation on those classes.
-        */
         clone.className = "singularity-clone";
 
         clone.style.left = `${rect.left}px`;
@@ -1151,21 +1145,68 @@ function singularicheese() {
 }
 
 function runChaosEvent(type) {
-    if (type === "clearVisuals") {
+    const cleanType = String(type || "")
+        .toLowerCase()
+        .replace(/\s+/g, "")
+        .replace(/-/g, "")
+        .replace(/_/g, "");
+
+    if (cleanType === "clearvisuals") {
         clearEffects();
         return;
     }
 
-    if (type === "cheeseRain") cheeseRain();
-    if (type === "cheeseStorm") cheeseStorm();
-    if (type === "mouseRun") mouseRun();
-    if (type === "butterBomb") butterBomb();
-    if (type === "singularicheese") singularicheese();
-    if (type === "meltUI") meltUI();
-    if (type === "butterFlood") butterFlood();
-    if (type === "cheeseQuake") cheeseQuake();
-    if (type === "cheesePortal") cheesePortal();
-    if (type === "mouldTakeover") mouldTakeover();
+    if (cleanType === "cheeserain") {
+        cheeseRain();
+        return;
+    }
+
+    if (cleanType === "cheesestorm") {
+        cheeseStorm();
+        return;
+    }
+
+    if (cleanType === "mouserun") {
+        mouseRun();
+        return;
+    }
+
+    if (cleanType === "butterbomb") {
+        butterBomb();
+        return;
+    }
+
+    if (cleanType === "singularicheese") {
+        singularicheese();
+        return;
+    }
+
+    if (cleanType === "meltui") {
+        meltUI();
+        return;
+    }
+
+    if (cleanType === "butterflood") {
+        butterFlood();
+        return;
+    }
+
+    if (cleanType === "cheesequake") {
+        cheeseQuake();
+        return;
+    }
+
+    if (cleanType === "cheeseportal") {
+        cheesePortal();
+        return;
+    }
+
+    if (cleanType === "mouldtakeover") {
+        mouldTakeover();
+        return;
+    }
+
+    console.warn("Unknown chaos event:", type);
 }
 
 /* =========================
