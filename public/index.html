@@ -200,73 +200,92 @@
 
             <section id="mozzarellaShop" class="mozzarella-shop hidden">
 
-                <div class="shop-hero">
-                    <div>
-                        <h2>⚪ Mozzarella</h2>
-                        <p>No-chat crate shop. Buy chaos abilities, cosmetics, and manage your inventory.</p>
+                <header class="mozzarella-full-header">
+
+                    <button
+                        class="mozzarella-back-btn"
+                        onclick="goBackToCheeseLounge()"
+                    >
+                        ← Back
+                    </button>
+
+                    <div class="mozzarella-title">
+                        <h1>⚪ Mozzarella Shop</h1>
+                        <p>No-chat crate shop • buy abilities • manage inventory</p>
                     </div>
 
-                    <div class="shop-balance">
+                    <div class="mozzarella-coins">
                         <span>Cheese Coins</span>
                         <strong id="shopCoins">0 🧀</strong>
                     </div>
+
+                </header>
+
+                <div class="mozzarella-full-layout">
+
+                    <section class="mozzarella-crates-zone">
+
+                        <div class="shop-panel mozzarella-main-panel">
+
+                            <div class="panel-title">
+                                <h3>📦 Chaos Crates</h3>
+                                <p>Open crates to get single-use chaos abilities.</p>
+                            </div>
+
+                            <div id="chaosCrateList" class="crate-list"></div>
+
+                        </div>
+
+                        <div class="shop-panel mozzarella-main-panel">
+
+                            <div class="panel-title">
+                                <h3>✨ Swiss Crate</h3>
+                                <p>Cosmetics only. Pick between 2 items.</p>
+                            </div>
+
+                            <div id="swissCrateBox" class="swiss-crate-box"></div>
+
+                        </div>
+
+                    </section>
+
+                    <section class="mozzarella-inventory-zone">
+
+                        <div class="shop-panel inventory-panel mozzarella-main-panel">
+
+                            <div class="panel-title">
+                                <h3>🎒 Inventory</h3>
+                                <p>Select 1 chaos ability. You can run 1 every minute.</p>
+                            </div>
+
+                            <div id="inventorySelected" class="inventory-selected">
+                                No ability selected.
+                            </div>
+
+                            <button
+                                id="runSelectedChaosBtn"
+                                class="run-chaos-btn"
+                                onclick="runSelectedChaosAbility()"
+                            >
+                                Run Selected Chaos
+                            </button>
+
+                            <div id="chaosCooldownText" class="cooldown-text"></div>
+
+                            <div id="inventoryList" class="inventory-list"></div>
+
+                            <button
+                                class="open-index-btn"
+                                onclick="openIndexBook()"
+                            >
+                                📚 Open Cheese Index
+                            </button>
+
+                        </div>
+
+                    </section>
+
                 </div>
-
-                <div class="shop-grid">
-
-                    <div class="shop-panel">
-                        <div class="panel-title">
-                            <h3>📦 Chaos Crates</h3>
-                            <p>Single-use chaos abilities.</p>
-                        </div>
-
-                        <div id="chaosCrateList" class="crate-list"></div>
-                    </div>
-
-                    <div class="shop-panel">
-                        <div class="panel-title">
-                            <h3>✨ Swiss Crate</h3>
-                            <p>Cosmetics. Pick between 2 items. Duplicates become coins.</p>
-                        </div>
-
-                        <div id="swissCrateBox" class="swiss-crate-box"></div>
-                    </div>
-
-                    <div class="shop-panel inventory-panel">
-                        <div class="panel-title">
-                            <h3>🎒 Inventory</h3>
-                            <p>Select 1 chaos ability and run it. Cooldown: 1 minute.</p>
-                        </div>
-
-                        <div id="inventorySelected" class="inventory-selected">
-                            No ability selected.
-                        </div>
-
-                        <button
-                            id="runSelectedChaosBtn"
-                            class="run-chaos-btn"
-                            onclick="runSelectedChaosAbility()"
-                        >
-                            Run Selected Chaos
-                        </button>
-
-                        <div id="chaosCooldownText" class="cooldown-text"></div>
-
-                        <div id="inventoryList" class="inventory-list"></div>
-
-                        <button
-                            class="open-index-btn"
-                            onclick="openIndexBook()"
-                        >
-                            📚 Open Cheese Index
-                        </button>
-                    </div>
-
-                </div>
-
-                <div id="crateResultBox" class="crate-result-box hidden"></div>
-
-                <div id="cosmeticChoiceBox" class="cosmetic-choice-box hidden"></div>
 
                 <p id="shopReply" class="shop-reply"></p>
 
@@ -549,6 +568,12 @@
             </div>
 
         </div>
+
+    </section>
+
+    <section id="crateOverlay" class="crate-overlay hidden">
+
+        <div id="crateOverlayCard" class="crate-overlay-card"></div>
 
     </section>
 

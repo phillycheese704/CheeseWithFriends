@@ -69,9 +69,10 @@ const inventorySelected = document.getElementById("inventorySelected");
 const runSelectedChaosBtn = document.getElementById("runSelectedChaosBtn");
 const chaosCooldownText = document.getElementById("chaosCooldownText");
 const inventoryList = document.getElementById("inventoryList");
-const crateResultBox = document.getElementById("crateResultBox");
-const cosmeticChoiceBox = document.getElementById("cosmeticChoiceBox");
 const shopReply = document.getElementById("shopReply");
+
+const crateOverlay = document.getElementById("crateOverlay");
+const crateOverlayCard = document.getElementById("crateOverlayCard");
 
 const miniProfileStats = document.getElementById("miniProfileStats");
 const profileModal = document.getElementById("profileModal");
@@ -184,8 +185,12 @@ async function login() {
 }
 
 /* =========================
-   CHAT
+   ROOM / CHAT
 ========================= */
+
+function goBackToCheeseLounge() {
+    switchRoom("cheeseLounge");
+}
 
 function sendMessage() {
     const text = messageInput.value.trim();
@@ -852,30 +857,37 @@ function showShopReply(text) {
 }
 
 /* =========================
-   CRATE ANIMATIONS
+   FULLSCREEN CRATE OVERLAY
 ========================= */
 
 function showCrateOpeningAnimation(title, subtitle, type) {
-    if (!crateResultBox) return;
+    if (!crateOverlay || !crateOverlayCard) return;
 
-    crateResultBox.classList.remove("hidden");
-    crateResultBox.innerHTML = `
-        <div class="crate-opening-animation ${type}">
-            <div class="crate-opening-stage">
-                <div class="crate-shine"></div>
-                <div class="crate-box-emoji">📦</div>
-                <div class="crate-sparkles">
+    crateOverlay.classList.remove("hidden");
+
+    crateOverlayCard.innerHTML = `
+        <div class="fullscreen-crate-opening ${type}">
+            <div class="fullscreen-crate-glow"></div>
+
+            <div class="fullscreen-crate-box">
+                <div class="fullscreen-crate-emoji">📦</div>
+                <div class="fullscreen-crate-sparkles">
                     <span>✨</span>
                     <span>🧀</span>
                     <span>✨</span>
-                    <span>🧀</span>
+                    <span>⚪</span>
                 </div>
             </div>
 
-            <h3>${title}</h3>
+            <h2>${title}</h2>
             <p>${subtitle}</p>
 
-            <div class="crate-rarity-spinner">
+            <div class="fullscreen-roll-strip">
+                <span>COMMON</span>
+                <span>UNCOMMON</span>
+                <span>RARE</span>
+                <span>EPIC</span>
+                <span>LEGENDARY</span>
                 <span>COMMON</span>
                 <span>UNCOMMON</span>
                 <span>RARE</span>
@@ -884,79 +896,80 @@ function showCrateOpeningAnimation(title, subtitle, type) {
             </div>
         </div>
     `;
-
-    if (cosmeticChoiceBox) {
-        cosmeticChoiceBox.classList.add("hidden");
-    }
 }
 
 function renderCrateResult(data) {
-    if (!crateResultBox) return;
+    if (!crateOverlay || !crateOverlayCard) return;
 
     setTimeout(() => {
         isOpeningCrate = false;
 
-        crateResultBox.classList.remove("hidden");
-        crateResultBox.innerHTML = `
-            <div class="crate-result ${rarityClass(data.reward.rarity)}">
-                <div class="reward-burst"></div>
+        crateOverlay.classList.remove("hidden");
 
-                <h3>${data.crate.name} opened!</h3>
+        crateOverlayCard.innerHTML = `
+            <div class="fullscreen-crate-result ${rarityClass(data.reward.rarity)}">
+                <div class="fullscreen-reward-burst"></div>
 
-                <div class="big-reward">${data.reward.icon}</div>
+                <p class="fullscreen-result-small">${data.crate.name} opened!</p>
+
+                <div class="fullscreen-big-reward">${data.reward.icon}</div>
 
                 <h2>${data.reward.name}</h2>
 
-                <div class="reward-rarity-pill ${rarityClass(data.reward.rarity)}">
+                <div class="fullscreen-rarity-pill ${rarityClass(data.reward.rarity)}">
                     ${rarityEmoji(data.reward.rarity)} ${rarityLabel(data.reward.rarity)}
                 </div>
 
                 <p>Added to your chaos inventory.</p>
+
+                <button onclick="closeCrateOverlay()">
+                    Nice 🧀
+                </button>
             </div>
         `;
-
-        setTimeout(() => {
-            crateResultBox.classList.add("hidden");
-        }, 7000);
-    }, 1700);
+    }, 1800);
 }
 
 function renderCosmeticChoice(choices) {
-    if (!cosmeticChoiceBox) return;
+    if (!crateOverlay || !crateOverlayCard) return;
 
     setTimeout(() => {
         isOpeningCrate = false;
 
-        if (crateResultBox) {
-            crateResultBox.classList.add("hidden");
-        }
+        crateOverlay.classList.remove("hidden");
 
-        cosmeticChoiceBox.classList.remove("hidden");
-        cosmeticChoiceBox.innerHTML = `
-            <div class="cosmetic-choice-header">
-                <h3>✨ Choose one cosmetic</h3>
-                <p>Pick carefully. Duplicates turn into Cheese Coins.</p>
+        crateOverlayCard.innerHTML = `
+            <div class="fullscreen-cosmetic-choice">
+                <h2>✨ Choose one cosmetic</h2>
+                <p>Duplicates turn into Cheese Coins.</p>
+
+                <div class="fullscreen-cosmetic-grid"></div>
             </div>
-
-            <div class="cosmetic-choice-grid"></div>
         `;
 
-        const grid = cosmeticChoiceBox.querySelector(".cosmetic-choice-grid");
+        const grid = crateOverlayCard.querySelector(".fullscreen-cosmetic-grid");
 
         choices.forEach(choice => {
             const card = document.createElement("button");
-            card.className = `cosmetic-choice ${rarityClass(choice.rarity)}`;
+            card.className = `fullscreen-cosmetic-card ${rarityClass(choice.rarity)}`;
+
+            const icon =
+                choice.type === "background"
+                    ? "🎨"
+                    : choice.type === "font"
+                        ? "🔤"
+                        : "🧩";
 
             card.innerHTML = `
-                <div class="cosmetic-choice-icon">
-                    ${choice.type === "background" ? "🎨" : choice.type === "font" ? "🔤" : "🧩"}
-                </div>
+                <div class="fullscreen-cosmetic-icon">${icon}</div>
 
-                <strong>${choice.name}</strong>
+                <h3>${choice.name}</h3>
 
-                <span>
-                    ${rarityEmoji(choice.rarity)} ${rarityLabel(choice.rarity)} • ${choice.type}
-                </span>
+                <strong>
+                    ${rarityEmoji(choice.rarity)} ${rarityLabel(choice.rarity)}
+                </strong>
+
+                <span>${choice.type}</span>
 
                 ${
                     choice.duplicate
@@ -967,40 +980,46 @@ function renderCosmeticChoice(choices) {
 
             card.onclick = () => {
                 socket.emit("choose cosmetic", choice.id);
-                cosmeticChoiceBox.classList.add("hidden");
 
-                if (crateResultBox) {
-                    crateResultBox.classList.remove("hidden");
-                    crateResultBox.innerHTML = `
-                        <div class="crate-result ${rarityClass(choice.rarity)}">
-                            <div class="reward-burst"></div>
-                            <h3>Cosmetic chosen!</h3>
-                            <div class="big-reward">
-                                ${choice.type === "background" ? "🎨" : choice.type === "font" ? "🔤" : "🧩"}
-                            </div>
-                            <h2>${choice.name}</h2>
-                            <div class="reward-rarity-pill ${rarityClass(choice.rarity)}">
-                                ${rarityEmoji(choice.rarity)} ${rarityLabel(choice.rarity)}
-                            </div>
-                            <p>
-                                ${
-                                    choice.duplicate
-                                        ? `Duplicate converted into ${choice.duplicateCoins} Cheese Coins.`
-                                        : "Added to your Cheese Index."
-                                }
-                            </p>
+                crateOverlayCard.innerHTML = `
+                    <div class="fullscreen-crate-result ${rarityClass(choice.rarity)}">
+                        <div class="fullscreen-reward-burst"></div>
+
+                        <p class="fullscreen-result-small">Cosmetic chosen!</p>
+
+                        <div class="fullscreen-big-reward">${icon}</div>
+
+                        <h2>${choice.name}</h2>
+
+                        <div class="fullscreen-rarity-pill ${rarityClass(choice.rarity)}">
+                            ${rarityEmoji(choice.rarity)} ${rarityLabel(choice.rarity)}
                         </div>
-                    `;
 
-                    setTimeout(() => {
-                        crateResultBox.classList.add("hidden");
-                    }, 5500);
-                }
+                        <p>
+                            ${
+                                choice.duplicate
+                                    ? `Duplicate converted into ${choice.duplicateCoins} Cheese Coins.`
+                                    : "Added to your Cheese Index."
+                            }
+                        </p>
+
+                        <button onclick="closeCrateOverlay()">
+                            Nice 🧀
+                        </button>
+                    </div>
+                `;
             };
 
             grid.appendChild(card);
         });
-    }, 1700);
+    }, 1800);
+}
+
+function closeCrateOverlay() {
+    if (!crateOverlay || !crateOverlayCard) return;
+
+    crateOverlay.classList.add("hidden");
+    crateOverlayCard.innerHTML = "";
 }
 
 /* =========================
@@ -2193,6 +2212,11 @@ socket.on("coin notice", message => {
 socket.on("shop reply", message => {
     isOpeningCrate = false;
     showShopReply(message);
+
+    if (crateOverlay && !crateOverlay.classList.contains("hidden")) {
+        crateOverlay.classList.add("hidden");
+        crateOverlayCard.innerHTML = "";
+    }
 });
 
 socket.on("crate opened", data => {
