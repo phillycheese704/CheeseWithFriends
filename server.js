@@ -14,10 +14,11 @@ const PORT = process.env.PORT || 3000;
 
 const DATA_DIR = path.join(__dirname, "data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
+const PLAYER_DATA_FILE = path.join(DATA_DIR, "player-data.json");
 
 const ADMIN_LOGIN_USERNAME = "PhillyCheese#;";
 const ADMIN_DISPLAY_NAME = "PhillyCheese";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "AdminAccount##;";
+const ADMIN_PASSWORD = "AdminAccount##;";
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
@@ -29,6 +30,70 @@ if (!fs.existsSync(DATA_DIR)) {
 if (!fs.existsSync(USERS_FILE)) {
     fs.writeFileSync(USERS_FILE, JSON.stringify({ users: [] }, null, 2));
 }
+
+if (!fs.existsSync(PLAYER_DATA_FILE)) {
+    fs.writeFileSync(PLAYER_DATA_FILE, JSON.stringify({ players: {} }, null, 2));
+}
+
+/* =========================
+   BASIC HELPERS
+========================= */
+
+function makeToken() {
+    return crypto.randomBytes(32).toString("hex");
+}
+
+function makeId() {
+    return crypto.randomBytes(10).toString("hex");
+}
+
+function cleanUsername(username) {
+    return String(username || "")
+        .trim()
+        .slice(0, 24);
+}
+
+function nowTime() {
+    return new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+}
+
+function parseDurationToMs(text) {
+    const raw = String(text || "").trim().toLowerCase();
+    const match = raw.match(/^(\d+)\s*(s|m|h|d)$/);
+
+    if (!match) return null;
+
+    const amount = Number(match[1]);
+    const unit = match[2];
+
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+
+    if (unit === "s") return amount * 1000;
+    if (unit === "m") return amount * 60 * 1000;
+    if (unit === "h") return amount * 60 * 60 * 1000;
+    if (unit === "d") return amount * 24 * 60 * 60 * 1000;
+
+    return null;
+}
+
+function splitCommandArgs(text) {
+    return String(text || "")
+        .split(",")
+        .map(part => part.trim())
+        .filter(Boolean);
+}
+
+function safeNumber(value, fallback = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+}
+
+/* =========================
+   FILE DATA
+========================= */
 
 function readUsers() {
     try {
@@ -47,61 +112,27 @@ function readUsers() {
 }
 
 function writeUsers(users) {
-    fs.writeFileSync(
-        USERS_FILE,
-        JSON.stringify({ users }, null, 2)
-    );
+    fs.writeFileSync(USERS_FILE, JSON.stringify({ users }, null, 2));
 }
 
-function makeToken() {
-    return crypto.randomBytes(32).toString("hex");
-}
+function readPlayerDataFile() {
+    try {
+        const raw = fs.readFileSync(PLAYER_DATA_FILE, "utf8");
+        const data = JSON.parse(raw);
 
-function cleanUsername(username) {
-    return String(username || "")
-        .trim()
-        .slice(0, 24);
-}
+        if (!data.players) {
+            data.players = {};
+        }
 
-function nowTime() {
-    return new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit"
-    });
-}
-
-function makeId() {
-    return crypto.randomBytes(10).toString("hex");
-}
-
-function parseDurationToMs(text) {
-    const raw = String(text || "").trim().toLowerCase();
-    const match = raw.match(/^(\d+)\s*(s|m|h|d)$/);
-
-    if (!match) {
-        return null;
+        return data;
+    } catch (err) {
+        console.error("Failed to read player data:", err);
+        return { players: {} };
     }
-
-    const amount = Number(match[1]);
-    const unit = match[2];
-
-    if (!Number.isFinite(amount) || amount <= 0) {
-        return null;
-    }
-
-    if (unit === "s") return amount * 1000;
-    if (unit === "m") return amount * 60 * 1000;
-    if (unit === "h") return amount * 60 * 60 * 1000;
-    if (unit === "d") return amount * 24 * 60 * 60 * 1000;
-
-    return null;
 }
 
-function splitCommandArgs(text) {
-    return String(text || "")
-        .split(",")
-        .map(part => part.trim())
-        .filter(Boolean);
+function writePlayerDataFile(data) {
+    fs.writeFileSync(PLAYER_DATA_FILE, JSON.stringify(data, null, 2));
 }
 
 /* =========================
@@ -115,6 +146,7 @@ const rooms = {
         icon: "🧀",
         theme: "cheese",
         readOnly: false,
+        noChat: false,
         filterLevel: "strict",
         allowLinks: false
     },
@@ -125,6 +157,7 @@ const rooms = {
         icon: "🧈",
         theme: "butter",
         readOnly: false,
+        noChat: false,
         filterLevel: "mild",
         allowLinks: true
     },
@@ -135,16 +168,18 @@ const rooms = {
         icon: "🧀",
         theme: "blue",
         readOnly: false,
+        noChat: false,
         filterLevel: "none",
         allowLinks: true
     },
 
-    updateLog: {
-        id: "updateLog",
-        name: "Update Log",
-        icon: "📢",
+    mozzarella: {
+        id: "mozzarella",
+        name: "Mozzarella",
+        icon: "⚪",
         theme: "cheese",
         readOnly: true,
+        noChat: true,
         filterLevel: "strict",
         allowLinks: false
     }
@@ -154,28 +189,18 @@ const roomMessages = {
     cheeseLounge: [],
     butter: [],
     blueCheese: [],
-    updateLog: [
-        {
-            id: makeId(),
-            username: "Update Log",
-            realUsername: "Update Log",
-            text: "v1.0 — CheeseWithFriends is alive 🧀",
-            time: nowTime(),
-            room: "updateLog",
-            reactions: {}
-        }
-    ]
+    mozzarella: []
 };
 
 const filterEnabled = {
     cheeseLounge: true,
     butter: true,
     blueCheese: false,
-    updateLog: true
+    mozzarella: true
 };
 
 /* =========================
-   AUTH STATE
+   AUTH / LIVE STATE
 ========================= */
 
 const sessions = new Map();
@@ -187,6 +212,731 @@ let adminAppearsOffline = false;
 let visualNameOverride = "";
 let chaosLevel = 0;
 let scheduledEvents = [];
+let activePoll = null;
+
+/* =========================
+   PLAYER DATA / COINS / PROFILE
+========================= */
+
+function getPlayerKey(username) {
+    return String(username || "")
+        .trim()
+        .toLowerCase();
+}
+
+function createDefaultPlayerProfile(username) {
+    return {
+        username,
+        coins: 0,
+        highestCoins: 0,
+        totalCoinsEarned: 0,
+        messagesSent: 0,
+        chaosUsed: 0,
+        cratesOpened: 0,
+        favouriteEvent: "",
+        lastCoinMessageAt: 0,
+        lastChaosUsedAt: 0,
+
+        inventory: {},
+
+        index: {
+            eventsWitnessed: {},
+            eventsUsed: {},
+            cosmeticsOwned: {}
+        },
+
+        equippedCosmetics: {
+            background: "",
+            font: "",
+            icon: ""
+        },
+
+        achievementsText: "Coming soon 🧀🏆"
+    };
+}
+
+function getPlayerProfile(username) {
+    const data = readPlayerDataFile();
+    const key = getPlayerKey(username);
+
+    if (!data.players[key]) {
+        data.players[key] = createDefaultPlayerProfile(username);
+        writePlayerDataFile(data);
+    }
+
+    return data.players[key];
+}
+
+function savePlayerProfile(profile) {
+    const data = readPlayerDataFile();
+    const key = getPlayerKey(profile.username);
+
+    data.players[key] = profile;
+    writePlayerDataFile(data);
+}
+
+function addCoins(username, amount) {
+    const profile = getPlayerProfile(username);
+    const safeAmount = Math.max(0, safeNumber(amount));
+
+    profile.coins += safeAmount;
+    profile.totalCoinsEarned += safeAmount;
+
+    if (profile.coins > profile.highestCoins) {
+        profile.highestCoins = profile.coins;
+    }
+
+    savePlayerProfile(profile);
+    return profile;
+}
+
+function removeCoins(username, amount) {
+    const profile = getPlayerProfile(username);
+    const safeAmount = Math.max(0, safeNumber(amount));
+
+    if (profile.coins < safeAmount) {
+        return {
+            success: false,
+            profile
+        };
+    }
+
+    profile.coins -= safeAmount;
+    savePlayerProfile(profile);
+
+    return {
+        success: true,
+        profile
+    };
+}
+
+function setCoins(username, amount) {
+    const profile = getPlayerProfile(username);
+    const safeAmount = Math.max(0, safeNumber(amount));
+
+    profile.coins = safeAmount;
+
+    if (profile.coins > profile.highestCoins) {
+        profile.highestCoins = profile.coins;
+    }
+
+    savePlayerProfile(profile);
+    return profile;
+}
+
+function addInventoryItem(username, eventId, amount = 1) {
+    const profile = getPlayerProfile(username);
+    const safeAmount = Math.max(1, safeNumber(amount, 1));
+
+    profile.inventory[eventId] = (profile.inventory[eventId] || 0) + safeAmount;
+
+    savePlayerProfile(profile);
+    return profile;
+}
+
+function removeInventoryItem(username, eventId) {
+    const profile = getPlayerProfile(username);
+
+    if (!profile.inventory[eventId] || profile.inventory[eventId] <= 0) {
+        return {
+            success: false,
+            profile
+        };
+    }
+
+    profile.inventory[eventId] -= 1;
+
+    if (profile.inventory[eventId] <= 0) {
+        delete profile.inventory[eventId];
+    }
+
+    savePlayerProfile(profile);
+
+    return {
+        success: true,
+        profile
+    };
+}
+
+function markEventWitnessed(username, eventId) {
+    const profile = getPlayerProfile(username);
+
+    profile.index.eventsWitnessed[eventId] = true;
+
+    savePlayerProfile(profile);
+    return profile;
+}
+
+function markEventUsed(username, eventId) {
+    const profile = getPlayerProfile(username);
+
+    profile.index.eventsUsed[eventId] = true;
+    profile.index.eventsWitnessed[eventId] = true;
+    profile.chaosUsed += 1;
+
+    savePlayerProfile(profile);
+    return profile;
+}
+
+function markCosmeticOwned(username, cosmeticId) {
+    const profile = getPlayerProfile(username);
+
+    profile.index.cosmeticsOwned[cosmeticId] = true;
+
+    savePlayerProfile(profile);
+    return profile;
+}
+
+/* =========================
+   CHAOS EVENTS / CRATES / COSMETICS
+========================= */
+
+const CHAOS_EVENTS = {
+    cheeserain: {
+        id: "cheeserain",
+        name: "Cheese Rain",
+        icon: "🧀🌧️",
+        rarity: "common",
+        description: "Cheese falls from the sky."
+    },
+
+    mouserun: {
+        id: "mouserun",
+        name: "Mouse Run",
+        icon: "🐭",
+        rarity: "common",
+        description: "Mice sprint across the screen."
+    },
+
+    butterbomb: {
+        id: "butterbomb",
+        name: "Butter Bomb",
+        icon: "🧈💥",
+        rarity: "common",
+        description: "A giant butter bomb splats on the screen."
+    },
+
+    butterflood: {
+        id: "butterflood",
+        name: "Butter Flood",
+        icon: "🧈🌊",
+        rarity: "uncommon",
+        description: "A wave of butter floods the page."
+    },
+
+    cheesequake: {
+        id: "cheesequake",
+        name: "Cheesequake",
+        icon: "🧀🌎",
+        rarity: "uncommon",
+        description: "The cheese world shakes."
+    },
+
+    mouldtakeover: {
+        id: "mouldtakeover",
+        name: "Mould Takeover",
+        icon: "☣️🧀",
+        rarity: "rare",
+        description: "Mould spreads across the screen."
+    },
+
+    cheesestorm: {
+        id: "cheesestorm",
+        name: "Cheese Storm",
+        icon: "🧀⛈️",
+        rarity: "rare",
+        description: "A violent storm of cheese."
+    },
+
+    cheeseportal: {
+        id: "cheeseportal",
+        name: "Cheese Portal",
+        icon: "🧀🌌",
+        rarity: "epic",
+        description: "A glowing cheese portal opens."
+    },
+
+    cheesemoon: {
+        id: "cheesemoon",
+        name: "Cheese Moon",
+        icon: "🧀🌕",
+        rarity: "epic",
+        description: "A huge aesthetic cheese moon rises."
+    },
+
+    giantmousetrap: {
+        id: "giantmousetrap",
+        name: "Giant Mouse Trap",
+        icon: "🪤",
+        rarity: "epic",
+        description: "A huge mousetrap covers the screen."
+    },
+
+    singularicheese: {
+        id: "singularicheese",
+        name: "Singularicheese",
+        icon: "🧀🌀",
+        rarity: "legendary",
+        description: "A cheese singularity consumes the UI."
+    },
+
+    cheesemeteor: {
+        id: "cheesemeteor",
+        name: "Cheese Meteor",
+        icon: "🧀☄️",
+        rarity: "legendary",
+        description: "A flaming cheese meteor crashes down."
+    },
+
+    cheesenado: {
+        id: "cheesenado",
+        name: "Cheesenado",
+        icon: "🧀🌪️",
+        rarity: "legendary",
+        description: "A tornado of cheese sweeps across the page."
+    }
+};
+
+const CHAOS_CRATES = {
+    dairy: {
+        id: "dairy",
+        name: "Dairy Crate",
+        price: 50,
+        odds: [
+            {
+                rarity: "common",
+                chance: 80,
+                pool: ["cheeserain", "mouserun", "butterbomb"]
+            },
+            {
+                rarity: "uncommon",
+                chance: 15,
+                pool: ["butterflood", "cheesequake"]
+            },
+            {
+                rarity: "rare",
+                chance: 5,
+                pool: ["mouldtakeover", "cheesestorm"]
+            }
+        ]
+    },
+
+    mozzarella: {
+        id: "mozzarella",
+        name: "Mozzarella Crate",
+        price: 100,
+        odds: [
+            {
+                rarity: "common",
+                chance: 50,
+                pool: ["cheeserain", "mouserun", "butterbomb"]
+            },
+            {
+                rarity: "uncommon",
+                chance: 30,
+                pool: ["butterflood", "cheesequake"]
+            },
+            {
+                rarity: "rare",
+                chance: 15,
+                pool: ["mouldtakeover", "cheesestorm"]
+            },
+            {
+                rarity: "epic",
+                chance: 5,
+                pool: ["cheeseportal", "cheesemoon", "giantmousetrap"]
+            }
+        ]
+    },
+
+    cheese: {
+        id: "cheese",
+        name: "Cheese Crate",
+        price: 500,
+        odds: [
+            {
+                rarity: "common",
+                chance: 35,
+                pool: ["cheeserain", "mouserun", "butterbomb"]
+            },
+            {
+                rarity: "uncommon",
+                chance: 30,
+                pool: ["butterflood", "cheesequake"]
+            },
+            {
+                rarity: "rare",
+                chance: 20,
+                pool: ["mouldtakeover", "cheesestorm"]
+            },
+            {
+                rarity: "epic",
+                chance: 10,
+                pool: ["cheeseportal", "cheesemoon", "giantmousetrap"]
+            },
+            {
+                rarity: "legendary",
+                chance: 5,
+                pool: ["singularicheese", "cheesemeteor", "cheesenado"]
+            }
+        ]
+    },
+
+    chaos: {
+        id: "chaos",
+        name: "Chaos Crate",
+        price: 850,
+        odds: [
+            {
+                rarity: "common",
+                chance: 25,
+                pool: ["cheeserain", "mouserun", "butterbomb"]
+            },
+            {
+                rarity: "uncommon",
+                chance: 20,
+                pool: ["butterflood", "cheesequake"]
+            },
+            {
+                rarity: "rare",
+                chance: 15,
+                pool: ["mouldtakeover", "cheesestorm"]
+            },
+            {
+                rarity: "epic",
+                chance: 30,
+                pool: ["cheeseportal", "cheesemoon", "giantmousetrap"]
+            },
+            {
+                rarity: "legendary",
+                chance: 10,
+                pool: ["singularicheese", "cheesemeteor", "cheesenado"]
+            }
+        ]
+    }
+};
+
+const COSMETICS = {
+    classicCheeseBackground: {
+        id: "classicCheeseBackground",
+        name: "Classic Cheese Background",
+        type: "background",
+        rarity: "common"
+    },
+
+    butterBackground: {
+        id: "butterBackground",
+        name: "Butter Background",
+        type: "background",
+        rarity: "common"
+    },
+
+    cheeseFont: {
+        id: "cheeseFont",
+        name: "Cheese Font",
+        type: "font",
+        rarity: "common"
+    },
+
+    mouseIcon: {
+        id: "mouseIcon",
+        name: "Mouse Icon",
+        type: "icon",
+        rarity: "common"
+    },
+
+    mozzarellaBackground: {
+        id: "mozzarellaBackground",
+        name: "Mozzarella Background",
+        type: "background",
+        rarity: "uncommon"
+    },
+
+    retroFont: {
+        id: "retroFont",
+        name: "Retro Arcade Font",
+        type: "font",
+        rarity: "uncommon"
+    },
+
+    cheeseIcon: {
+        id: "cheeseIcon",
+        name: "Cheese Icon",
+        type: "icon",
+        rarity: "uncommon"
+    },
+
+    cheeseMoonBackground: {
+        id: "cheeseMoonBackground",
+        name: "Cheese Moon Background",
+        type: "background",
+        rarity: "rare"
+    },
+
+    portalBackground: {
+        id: "portalBackground",
+        name: "Cheese Portal Background",
+        type: "background",
+        rarity: "rare"
+    },
+
+    glitchFont: {
+        id: "glitchFont",
+        name: "Glitch Font",
+        type: "font",
+        rarity: "rare"
+    },
+
+    meteorIcon: {
+        id: "meteorIcon",
+        name: "Meteor Icon",
+        type: "icon",
+        rarity: "rare"
+    },
+
+    singularicheeseBackground: {
+        id: "singularicheeseBackground",
+        name: "Singularicheese Background",
+        type: "background",
+        rarity: "epic"
+    },
+
+    royalFont: {
+        id: "royalFont",
+        name: "Royal Cheese Font",
+        type: "font",
+        rarity: "epic"
+    },
+
+    cheesenadoIcon: {
+        id: "cheesenadoIcon",
+        name: "Cheesenado Icon",
+        type: "icon",
+        rarity: "epic"
+    },
+
+    legendaryCheeseMoonBackground: {
+        id: "legendaryCheeseMoonBackground",
+        name: "Legendary Cheese Moon Background",
+        type: "background",
+        rarity: "legendary"
+    },
+
+    goldenCheeseFont: {
+        id: "goldenCheeseFont",
+        name: "Golden Cheese Font",
+        type: "font",
+        rarity: "legendary"
+    },
+
+    singularityIcon: {
+        id: "singularityIcon",
+        name: "Singularity Icon",
+        type: "icon",
+        rarity: "legendary"
+    }
+};
+
+const SWISS_CRATE = {
+    id: "swiss",
+    name: "Swiss Crate",
+    price: 100,
+    odds: [
+        {
+            rarity: "common",
+            chance: 50
+        },
+        {
+            rarity: "uncommon",
+            chance: 25
+        },
+        {
+            rarity: "rare",
+            chance: 15
+        },
+        {
+            rarity: "epic",
+            chance: 8
+        },
+        {
+            rarity: "legendary",
+            chance: 2
+        }
+    ]
+};
+
+const DUPLICATE_COSMETIC_COINS = {
+    common: 5,
+    uncommon: 10,
+    rare: 20,
+    epic: 50,
+    legendary: 100
+};
+
+function rollRarity(odds) {
+    const total = odds.reduce((sum, entry) => sum + entry.chance, 0);
+    let roll = Math.random() * total;
+
+    for (const entry of odds) {
+        roll -= entry.chance;
+
+        if (roll <= 0) {
+            return entry;
+        }
+    }
+
+    return odds[0];
+}
+
+function pickRandom(list) {
+    return list[Math.floor(Math.random() * list.length)];
+}
+
+function rollChaosCrate(crateId) {
+    const crate = CHAOS_CRATES[crateId];
+
+    if (!crate) return null;
+
+    const rarityEntry = rollRarity(crate.odds);
+    const eventId = pickRandom(rarityEntry.pool);
+
+    return {
+        crate,
+        event: CHAOS_EVENTS[eventId]
+    };
+}
+
+function rollCosmetic() {
+    const rarityEntry = rollRarity(SWISS_CRATE.odds);
+
+    const pool = Object.values(COSMETICS).filter(
+        cosmetic => cosmetic.rarity === rarityEntry.rarity
+    );
+
+    return pickRandom(pool);
+}
+
+function rollCosmeticChoice(username) {
+    const first = rollCosmetic();
+    let second = rollCosmetic();
+
+    let guard = 0;
+
+    while (second.id === first.id && guard < 20) {
+        second = rollCosmetic();
+        guard++;
+    }
+
+    const profile = getPlayerProfile(username);
+
+    return [first, second].map(item => {
+        const duplicate = !!profile.index.cosmeticsOwned[item.id];
+
+        return {
+            ...item,
+            duplicate,
+            duplicateCoins: duplicate ? DUPLICATE_COSMETIC_COINS[item.rarity] : 0
+        };
+    });
+}
+
+function getBookCompletionPercent(profile) {
+    const eventCount = Object.keys(CHAOS_EVENTS).length;
+    const cosmeticCount = Object.keys(COSMETICS).length;
+
+    const witnessedEvents = Object.keys(profile.index.eventsWitnessed || {}).length;
+    const ownedCosmetics = Object.keys(profile.index.cosmeticsOwned || {}).length;
+
+    const total = eventCount + cosmeticCount;
+    const owned = witnessedEvents + ownedCosmetics;
+
+    if (total <= 0) return 0;
+
+    return Math.round((owned / total) * 100);
+}
+
+function getPublicPlayerData(username) {
+    const profile = getPlayerProfile(username);
+
+    return {
+        username: profile.username,
+        coins: profile.coins,
+        highestCoins: profile.highestCoins,
+        totalCoinsEarned: profile.totalCoinsEarned,
+        messagesSent: profile.messagesSent,
+        chaosUsed: profile.chaosUsed,
+        cratesOpened: profile.cratesOpened,
+        favouriteEvent: profile.favouriteEvent,
+        lastChaosUsedAt: profile.lastChaosUsedAt,
+        inventory: profile.inventory,
+        index: profile.index,
+        equippedCosmetics: profile.equippedCosmetics,
+        bookCompletion: getBookCompletionPercent(profile),
+        achievementsText: "Coming soon 🧀🏆",
+        chaosEvents: CHAOS_EVENTS,
+        cosmetics: COSMETICS,
+        crates: CHAOS_CRATES,
+        swissCrate: SWISS_CRATE,
+        duplicateCoins: DUPLICATE_COSMETIC_COINS
+    };
+}
+
+function emitPlayerData(socket, username) {
+    socket.emit("player data", getPublicPlayerData(username));
+}
+
+function awardChatCoins(username, isReply) {
+    const profile = getPlayerProfile(username);
+    const now = Date.now();
+
+    profile.messagesSent += 1;
+
+    let earned = 0;
+
+    if (now - profile.lastCoinMessageAt >= 8000) {
+        earned += 1;
+        profile.lastCoinMessageAt = now;
+    }
+
+    if (isReply) {
+        earned += 1;
+    }
+
+    if (earned > 0) {
+        profile.coins += earned;
+        profile.totalCoinsEarned += earned;
+
+        if (profile.coins > profile.highestCoins) {
+            profile.highestCoins = profile.coins;
+        }
+    }
+
+    savePlayerProfile(profile);
+
+    return {
+        profile,
+        earned
+    };
+}
+
+function awardLegendaryWitnessCoins(eventId) {
+    const event = CHAOS_EVENTS[eventId];
+
+    if (!event || event.rarity !== "legendary") return;
+
+    const awarded = new Set();
+
+    for (const online of onlineUsers.values()) {
+        const key = getPlayerKey(online.username);
+
+        if (awarded.has(key)) continue;
+
+        awarded.add(key);
+
+        addCoins(online.username, 5);
+        markEventWitnessed(online.username, eventId);
+    }
+}
 
 /* =========================
    MESSAGE FILTERS
@@ -255,13 +1005,8 @@ const mildBlockedRoots = [
 function containsBlockedLanguage(text, roomId) {
     const room = rooms[roomId] || rooms.cheeseLounge;
 
-    if (!filterEnabled[roomId]) {
-        return false;
-    }
-
-    if (room.filterLevel === "none") {
-        return false;
-    }
+    if (!filterEnabled[roomId]) return false;
+    if (room.filterLevel === "none") return false;
 
     const normalised = normaliseForFilter(text);
 
@@ -303,13 +1048,9 @@ const blockedShoppingPatterns = [
 function linkAllowed(text, roomId) {
     const room = rooms[roomId] || rooms.cheeseLounge;
 
-    if (!containsLink(text)) {
-        return true;
-    }
+    if (!containsLink(text)) return true;
 
-    if (!room.allowLinks) {
-        return false;
-    }
+    if (!room.allowLinks) return false;
 
     if (blockedShoppingPatterns.some(pattern => pattern.test(text))) {
         return false;
@@ -319,79 +1060,7 @@ function linkAllowed(text, roomId) {
 }
 
 /* =========================
-   CHAOS COMMANDS
-========================= */
-
-function normaliseChaosCommand(command) {
-    return String(command || "")
-        .toLowerCase()
-        .replace("+/", "")
-        .replace("\\", "")
-        .replace(/\s+/g, "")
-        .replace(/-/g, "")
-        .replace(/_/g, "")
-        .trim();
-}
-
-const chaosCommands = {
-    cheeserain: "cheeserain",
-    cheesestorm: "cheesestorm",
-    singularicheese: "singularicheese",
-    mouserun: "mouserun",
-    meltui: "meltui",
-    butterflood: "butterflood",
-    butterbomb: "butterbomb",
-    cheesequake: "cheesequake",
-    cheeseportal: "cheeseportal",
-    mouldtakeover: "mouldtakeover",
-    clearvisuals: "clearvisuals"
-};
-
-function increaseChaos(amount) {
-    chaosLevel = Math.min(100, chaosLevel + amount);
-    io.emit("chaos level", chaosLevel);
-}
-
-function lowerChaos() {
-    if (chaosLevel <= 0) return;
-
-    chaosLevel = Math.max(0, chaosLevel - 2);
-    io.emit("chaos level", chaosLevel);
-}
-
-setInterval(lowerChaos, 5000);
-
-function emitChaosEvent(eventType) {
-    io.emit("chaos event", {
-        type: eventType
-    });
-}
-
-function runChaosCommand(rawCommand) {
-    const commandName = normaliseChaosCommand(rawCommand);
-    const eventType = chaosCommands[commandName];
-
-    if (!eventType) {
-        return {
-            success: false,
-            message: `Unknown chaos command: ${rawCommand}`
-        };
-    }
-
-    emitChaosEvent(eventType);
-
-    if (eventType !== "clearvisuals") {
-        increaseChaos(18);
-    }
-
-    return {
-        success: true,
-        message: `Chaos event started: ${eventType}`
-    };
-}
-
-/* =========================
-   USERS HELPERS
+   USERS / ONLINE HELPERS
 ========================= */
 
 function getSessionFromToken(token) {
@@ -415,6 +1084,11 @@ function getOnlineUserByName(name) {
     }
 
     return null;
+}
+
+function getRoomOfSocket(socketId) {
+    const online = onlineUsers.get(socketId);
+    return online ? online.room : "cheeseLounge";
 }
 
 function emitOnlineUsers() {
@@ -453,6 +1127,278 @@ function sendSystemMessage(text, room = "cheeseLounge") {
         room
     });
 }
+
+function sendGlobalSystemMessage(text) {
+    Object.keys(rooms).forEach(roomId => {
+        sendSystemMessage(text, roomId);
+    });
+}
+
+function emitAllPlayerDataForOnlineUsers() {
+    for (const [socketId, online] of onlineUsers.entries()) {
+        const targetSocket = io.sockets.sockets.get(socketId);
+
+        if (targetSocket) {
+            emitPlayerData(targetSocket, online.username);
+        }
+    }
+}
+
+/* =========================
+   CHAOS COMMANDS / EVENTS
+========================= */
+
+function normaliseChaosCommand(command) {
+    return String(command || "")
+        .toLowerCase()
+        .replace("+/", "")
+        .replace("\\", "")
+        .replace(/\s+/g, "")
+        .replace(/-/g, "")
+        .replace(/_/g, "")
+        .trim();
+}
+
+const chaosCommands = {
+    cheeserain: "cheeserain",
+    cheesestorm: "cheesestorm",
+    singularicheese: "singularicheese",
+    mouserun: "mouserun",
+    meltui: "meltui",
+    butterflood: "butterflood",
+    butterbomb: "butterbomb",
+    cheesequake: "cheesequake",
+    cheeseportal: "cheeseportal",
+    mouldtakeover: "mouldtakeover",
+    cheesemoon: "cheesemoon",
+    giantmousetrap: "giantmousetrap",
+    cheesemeteor: "cheesemeteor",
+    cheesenado: "cheesenado",
+    clearvisuals: "clearvisuals"
+};
+
+function increaseChaos(amount) {
+    chaosLevel = Math.min(100, chaosLevel + amount);
+    io.emit("chaos level", chaosLevel);
+}
+
+function lowerChaos() {
+    if (chaosLevel <= 0) return;
+
+    chaosLevel = Math.max(0, chaosLevel - 2);
+    io.emit("chaos level", chaosLevel);
+}
+
+setInterval(lowerChaos, 5000);
+
+function emitChaosEvent(eventType, usedBy = "The cheese gods") {
+    const cleanType = normaliseChaosCommand(eventType);
+    const event = CHAOS_EVENTS[cleanType];
+
+    io.emit("chaos event", {
+        type: cleanType,
+        usedBy,
+        eventName: event ? event.name : cleanType,
+        icon: event ? event.icon : "🧀"
+    });
+
+    if (cleanType !== "clearvisuals") {
+        increaseChaos(18);
+    }
+
+    if (event) {
+        sendGlobalSystemMessage(`${usedBy} used ${event.name} ${event.icon}`);
+
+        awardLegendaryWitnessCoins(cleanType);
+        emitAllPlayerDataForOnlineUsers();
+    }
+}
+
+function runChaosCommand(rawCommand, usedBy = "Admin") {
+    const commandName = normaliseChaosCommand(rawCommand);
+    const eventType = chaosCommands[commandName];
+
+    if (!eventType) {
+        return {
+            success: false,
+            message: `Unknown chaos command: ${rawCommand}`
+        };
+    }
+
+    emitChaosEvent(eventType, usedBy);
+
+    return {
+        success: true,
+        message: `Chaos event started: ${eventType}`
+    };
+}
+
+/* =========================
+   POLLS
+========================= */
+
+function parsePollEvents(rawEvents) {
+    return String(rawEvents || "")
+        .split("|")
+        .map(event => normaliseChaosCommand(event))
+        .filter(eventId => CHAOS_EVENTS[eventId]);
+}
+
+function startChaosPoll(startedBy, durationSeconds, title, eventIds) {
+    if (activePoll) {
+        return {
+            success: false,
+            message: "A poll is already running."
+        };
+    }
+
+    const duration = Math.max(5, Math.min(safeNumber(durationSeconds, 30), 300));
+    const options = eventIds
+        .filter(eventId => CHAOS_EVENTS[eventId])
+        .slice(0, 6);
+
+    if (options.length < 2) {
+        return {
+            success: false,
+            message: "A poll needs at least 2 valid chaos events."
+        };
+    }
+
+    activePoll = {
+        id: makeId(),
+        startedBy,
+        title: title || "Which chaos event should happen?",
+        options,
+        votes: {},
+        voters: {},
+        endsAt: Date.now() + duration * 1000
+    };
+
+    io.emit("poll started", {
+        id: activePoll.id,
+        title: activePoll.title,
+        startedBy: activePoll.startedBy,
+        options: activePoll.options.map(eventId => CHAOS_EVENTS[eventId]),
+        endsAt: activePoll.endsAt
+    });
+
+    sendGlobalSystemMessage(`🗳️ ${startedBy} started a chaos poll: ${activePoll.title}`);
+
+    setTimeout(() => {
+        finishChaosPoll(activePoll && activePoll.id);
+    }, duration * 1000);
+
+    return {
+        success: true,
+        message: `Poll started for ${duration}s.`
+    };
+}
+
+function finishChaosPoll(pollId) {
+    if (!activePoll || activePoll.id !== pollId) return;
+
+    let winner = activePoll.options[0];
+    let winnerVotes = -1;
+
+    activePoll.options.forEach(eventId => {
+        const votes = activePoll.votes[eventId] || 0;
+
+        if (votes > winnerVotes) {
+            winner = eventId;
+            winnerVotes = votes;
+        }
+    });
+
+    const event = CHAOS_EVENTS[winner];
+
+    io.emit("poll ended", {
+        id: activePoll.id,
+        winner: event,
+        votes: activePoll.votes
+    });
+
+    sendGlobalSystemMessage(`🗳️ ${event.name} won the chaos poll with ${winnerVotes} votes!`);
+
+    emitChaosEvent(winner, "The voters");
+
+    activePoll = null;
+}
+
+function voteInPoll(socket, eventId) {
+    if (!activePoll) {
+        socket.emit("poll reply", "No poll is currently running.");
+        return;
+    }
+
+    if (!activePoll.options.includes(eventId)) {
+        socket.emit("poll reply", "That is not a poll option.");
+        return;
+    }
+
+    activePoll.voters[socket.id] = eventId;
+
+    activePoll.votes = {};
+
+    Object.values(activePoll.voters).forEach(vote => {
+        activePoll.votes[vote] = (activePoll.votes[vote] || 0) + 1;
+    });
+
+    io.emit("poll update", {
+        id: activePoll.id,
+        votes: activePoll.votes
+    });
+}
+
+/* =========================
+   RANDOM CHAOS
+========================= */
+
+function getRandomChaosEventId(includeLegendary = false) {
+    const pool = Object.values(CHAOS_EVENTS)
+        .filter(event => includeLegendary || event.rarity !== "legendary")
+        .map(event => event.id);
+
+    return pickRandom(pool);
+}
+
+function maybeStartRandomChaos() {
+    if (onlineUsers.size === 0) return;
+    if (activePoll) return;
+
+    const shouldDoRandomChaos = Math.random() < 0.18;
+
+    if (!shouldDoRandomChaos) return;
+
+    const shouldStartPoll = Math.random() < 0.2642;
+
+    if (shouldStartPoll) {
+        const options = [
+            getRandomChaosEventId(false),
+            getRandomChaosEventId(false),
+            getRandomChaosEventId(true)
+        ];
+
+        const uniqueOptions = [...new Set(options)];
+
+        while (uniqueOptions.length < 3) {
+            uniqueOptions.push(getRandomChaosEventId(true));
+        }
+
+        startChaosPoll(
+            "The cheese gods",
+            30,
+            "Which chaos should happen?",
+            [...new Set(uniqueOptions)].slice(0, 3)
+        );
+
+        return;
+    }
+
+    const eventId = getRandomChaosEventId(true);
+    emitChaosEvent(eventId, "The cheese gods");
+}
+
+setInterval(maybeStartRandomChaos, 180000);
 
 /* =========================
    EXPRESS AUTH
@@ -506,6 +1452,8 @@ app.post("/signup", async (req, res) => {
 
     writeUsers(users);
 
+    getPlayerProfile(username);
+
     res.json({
         success: true,
         message: "Account created."
@@ -535,6 +1483,8 @@ app.post("/login", async (req, res) => {
             realUsername: ADMIN_LOGIN_USERNAME,
             admin: true
         });
+
+        getPlayerProfile(ADMIN_DISPLAY_NAME);
 
         return res.json({
             success: true,
@@ -583,6 +1533,8 @@ app.post("/login", async (req, res) => {
         admin: false
     });
 
+    getPlayerProfile(user.username);
+
     res.json({
         success: true,
         username: user.username,
@@ -604,7 +1556,11 @@ function handleAdminTextCommand(socket, session, command) {
     }
 
     if (raw.startsWith("+/")) {
-        const result = runChaosCommand(raw);
+        if (handleSpecialChaosCommand(socket, raw)) {
+            return;
+        }
+
+        const result = runChaosCommand(raw, session.username);
         socket.emit("admin reply", result.message);
         return;
     }
@@ -745,6 +1701,73 @@ function handleAdminTextCommand(socket, session, command) {
         return;
     }
 
+    if (commandName === "givecoins") {
+        const args = splitCommandArgs(commandBody);
+        const playerName = args[0];
+        const amount = Number(args[1]);
+
+        if (!playerName || !Number.isFinite(amount)) {
+            socket.emit("admin reply", "Usage: ;/GiveCoins: <Player>, <Amount>");
+            return;
+        }
+
+        addCoins(playerName, amount);
+        socket.emit("admin reply", `${amount} Cheese Coins given to ${playerName}.`);
+        return;
+    }
+
+    if (commandName === "setcoins") {
+        const args = splitCommandArgs(commandBody);
+        const playerName = args[0];
+        const amount = Number(args[1]);
+
+        if (!playerName || !Number.isFinite(amount)) {
+            socket.emit("admin reply", "Usage: ;/SetCoins: <Player>, <Amount>");
+            return;
+        }
+
+        setCoins(playerName, amount);
+        socket.emit("admin reply", `${playerName}'s Cheese Coins set to ${amount}.`);
+        return;
+    }
+
+    if (commandName === "clearchat") {
+        const room = getRoomOfSocket(socket.id);
+
+        roomMessages[room] = [];
+
+        io.to(room).emit("room data", {
+            room,
+            roomInfo: rooms[room],
+            messages: roomMessages[room]
+        });
+
+        sendSystemMessage(`🧹 Chat cleared by ${session.username}.`, room);
+        socket.emit("admin reply", `Cleared ${rooms[room].name}.`);
+        return;
+    }
+
+    if (commandName === "startpoll") {
+        const args = splitCommandArgs(commandBody);
+        const time = Number(args[0]);
+        const title = args[1];
+        const eventsRaw = args.slice(2).join(",");
+
+        if (!Number.isFinite(time) || !title || !eventsRaw) {
+            socket.emit(
+                "admin reply",
+                "Usage: ;/StartPoll: <time>, <polltitle>, <event1|event2|event3>"
+            );
+            return;
+        }
+
+        const eventIds = parsePollEvents(eventsRaw);
+        const result = startChaosPoll(session.username, time, title, eventIds);
+
+        socket.emit("admin reply", result.message);
+        return;
+    }
+
     if (commandName === "announcement") {
         if (!commandBody) {
             socket.emit("admin reply", "Usage: ;/Announcement: <Message>");
@@ -752,7 +1775,7 @@ function handleAdminTextCommand(socket, session, command) {
         }
 
         io.emit("admin announcement", commandBody);
-        sendSystemMessage(`📢 ${commandBody}`, "cheeseLounge");
+        sendGlobalSystemMessage(`📢 ${commandBody}`);
         socket.emit("admin reply", "Announcement sent.");
         return;
     }
@@ -774,7 +1797,9 @@ function handleSpecialChaosCommand(socket, command) {
                 ? "butter"
                 : roomName.includes("blue")
                     ? "blueCheese"
-                    : "cheeseLounge";
+                    : roomName.includes("mozzarella")
+                        ? "mozzarella"
+                        : "cheeseLounge";
 
         filterEnabled[roomId] = setting === "on";
 
@@ -821,7 +1846,7 @@ function emitScheduleState() {
     io.emit("schedule state", scheduledEvents);
 }
 
-function scheduleEvent(socket, commandText, delaySeconds) {
+function scheduleEvent(socket, commandText, delaySeconds, scheduledBy) {
     const delay = Math.max(1, Math.min(Number(delaySeconds) || 10, 3600));
     const id = makeId();
 
@@ -829,6 +1854,7 @@ function scheduleEvent(socket, commandText, delaySeconds) {
         id,
         commandText,
         delaySeconds: delay,
+        scheduledBy,
         runAt: Date.now() + delay * 1000
     };
 
@@ -838,9 +1864,7 @@ function scheduleEvent(socket, commandText, delaySeconds) {
     setTimeout(() => {
         const stillExists = scheduledEvents.some(item => item.id === id);
 
-        if (!stillExists) {
-            return;
-        }
+        if (!stillExists) return;
 
         scheduledEvents = scheduledEvents.filter(item => item.id !== id);
         emitScheduleState();
@@ -849,15 +1873,9 @@ function scheduleEvent(socket, commandText, delaySeconds) {
         const eventType = chaosCommands[commandName];
 
         if (eventType) {
-            emitChaosEvent(eventType);
-
-            if (eventType !== "clearvisuals") {
-                increaseChaos(18);
-            }
-
-            sendSystemMessage(
-                `🧀 Scheduled chaos started: ${eventType}`,
-                "cheeseLounge"
+            emitChaosEvent(eventType, scheduledBy || "The scheduler");
+            sendGlobalSystemMessage(
+                `🧀 Scheduled chaos started: ${CHAOS_EVENTS[eventType]?.name || eventType}`
             );
         }
     }, delay * 1000);
@@ -904,17 +1922,32 @@ io.on("connection", socket => {
         socket.emit("chaos level", chaosLevel);
         socket.emit("schedule state", scheduledEvents);
 
+        if (activePoll) {
+            socket.emit("poll started", {
+                id: activePoll.id,
+                title: activePoll.title,
+                startedBy: activePoll.startedBy,
+                options: activePoll.options.map(eventId => CHAOS_EVENTS[eventId]),
+                endsAt: activePoll.endsAt
+            });
+
+            socket.emit("poll update", {
+                id: activePoll.id,
+                votes: activePoll.votes
+            });
+        }
+
+        emitPlayerData(socket, session.username);
         emitOnlineUsers();
 
-        sendSystemMessage(`${session.username} joined ${rooms[room].name}.`, room);
+        if (!rooms[room].noChat) {
+            sendSystemMessage(`${session.username} joined ${rooms[room].name}.`, room);
+        }
     });
 
     socket.on("switch room", roomId => {
         if (!session) return;
-
-        if (!rooms[roomId]) {
-            return;
-        }
+        if (!rooms[roomId]) return;
 
         const currentOnline = onlineUsers.get(socket.id);
 
@@ -932,6 +1965,7 @@ io.on("connection", socket => {
             messages: roomMessages[roomId] || []
         });
 
+        emitPlayerData(socket, session.username);
         emitOnlineUsers();
     });
 
@@ -949,7 +1983,7 @@ io.on("connection", socket => {
             return;
         }
 
-        if (room.readOnly && !session.admin) {
+        if (room.readOnly || room.noChat) {
             socket.emit("message rejected", "This room is read-only.");
             return;
         }
@@ -980,6 +2014,8 @@ io.on("connection", socket => {
                 }
                 : null;
 
+        const coinResult = awardChatCoins(session.username, !!replyTo);
+
         const message = {
             id: makeId(),
             username: visualNameOverride || session.username,
@@ -988,12 +2024,19 @@ io.on("connection", socket => {
             time: nowTime(),
             room: roomId,
             replyTo,
-            reactions: {}
+            reactions: {},
+            coinsEarned: coinResult.earned
         };
 
         addMessageToRoom(roomId, message);
 
         io.to(roomId).emit("chat message", message);
+
+        emitPlayerData(socket, session.username);
+
+        if (coinResult.earned > 0) {
+            socket.emit("coin notice", `+${coinResult.earned} 🧀`);
+        }
     });
 
     socket.on("react message", data => {
@@ -1045,13 +2088,236 @@ io.on("connection", socket => {
         });
     });
 
-    socket.on("admin command", command => {
-        if (!session || !session.admin) {
-            socket.emit("admin reply", "You are not an admin.");
+    socket.on("request player data", () => {
+        if (!session) return;
+
+        emitPlayerData(socket, session.username);
+    });
+
+    socket.on("request profile", username => {
+        if (!session) return;
+
+        const profileName = cleanUsername(username || session.username);
+
+        socket.emit("profile data", getPublicPlayerData(profileName));
+    });
+
+    socket.on("buy chaos crate", crateId => {
+        if (!session) return;
+
+        const result = rollChaosCrate(crateId);
+
+        if (!result) {
+            socket.emit("shop reply", "That crate does not exist.");
             return;
         }
 
-        if (handleSpecialChaosCommand(socket, command)) {
+        const payment = removeCoins(session.username, result.crate.price);
+
+        if (!payment.success) {
+            socket.emit(
+                "shop reply",
+                `You need ${result.crate.price} Cheese Coins for a ${result.crate.name}.`
+            );
+
+            emitPlayerData(socket, session.username);
+            return;
+        }
+
+        let profile = addInventoryItem(session.username, result.event.id, 1);
+
+        profile.cratesOpened += 1;
+
+        savePlayerProfile(profile);
+
+        socket.emit("crate opened", {
+            crate: result.crate,
+            reward: result.event
+        });
+
+        if (
+            result.event.rarity === "epic" ||
+            result.event.rarity === "legendary"
+        ) {
+            sendGlobalSystemMessage(
+                `${session.username} unboxed ${result.event.name} ${result.event.icon} from a ${result.crate.name}!`
+            );
+        }
+
+        emitPlayerData(socket, session.username);
+    });
+
+    socket.on("open swiss crate", () => {
+        if (!session) return;
+
+        const payment = removeCoins(session.username, SWISS_CRATE.price);
+
+        if (!payment.success) {
+            socket.emit(
+                "shop reply",
+                `You need ${SWISS_CRATE.price} Cheese Coins for a Swiss Crate.`
+            );
+
+            emitPlayerData(socket, session.username);
+            return;
+        }
+
+        const profile = getPlayerProfile(session.username);
+
+        profile.cratesOpened += 1;
+        savePlayerProfile(profile);
+
+        const choices = rollCosmeticChoice(session.username);
+
+        socket.emit("cosmetic choice", {
+            choices
+        });
+
+        emitPlayerData(socket, session.username);
+    });
+
+    socket.on("choose cosmetic", cosmeticId => {
+        if (!session) return;
+
+        const cosmetic = COSMETICS[cosmeticId];
+
+        if (!cosmetic) {
+            socket.emit("shop reply", "That cosmetic does not exist.");
+            return;
+        }
+
+        const profile = getPlayerProfile(session.username);
+        const duplicate = !!profile.index.cosmeticsOwned[cosmetic.id];
+
+        if (duplicate) {
+            const coins = DUPLICATE_COSMETIC_COINS[cosmetic.rarity] || 0;
+            addCoins(session.username, coins);
+
+            socket.emit(
+                "shop reply",
+                `Duplicate ${cosmetic.name}! Converted into ${coins} Cheese Coins.`
+            );
+        } else {
+            markCosmeticOwned(session.username, cosmetic.id);
+
+            socket.emit(
+                "shop reply",
+                `${cosmetic.name} added to your Cheese Index!`
+            );
+        }
+
+        emitPlayerData(socket, session.username);
+    });
+
+    socket.on("equip cosmetic", cosmeticId => {
+        if (!session) return;
+
+        const cosmetic = COSMETICS[cosmeticId];
+
+        if (!cosmetic) {
+            socket.emit("shop reply", "That cosmetic does not exist.");
+            return;
+        }
+
+        const profile = getPlayerProfile(session.username);
+
+        if (!profile.index.cosmeticsOwned[cosmeticId]) {
+            socket.emit("shop reply", "You do not own that cosmetic.");
+            return;
+        }
+
+        profile.equippedCosmetics[cosmetic.type] = cosmeticId;
+
+        savePlayerProfile(profile);
+
+        socket.emit("shop reply", `${cosmetic.name} equipped.`);
+        emitPlayerData(socket, session.username);
+    });
+
+    socket.on("set favourite event", eventId => {
+        if (!session) return;
+
+        const event = CHAOS_EVENTS[eventId];
+
+        if (!event) {
+            socket.emit("shop reply", "That event does not exist.");
+            return;
+        }
+
+        const profile = getPlayerProfile(session.username);
+
+        if (
+            !profile.index.eventsWitnessed[eventId] &&
+            !profile.index.eventsUsed[eventId]
+        ) {
+            socket.emit("shop reply", "You need to discover that event first.");
+            return;
+        }
+
+        profile.favouriteEvent = eventId;
+
+        savePlayerProfile(profile);
+
+        socket.emit("shop reply", `${event.name} is now your favourite event.`);
+        emitPlayerData(socket, session.username);
+    });
+
+    socket.on("use chaos ability", eventId => {
+        if (!session) return;
+
+        const event = CHAOS_EVENTS[eventId];
+
+        if (!event) {
+            socket.emit("shop reply", "That chaos ability does not exist.");
+            return;
+        }
+
+        const profile = getPlayerProfile(session.username);
+        const now = Date.now();
+        const cooldown = 60 * 1000;
+        const remaining = cooldown - (now - profile.lastChaosUsedAt);
+
+        if (remaining > 0) {
+            socket.emit(
+                "shop reply",
+                `Chaos ability cooling down. Wait ${Math.ceil(remaining / 1000)}s.`
+            );
+
+            emitPlayerData(socket, session.username);
+            return;
+        }
+
+        const removed = removeInventoryItem(session.username, eventId);
+
+        if (!removed.success) {
+            socket.emit("shop reply", "You do not have that chaos ability.");
+            emitPlayerData(socket, session.username);
+            return;
+        }
+
+        const updatedProfile = getPlayerProfile(session.username);
+
+        updatedProfile.lastChaosUsedAt = now;
+        updatedProfile.chaosUsed += 1;
+        updatedProfile.index.eventsUsed[eventId] = true;
+        updatedProfile.index.eventsWitnessed[eventId] = true;
+
+        savePlayerProfile(updatedProfile);
+
+        emitChaosEvent(eventId, session.username);
+
+        emitPlayerData(socket, session.username);
+    });
+
+    socket.on("vote poll", eventId => {
+        if (!session) return;
+
+        voteInPoll(socket, eventId);
+    });
+
+    socket.on("admin command", command => {
+        if (!session || !session.admin) {
+            socket.emit("admin reply", "You are not an admin.");
             return;
         }
 
@@ -1067,14 +2333,13 @@ io.on("connection", socket => {
         scheduleEvent(
             socket,
             String(data.commandText || ""),
-            Number(data.delaySeconds || 10)
+            Number(data.delaySeconds || 10),
+            session.username
         );
     });
 
     socket.on("cancel scheduled event", id => {
-        if (!session || !session.admin) {
-            return;
-        }
+        if (!session || !session.admin) return;
 
         scheduledEvents = scheduledEvents.filter(event => event.id !== id);
         emitScheduleState();
@@ -1085,7 +2350,7 @@ io.on("connection", socket => {
     socket.on("disconnect", () => {
         const online = onlineUsers.get(socket.id);
 
-        if (online) {
+        if (online && rooms[online.room] && !rooms[online.room].noChat) {
             sendSystemMessage(
                 `${online.username} left ${rooms[online.room]?.name || "the room"}.`,
                 online.room

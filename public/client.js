@@ -9,12 +9,17 @@ let typingTimer = null;
 let replyingTo = null;
 let adminCollapsed = false;
 let latestScheduledEvents = [];
+let latestPlayerData = null;
+let selectedChaosAbility = "";
+let currentIndexTab = "events";
+let latestPoll = null;
+let latestPollVotes = {};
 
 const roomMessageCache = {
     cheeseLounge: [],
     butter: [],
     blueCheese: [],
-    updateLog: []
+    mozzarella: []
 };
 
 const authScreen = document.getElementById("authScreen");
@@ -31,6 +36,7 @@ const typingIndicator = document.getElementById("typingIndicator");
 
 const onlineUsers = document.getElementById("onlineUsers");
 const onlineCount = document.getElementById("onlineCount");
+const coinPill = document.getElementById("coinPill");
 
 const chatPage = document.getElementById("chatPage");
 const arcadePage = document.getElementById("arcadePage");
@@ -52,6 +58,33 @@ const chaosText = document.getElementById("chaosText");
 const effectLayer = document.getElementById("effectLayer");
 
 const schedulePopup = document.getElementById("schedulePopup");
+const pollBox = document.getElementById("pollBox");
+
+const mozzarellaShop = document.getElementById("mozzarellaShop");
+const shopCoins = document.getElementById("shopCoins");
+const chaosCrateList = document.getElementById("chaosCrateList");
+const swissCrateBox = document.getElementById("swissCrateBox");
+const inventorySelected = document.getElementById("inventorySelected");
+const runSelectedChaosBtn = document.getElementById("runSelectedChaosBtn");
+const chaosCooldownText = document.getElementById("chaosCooldownText");
+const inventoryList = document.getElementById("inventoryList");
+const crateResultBox = document.getElementById("crateResultBox");
+const cosmeticChoiceBox = document.getElementById("cosmeticChoiceBox");
+const shopReply = document.getElementById("shopReply");
+
+const miniProfileStats = document.getElementById("miniProfileStats");
+const profileModal = document.getElementById("profileModal");
+const profileContent = document.getElementById("profileContent");
+
+const indexModal = document.getElementById("indexModal");
+const bookCompletionText = document.getElementById("bookCompletionText");
+const indexContent = document.getElementById("indexContent");
+
+const adminCommandSelect = document.getElementById("adminCommandSelect");
+const adminPlayerSelect = document.getElementById("adminPlayerSelect");
+const adminAmountInput = document.getElementById("adminAmountInput");
+const adminTextInput = document.getElementById("adminTextInput");
+const adminEventsInput = document.getElementById("adminEventsInput");
 
 /* =========================
    AUTH
@@ -196,6 +229,7 @@ function switchRoom(roomId) {
     messages.appendChild(loading);
 
     socket.emit("switch room", roomId);
+    socket.emit("request player data");
     renderSchedulePopup();
 }
 
@@ -211,6 +245,7 @@ function updateRoomUI(roomId, roomInfo) {
     }
 
     const room = roomInfo || {};
+    const isMozzarella = roomId === "mozzarella";
 
     document.body.dataset.theme = room.theme || "cheese";
 
@@ -231,12 +266,28 @@ function updateRoomUI(roomId, roomInfo) {
         messageInput.placeholder = "Enter the blue zone...";
     }
 
-    if (roomId === "updateLog") {
-        roomSubtitle.textContent = "Read-only patch notes";
-        messageInput.placeholder = "This room is read-only.";
+    if (roomId === "mozzarella") {
+        roomSubtitle.textContent = "No-chat crate shop • inventory • Cheese Index";
+        messageInput.placeholder = "Mozzarella is no-chat.";
     }
 
-    const isReadOnly = room.readOnly === true;
+    if (mozzarellaShop) {
+        mozzarellaShop.classList.toggle("hidden", !isMozzarella);
+    }
+
+    if (messages) {
+        messages.classList.toggle("hidden", isMozzarella);
+    }
+
+    if (replyPreview) {
+        replyPreview.classList.toggle("hidden", isMozzarella || !replyingTo);
+    }
+
+    if (typingIndicator) {
+        typingIndicator.classList.toggle("hidden", isMozzarella);
+    }
+
+    const isReadOnly = room.readOnly === true || room.noChat === true;
 
     messageInput.disabled = isReadOnly;
 
@@ -246,7 +297,14 @@ function updateRoomUI(roomId, roomInfo) {
         sendButton.disabled = isReadOnly;
     }
 
+    const messageBar = document.querySelector(".message-bar");
+
+    if (messageBar) {
+        messageBar.classList.toggle("hidden", isMozzarella);
+    }
+
     renderSchedulePopup();
+    renderShop();
 }
 
 function clearMessages() {
@@ -307,7 +365,7 @@ function renderCurrentRoomFromCache() {
 function getEmptyStateText(room) {
     if (room === "butter") return "Smooth silence. Suspiciously spreadable.";
     if (room === "blueCheese") return "The mould is quiet... for now.";
-    if (room === "updateLog") return "Patch notes live here.";
+    if (room === "mozzarella") return "Mozzarella is a no-chat shop.";
     return "Nobody is talking yet. Suspiciously cheesy.";
 }
 
@@ -349,6 +407,9 @@ function renderMessageNode(data) {
     const name = document.createElement("strong");
     name.textContent = data.username || "Unknown";
     name.title = data.realUsername || data.username || "Unknown";
+    name.onclick = () => {
+        socket.emit("request profile", data.realUsername || data.username);
+    };
 
     const time = document.createElement("span");
     time.textContent = data.time || "";
@@ -505,6 +566,568 @@ function cancelReply() {
 }
 
 /* =========================
+   PLAYER DATA / SHOP / INVENTORY
+========================= */
+
+function updatePlayerData(data) {
+    latestPlayerData = data;
+
+    if (coinPill) {
+        coinPill.textContent = `🧀 ${data.coins}`;
+    }
+
+    if (shopCoins) {
+        shopCoins.textContent = `${data.coins} 🧀`;
+    }
+
+    if (miniProfileStats) {
+        miniProfileStats.textContent =
+            `${data.coins} coins • ${data.bookCompletion}% book`;
+    }
+
+    renderShop();
+    renderInventory();
+    renderIndexContent();
+}
+
+function rarityLabel(rarity) {
+    return String(rarity || "common").toUpperCase();
+}
+
+function rarityClass(rarity) {
+    return `rarity-${String(rarity || "common").toLowerCase()}`;
+}
+
+function formatEvent(eventId) {
+    if (!latestPlayerData || !latestPlayerData.chaosEvents) {
+        return {
+            id: eventId,
+            name: eventId,
+            icon: "🧀",
+            rarity: "common"
+        };
+    }
+
+    return latestPlayerData.chaosEvents[eventId] || {
+        id: eventId,
+        name: eventId,
+        icon: "🧀",
+        rarity: "common"
+    };
+}
+
+function formatCosmetic(cosmeticId) {
+    if (!latestPlayerData || !latestPlayerData.cosmetics) {
+        return null;
+    }
+
+    return latestPlayerData.cosmetics[cosmeticId] || null;
+}
+
+function renderShop() {
+    if (!latestPlayerData) return;
+
+    if (!chaosCrateList || !swissCrateBox) return;
+
+    chaosCrateList.innerHTML = "";
+
+    Object.values(latestPlayerData.crates || {}).forEach(crate => {
+        const card = document.createElement("div");
+        card.className = "crate-card";
+
+        const odds = crate.odds
+            .map(entry => `${entry.rarity}: ${entry.chance}%`)
+            .join(" • ");
+
+        card.innerHTML = `
+            <h4>${crate.name}</h4>
+            <strong>${crate.price} 🧀</strong>
+            <p>${odds}</p>
+            <button onclick="buyChaosCrate('${crate.id}')">
+                Buy ${crate.name}
+            </button>
+        `;
+
+        chaosCrateList.appendChild(card);
+    });
+
+    const swiss = latestPlayerData.swissCrate;
+
+    swissCrateBox.innerHTML = `
+        <div class="crate-card swiss">
+            <h4>✨ ${swiss.name}</h4>
+            <strong>${swiss.price} 🧀</strong>
+            <p>Cosmetics only. Pick 1 of 2. Duplicates become coins.</p>
+            <button onclick="openSwissCrate()">Open Swiss Crate</button>
+        </div>
+    `;
+}
+
+function buyChaosCrate(crateId) {
+    socket.emit("buy chaos crate", crateId);
+}
+
+function openSwissCrate() {
+    socket.emit("open swiss crate");
+}
+
+function renderInventory() {
+    if (!latestPlayerData || !inventoryList) return;
+
+    inventoryList.innerHTML = "";
+
+    const inventory = latestPlayerData.inventory || {};
+    const entries = Object.keys(inventory);
+
+    if (entries.length === 0) {
+        inventoryList.innerHTML = `
+            <div class="empty-inventory">
+                No chaos abilities yet. Open crates in Mozzarella ⚪
+            </div>
+        `;
+    } else {
+        entries
+            .sort((a, b) => {
+                const eventA = formatEvent(a);
+                const eventB = formatEvent(b);
+                return eventA.rarity.localeCompare(eventB.rarity);
+            })
+            .forEach(eventId => {
+                const event = formatEvent(eventId);
+                const count = inventory[eventId];
+
+                const item = document.createElement("button");
+                item.className = `inventory-item ${rarityClass(event.rarity)}`;
+
+                if (selectedChaosAbility === eventId) {
+                    item.classList.add("selected");
+                }
+
+                item.innerHTML = `
+                    <span>${event.icon}</span>
+                    <strong>${event.name}</strong>
+                    <small>${rarityLabel(event.rarity)} • x${count}</small>
+                `;
+
+                item.onclick = () => {
+                    selectedChaosAbility = eventId;
+                    renderInventory();
+                };
+
+                inventoryList.appendChild(item);
+            });
+    }
+
+    if (selectedChaosAbility) {
+        const selected = formatEvent(selectedChaosAbility);
+        inventorySelected.innerHTML = `
+            Selected: <strong>${selected.icon} ${selected.name}</strong>
+        `;
+    } else {
+        inventorySelected.textContent = "No ability selected.";
+    }
+
+    updateCooldownText();
+}
+
+function updateCooldownText() {
+    if (!latestPlayerData || !chaosCooldownText) return;
+
+    const last = latestPlayerData.lastChaosUsedAt || 0;
+    const cooldown = 60 * 1000;
+    const remaining = cooldown - (Date.now() - last);
+
+    if (remaining > 0) {
+        chaosCooldownText.textContent =
+            `Cooldown: ${Math.ceil(remaining / 1000)}s remaining`;
+
+        if (runSelectedChaosBtn) {
+            runSelectedChaosBtn.disabled = true;
+        }
+    } else {
+        chaosCooldownText.textContent = "Cooldown ready.";
+
+        if (runSelectedChaosBtn) {
+            runSelectedChaosBtn.disabled = false;
+        }
+    }
+}
+
+function runSelectedChaosAbility() {
+    if (!selectedChaosAbility) {
+        showShopReply("Select a chaos ability first.");
+        return;
+    }
+
+    socket.emit("use chaos ability", selectedChaosAbility);
+}
+
+function showShopReply(text) {
+    if (shopReply) {
+        shopReply.textContent = text;
+    }
+
+    showChatNotice(text);
+}
+
+function renderCrateResult(data) {
+    if (!crateResultBox) return;
+
+    crateResultBox.classList.remove("hidden");
+    crateResultBox.innerHTML = `
+        <div class="crate-result ${rarityClass(data.reward.rarity)}">
+            <h3>📦 ${data.crate.name} opened!</h3>
+            <div class="big-reward">${data.reward.icon}</div>
+            <h2>${data.reward.name}</h2>
+            <p>${rarityLabel(data.reward.rarity)} chaos ability added to inventory.</p>
+        </div>
+    `;
+
+    setTimeout(() => {
+        crateResultBox.classList.add("hidden");
+    }, 6500);
+}
+
+function renderCosmeticChoice(choices) {
+    if (!cosmeticChoiceBox) return;
+
+    cosmeticChoiceBox.classList.remove("hidden");
+    cosmeticChoiceBox.innerHTML = `
+        <h3>✨ Choose one cosmetic</h3>
+        <div class="cosmetic-choice-grid"></div>
+    `;
+
+    const grid = cosmeticChoiceBox.querySelector(".cosmetic-choice-grid");
+
+    choices.forEach(choice => {
+        const card = document.createElement("button");
+        card.className = `cosmetic-choice ${rarityClass(choice.rarity)}`;
+
+        card.innerHTML = `
+            <strong>${choice.name}</strong>
+            <span>${rarityLabel(choice.rarity)} • ${choice.type}</span>
+            ${
+                choice.duplicate
+                    ? `<em>Duplicate: +${choice.duplicateCoins} 🧀</em>`
+                    : `<em>NEW • Added to Index</em>`
+            }
+        `;
+
+        card.onclick = () => {
+            socket.emit("choose cosmetic", choice.id);
+            cosmeticChoiceBox.classList.add("hidden");
+        };
+
+        grid.appendChild(card);
+    });
+}
+
+/* =========================
+   CHEESE INDEX
+========================= */
+
+function openIndexBook() {
+    if (!latestPlayerData) {
+        socket.emit("request player data");
+        return;
+    }
+
+    indexModal.classList.remove("hidden");
+    renderIndexContent();
+}
+
+function closeIndexBook() {
+    indexModal.classList.add("hidden");
+}
+
+function switchIndexTab(tab) {
+    currentIndexTab = tab;
+
+    document
+        .querySelectorAll(".index-tab")
+        .forEach(button => button.classList.remove("active"));
+
+    const buttons = [...document.querySelectorAll(".index-tab")];
+    const activeButton = buttons.find(button =>
+        button.textContent.toLowerCase().includes(tab)
+    );
+
+    if (activeButton) {
+        activeButton.classList.add("active");
+    }
+
+    renderIndexContent();
+}
+
+function renderIndexContent() {
+    if (!latestPlayerData || !indexContent) return;
+
+    if (bookCompletionText) {
+        bookCompletionText.textContent = `${latestPlayerData.bookCompletion}%`;
+    }
+
+    if (currentIndexTab === "events") {
+        renderEventIndex();
+    }
+
+    if (currentIndexTab === "cosmetics") {
+        renderCosmeticIndex();
+    }
+
+    if (currentIndexTab === "achievements") {
+        renderAchievementIndex();
+    }
+}
+
+function renderEventIndex() {
+    const events = Object.values(latestPlayerData.chaosEvents || {});
+    const witnessed = latestPlayerData.index.eventsWitnessed || {};
+    const used = latestPlayerData.index.eventsUsed || {};
+
+    indexContent.innerHTML = "";
+
+    const grid = document.createElement("div");
+    grid.className = "index-grid";
+
+    events.forEach(event => {
+        const discovered = witnessed[event.id] || used[event.id];
+
+        const card = document.createElement("div");
+        card.className = `index-item ${rarityClass(event.rarity)} ${discovered ? "" : "locked"}`;
+
+        card.innerHTML = `
+            <div class="index-icon">${discovered ? event.icon : "❔"}</div>
+            <h4>${discovered ? event.name : "Unknown Event"}</h4>
+            <strong>${rarityLabel(event.rarity)}</strong>
+            <p>${discovered ? event.description : "Discover this event to reveal it."}</p>
+            <span>${used[event.id] ? "Used ✅" : discovered ? "Witnessed ✅" : "Locked 🔒"}</span>
+            ${
+                discovered
+                    ? `<button onclick="setFavouriteEvent('${event.id}')">Set Favourite</button>`
+                    : ""
+            }
+        `;
+
+        grid.appendChild(card);
+    });
+
+    indexContent.appendChild(grid);
+}
+
+function renderCosmeticIndex() {
+    const cosmetics = Object.values(latestPlayerData.cosmetics || {});
+    const owned = latestPlayerData.index.cosmeticsOwned || {};
+    const equipped = latestPlayerData.equippedCosmetics || {};
+
+    indexContent.innerHTML = "";
+
+    const groups = {
+        background: "🎨 Backgrounds",
+        font: "🔤 Fonts",
+        icon: "🧩 Icons"
+    };
+
+    Object.keys(groups).forEach(type => {
+        const title = document.createElement("h3");
+        title.textContent = groups[type];
+        indexContent.appendChild(title);
+
+        const grid = document.createElement("div");
+        grid.className = "index-grid";
+
+        cosmetics
+            .filter(cosmetic => cosmetic.type === type)
+            .forEach(cosmetic => {
+                const hasItem = !!owned[cosmetic.id];
+                const isEquipped = equipped[type] === cosmetic.id;
+
+                const card = document.createElement("div");
+                card.className = `index-item ${rarityClass(cosmetic.rarity)} ${hasItem ? "" : "locked"}`;
+
+                card.innerHTML = `
+                    <div class="index-icon">${hasItem ? "✨" : "❔"}</div>
+                    <h4>${hasItem ? cosmetic.name : "Unknown Cosmetic"}</h4>
+                    <strong>${rarityLabel(cosmetic.rarity)}</strong>
+                    <p>${hasItem ? cosmetic.type : "Find this in a Swiss Crate."}</p>
+                    <span>${isEquipped ? "Equipped ✅" : hasItem ? "Owned ✅" : "Locked 🔒"}</span>
+                    ${
+                        hasItem && !isEquipped
+                            ? `<button onclick="equipCosmetic('${cosmetic.id}')">Equip</button>`
+                            : ""
+                    }
+                `;
+
+                grid.appendChild(card);
+            });
+
+        indexContent.appendChild(grid);
+    });
+}
+
+function renderAchievementIndex() {
+    indexContent.innerHTML = `
+        <div class="coming-soon-achievements">
+            <h2>Coming soon 🧀🏆</h2>
+            <p>Achievements will live here later.</p>
+        </div>
+    `;
+}
+
+function setFavouriteEvent(eventId) {
+    socket.emit("set favourite event", eventId);
+}
+
+function equipCosmetic(cosmeticId) {
+    socket.emit("equip cosmetic", cosmeticId);
+}
+
+/* =========================
+   PROFILE
+========================= */
+
+function openOwnProfile() {
+    socket.emit("request profile", currentUser);
+}
+
+function closeProfile() {
+    profileModal.classList.add("hidden");
+}
+
+function renderProfile(data) {
+    profileModal.classList.remove("hidden");
+
+    const favourite =
+        data.favouriteEvent && data.chaosEvents[data.favouriteEvent]
+            ? data.chaosEvents[data.favouriteEvent]
+            : null;
+
+    const equipped = data.equippedCosmetics || {};
+    const cosmetics = data.cosmetics || {};
+
+    const background =
+        equipped.background && cosmetics[equipped.background]
+            ? cosmetics[equipped.background].name
+            : "None";
+
+    const font =
+        equipped.font && cosmetics[equipped.font]
+            ? cosmetics[equipped.font].name
+            : "None";
+
+    const icon =
+        equipped.icon && cosmetics[equipped.icon]
+            ? cosmetics[equipped.icon].name
+            : "None";
+
+    profileContent.innerHTML = `
+        <div class="profile-top">
+            <div class="profile-avatar">
+                ${
+                    equipped.icon && cosmetics[equipped.icon]
+                        ? "✨"
+                        : "🧀"
+                }
+            </div>
+
+            <div>
+                <h2>${data.username}</h2>
+                <p>Book Completion: ${data.bookCompletion}%</p>
+            </div>
+        </div>
+
+        <div class="profile-stat-grid">
+            <div><span>Current Coins</span><strong>${data.coins}</strong></div>
+            <div><span>Highest Coins</span><strong>${data.highestCoins}</strong></div>
+            <div><span>Total Coins</span><strong>${data.totalCoinsEarned}</strong></div>
+            <div><span>Messages Sent</span><strong>${data.messagesSent}</strong></div>
+            <div><span>Chaos Used</span><strong>${data.chaosUsed}</strong></div>
+            <div><span>Crates Opened</span><strong>${data.cratesOpened}</strong></div>
+        </div>
+
+        <div class="profile-section">
+            <h3>Favourite Event</h3>
+            <p>${favourite ? `${favourite.icon} ${favourite.name}` : "None selected yet."}</p>
+        </div>
+
+        <div class="profile-section">
+            <h3>Decorations</h3>
+            <p>Background: ${background}</p>
+            <p>Font: ${font}</p>
+            <p>Icon: ${icon}</p>
+        </div>
+
+        <div class="profile-section">
+            <h3>Achievements</h3>
+            <p>${data.achievementsText || "Coming soon 🧀🏆"}</p>
+        </div>
+    `;
+}
+
+/* =========================
+   POLLS
+========================= */
+
+function renderPoll() {
+    if (!pollBox) return;
+
+    if (!latestPoll) {
+        pollBox.classList.add("hidden");
+        pollBox.innerHTML = "";
+        return;
+    }
+
+    pollBox.classList.remove("hidden");
+    pollBox.innerHTML = `
+        <div class="poll-header">
+            <div>
+                <strong>🗳️ Chaos Vote</strong>
+                <p>${latestPoll.title}</p>
+                <small>Started by ${latestPoll.startedBy}</small>
+            </div>
+            <span id="pollTimer"></span>
+        </div>
+        <div class="poll-options"></div>
+    `;
+
+    const optionsBox = pollBox.querySelector(".poll-options");
+
+    latestPoll.options.forEach(option => {
+        const votes = latestPollVotes[option.id] || 0;
+
+        const button = document.createElement("button");
+        button.className = `poll-option ${rarityClass(option.rarity)}`;
+        button.innerHTML = `
+            <span>${option.icon}</span>
+            <strong>${option.name}</strong>
+            <small>${votes} votes</small>
+        `;
+
+        button.onclick = () => {
+            socket.emit("vote poll", option.id);
+        };
+
+        optionsBox.appendChild(button);
+    });
+
+    updatePollTimer();
+}
+
+function updatePollTimer() {
+    if (!latestPoll) return;
+
+    const timer = document.getElementById("pollTimer");
+
+    if (!timer) return;
+
+    const remaining = Math.max(
+        0,
+        Math.ceil((latestPoll.endsAt - Date.now()) / 1000)
+    );
+
+    timer.textContent = `${remaining}s`;
+}
+
+/* =========================
    EXTRA UI
 ========================= */
 
@@ -545,7 +1168,7 @@ function updateCounter() {
 function renderSchedulePopup() {
     if (!schedulePopup) return;
 
-    if (currentRoom !== "cheeseLounge" || latestScheduledEvents.length === 0) {
+    if (latestScheduledEvents.length === 0) {
         schedulePopup.classList.add("hidden");
         schedulePopup.innerHTML = "";
         return;
@@ -567,7 +1190,11 @@ function renderSchedulePopup() {
             Math.ceil((event.runAt - Date.now()) / 1000)
         );
 
-        row.textContent = `${cleanCommandName(event.commandText)} in ${secondsLeft}s`;
+        const scheduledBy = event.scheduledBy || "Unknown";
+
+        row.textContent =
+            `${cleanCommandName(event.commandText)} in ${secondsLeft}s by ${scheduledBy}`;
+
         schedulePopup.appendChild(row);
     });
 }
@@ -628,6 +1255,62 @@ function scheduleAdminEvent() {
     });
 }
 
+function buildAdminCommand() {
+    const command = adminCommandSelect.value;
+    const player = adminPlayerSelect.value;
+    const amount = adminAmountInput.value.trim();
+    const text = adminTextInput.value.trim();
+    const events = adminEventsInput.value.trim();
+
+    const commandInput = document.getElementById("adminCommandInput");
+
+    if (!commandInput) return;
+
+    if (command === "warning") {
+        commandInput.value = `;/Warning: ${player}, ${text}`;
+    }
+
+    if (command === "ban") {
+        commandInput.value = `;/Ban: ${player}, ${text}`;
+    }
+
+    if (command === "tempban") {
+        commandInput.value = `;/TempBan: ${player}, ${amount || "10m"}, ${text}`;
+    }
+
+    if (command === "mute") {
+        commandInput.value = `;/Mute: ${player}, ${amount || "10m"}, ${text}`;
+    }
+
+    if (command === "givecoins") {
+        commandInput.value = `;/GiveCoins: ${player}, ${amount}`;
+    }
+
+    if (command === "setcoins") {
+        commandInput.value = `;/SetCoins: ${player}, ${amount}`;
+    }
+
+    if (command === "clearchat") {
+        commandInput.value = ";/ClearChat:";
+    }
+
+    if (command === "offline") {
+        commandInput.value = ";/Offline";
+    }
+
+    if (command === "online") {
+        commandInput.value = ";/Online";
+    }
+
+    if (command === "announcement") {
+        commandInput.value = `;/Announcement: ${text}`;
+    }
+
+    if (command === "startpoll") {
+        commandInput.value = `;/StartPoll: ${amount || "30"}, ${text || "Which chaos should happen?"}, ${events}`;
+    }
+}
+
 function renderScheduledEvents(events) {
     latestScheduledEvents = events || [];
 
@@ -647,7 +1330,11 @@ function renderScheduledEvents(events) {
         );
 
         const label = document.createElement("span");
-        label.textContent = `${cleanCommandName(event.commandText)} in ${secondsLeft}s`;
+        label.textContent =
+            `${cleanCommandName(event.commandText)} in ${secondsLeft}s`;
+
+        const by = document.createElement("small");
+        by.textContent = `by ${event.scheduledBy || "Unknown"}`;
 
         const cancel = document.createElement("button");
         cancel.textContent = "×";
@@ -656,6 +1343,7 @@ function renderScheduledEvents(events) {
         };
 
         div.appendChild(label);
+        div.appendChild(by);
         div.appendChild(cancel);
         box.appendChild(div);
     });
@@ -663,16 +1351,8 @@ function renderScheduledEvents(events) {
     renderSchedulePopup();
 }
 
-setInterval(() => {
-    if (latestScheduledEvents.length > 0) {
-        renderScheduledEvents(latestScheduledEvents);
-    } else {
-        renderSchedulePopup();
-    }
-}, 1000);
-
 /* =========================
-   DRAG ADMIN PANEL
+   ADMIN DRAGGING
 ========================= */
 
 let draggingAdmin = false;
@@ -863,18 +1543,6 @@ function butterBomb() {
         splat.className = "butter-splat";
         splat.style.left = `${x - 6}vw`;
         effectLayer.appendChild(splat);
-
-        for (let i = 0; i < 22; i++) {
-            const drop = document.createElement("div");
-            drop.className = "butter-drop";
-            drop.style.left = `${x}vw`;
-            drop.style.top = "56vh";
-            drop.style.setProperty("--drop-x", `${-180 + Math.random() * 360}px`);
-            drop.style.setProperty("--drop-y", `${-110 + Math.random() * 210}px`);
-            effectLayer.appendChild(drop);
-
-            setTimeout(() => drop.remove(), 2300);
-        }
     }, 930);
 
     setTimeout(() => {
@@ -945,17 +1613,6 @@ function cheeseQuake() {
     quakeOverlay.className = "quake-overlay";
     effectLayer.appendChild(quakeOverlay);
 
-    for (let i = 0; i < 16; i++) {
-        const crack = document.createElement("div");
-        crack.className = "quake-crack";
-        crack.style.left = `${Math.random() * 100}vw`;
-        crack.style.top = `${Math.random() * 100}vh`;
-        crack.style.height = `${80 + Math.random() * 230}px`;
-        crack.style.setProperty("--crack-rotate", `${-35 + Math.random() * 70}deg`);
-        crack.style.animationDelay = `${Math.random() * 1.2}s`;
-        effectLayer.appendChild(crack);
-    }
-
     for (let i = 0; i < 90; i++) {
         const crumb = document.createElement("div");
         crumb.className = "quake-crumb";
@@ -991,17 +1648,6 @@ function cheesePortal() {
     flash.className = "portal-flash";
     effectLayer.appendChild(flash);
 
-    for (let i = 0; i < 75; i++) {
-        const bit = document.createElement("div");
-        bit.className = "portal-cheese-bit";
-        bit.textContent = Math.random() > 0.35 ? "🧀" : "✨";
-        bit.style.setProperty("--angle", `${Math.random() * 360}deg`);
-        bit.style.setProperty("--distance", `${120 + Math.random() * 520}px`);
-        bit.style.animationDelay = `${Math.random() * 3.2}s`;
-        bit.style.fontSize = `${18 + Math.random() * 28}px`;
-        effectLayer.appendChild(bit);
-    }
-
     setTimeout(() => {
         effectLayer.innerHTML = "";
         hardResetVisuals();
@@ -1027,20 +1673,119 @@ function mouldTakeover() {
         effectLayer.appendChild(patch);
     }
 
-    for (let i = 0; i < 95; i++) {
-        const spore = document.createElement("div");
-        spore.className = "mould-spore";
-        spore.textContent = Math.random() > 0.5 ? "•" : "✦";
-        spore.style.left = `${Math.random() * 100}vw`;
-        spore.style.top = `${Math.random() * 100}vh`;
-        spore.style.animationDelay = `${Math.random() * 2.8}s`;
-        effectLayer.appendChild(spore);
+    setTimeout(() => {
+        effectLayer.innerHTML = "";
+        hardResetVisuals();
+    }, 6700);
+}
+
+function cheeseMoon() {
+    clearEffects();
+    makeImpactText("THE CHEESE MOON RISES");
+
+    const moon = document.createElement("div");
+    moon.className = "cheese-moon";
+    moon.textContent = "🧀";
+    effectLayer.appendChild(moon);
+
+    const glow = document.createElement("div");
+    glow.className = "cheese-moon-glow";
+    effectLayer.appendChild(glow);
+
+    for (let i = 0; i < 55; i++) {
+        const dust = document.createElement("div");
+        dust.className = "moon-dust";
+        dust.textContent = "✨";
+        dust.style.left = `${Math.random() * 100}vw`;
+        dust.style.top = `${Math.random() * 100}vh`;
+        dust.style.animationDelay = `${Math.random() * 4}s`;
+        effectLayer.appendChild(dust);
     }
 
     setTimeout(() => {
         effectLayer.innerHTML = "";
         hardResetVisuals();
-    }, 6700);
+    }, 8000);
+}
+
+function giantMouseTrap() {
+    clearEffects();
+    makeImpactText("SNAP");
+
+    const trap = document.createElement("div");
+    trap.className = "giant-mouse-trap";
+    trap.innerHTML = `
+        <div class="trap-board">🪤</div>
+        <div class="trap-text">GIANT MOUSE TRAP</div>
+    `;
+
+    effectLayer.appendChild(trap);
+
+    setTimeout(() => {
+        effectLayer.innerHTML = "";
+        hardResetVisuals();
+    }, 4200);
+}
+
+function cheeseMeteor() {
+    clearEffects();
+    makeImpactText("CHEESE METEOR");
+
+    const meteor = document.createElement("div");
+    meteor.className = "cheese-meteor";
+    meteor.textContent = "🧀";
+    effectLayer.appendChild(meteor);
+
+    setTimeout(() => {
+        const impact = document.createElement("div");
+        impact.className = "meteor-impact";
+        effectLayer.appendChild(impact);
+
+        for (let i = 0; i < 90; i++) {
+            const crumb = document.createElement("div");
+            crumb.className = "meteor-crumb";
+            crumb.textContent = Math.random() > 0.3 ? "🧀" : "🔥";
+            crumb.style.left = "50vw";
+            crumb.style.top = "58vh";
+            crumb.style.setProperty("--mx", `${-400 + Math.random() * 800}px`);
+            crumb.style.setProperty("--my", `${-260 + Math.random() * 420}px`);
+            effectLayer.appendChild(crumb);
+        }
+    }, 1200);
+
+    setTimeout(() => {
+        effectLayer.innerHTML = "";
+        hardResetVisuals();
+    }, 6200);
+}
+
+function cheesenado() {
+    clearEffects();
+    makeImpactText("CHEESENADO");
+
+    const tornado = document.createElement("div");
+    tornado.className = "cheesenado";
+    tornado.innerHTML = `
+        <div>🧀</div>
+        <div>🌪️</div>
+        <div>🧀</div>
+    `;
+    effectLayer.appendChild(tornado);
+
+    for (let i = 0; i < 70; i++) {
+        const bit = document.createElement("div");
+        bit.className = "cheesenado-bit";
+        bit.textContent = Math.random() > 0.25 ? "🧀" : "🐭";
+        bit.style.setProperty("--angle", `${Math.random() * 360}deg`);
+        bit.style.setProperty("--distance", `${80 + Math.random() * 320}px`);
+        bit.style.animationDelay = `${Math.random() * 3.5}s`;
+        effectLayer.appendChild(bit);
+    }
+
+    setTimeout(() => {
+        effectLayer.innerHTML = "";
+        hardResetVisuals();
+    }, 7000);
 }
 
 function singularicheese() {
@@ -1049,7 +1794,7 @@ function singularicheese() {
 
     const targets = [
         ...document.querySelectorAll(
-            ".message, .system-message, .room-button, .online-user, .chat-header h2, .chat-header p, .sidebar-title, .server-card, .schedule-popup, .message-bar, .chat-header-pill, .sidebar-arcade-card"
+            ".message, .system-message, .room-button, .online-user, .chat-header h2, .chat-header p, .sidebar-title, .server-card, .schedule-popup, .message-bar, .chat-header-pill, .sidebar-arcade-card, .shop-panel"
         )
     ].filter(element => {
         const rect = element.getBoundingClientRect();
@@ -1112,23 +1857,6 @@ function singularicheese() {
         element.classList.add("singularity-hidden-original");
     });
 
-    for (let i = 0; i < 100; i++) {
-        const particle = document.createElement("div");
-        particle.className = "singularity-particle";
-        particle.textContent = Math.random() > 0.42 ? "🧀" : "✨";
-
-        const angle = Math.random() * Math.PI * 2;
-        const distance = 180 + Math.random() * 620;
-
-        particle.style.left = `${centerX + Math.cos(angle) * distance}px`;
-        particle.style.top = `${centerY + Math.sin(angle) * distance}px`;
-        particle.style.setProperty("--particle-x", `${Math.cos(angle) * -distance}px`);
-        particle.style.setProperty("--particle-y", `${Math.sin(angle) * -distance}px`);
-        particle.style.animationDelay = `${Math.random() * 0.85}s`;
-
-        effectLayer.appendChild(particle);
-    }
-
     setTimeout(() => {
         document.body.classList.add("singularity-spit");
     }, 2200);
@@ -1156,57 +1884,20 @@ function runChaosEvent(type) {
         return;
     }
 
-    if (cleanType === "cheeserain") {
-        cheeseRain();
-        return;
-    }
-
-    if (cleanType === "cheesestorm") {
-        cheeseStorm();
-        return;
-    }
-
-    if (cleanType === "mouserun") {
-        mouseRun();
-        return;
-    }
-
-    if (cleanType === "butterbomb") {
-        butterBomb();
-        return;
-    }
-
-    if (cleanType === "singularicheese") {
-        singularicheese();
-        return;
-    }
-
-    if (cleanType === "meltui") {
-        meltUI();
-        return;
-    }
-
-    if (cleanType === "butterflood") {
-        butterFlood();
-        return;
-    }
-
-    if (cleanType === "cheesequake") {
-        cheeseQuake();
-        return;
-    }
-
-    if (cleanType === "cheeseportal") {
-        cheesePortal();
-        return;
-    }
-
-    if (cleanType === "mouldtakeover") {
-        mouldTakeover();
-        return;
-    }
-
-    console.warn("Unknown chaos event:", type);
+    if (cleanType === "cheeserain") cheeseRain();
+    if (cleanType === "cheesestorm") cheeseStorm();
+    if (cleanType === "mouserun") mouseRun();
+    if (cleanType === "butterbomb") butterBomb();
+    if (cleanType === "singularicheese") singularicheese();
+    if (cleanType === "meltui") meltUI();
+    if (cleanType === "butterflood") butterFlood();
+    if (cleanType === "cheesequake") cheeseQuake();
+    if (cleanType === "cheeseportal") cheesePortal();
+    if (cleanType === "mouldtakeover") mouldTakeover();
+    if (cleanType === "cheesemoon") cheeseMoon();
+    if (cleanType === "giantmousetrap") giantMouseTrap();
+    if (cleanType === "cheesemeteor") cheeseMeteor();
+    if (cleanType === "cheesenado") cheesenado();
 }
 
 /* =========================
@@ -1236,6 +1927,17 @@ messageInput.addEventListener("keydown", event => {
         sendMessage();
     }
 });
+
+setInterval(() => {
+    updateCooldownText();
+    updatePollTimer();
+
+    if (latestScheduledEvents.length > 0) {
+        renderScheduledEvents(latestScheduledEvents);
+    } else {
+        renderSchedulePopup();
+    }
+}, 1000);
 
 /* =========================
    SOCKET EVENTS
@@ -1276,6 +1978,10 @@ socket.on("online users", users => {
 
     onlineCount.textContent = `${users.length} online`;
 
+    if (adminPlayerSelect) {
+        adminPlayerSelect.innerHTML = `<option value="">Select online player...</option>`;
+    }
+
     users.forEach(user => {
         const div = document.createElement("div");
         div.className = "online-user";
@@ -1286,6 +1992,9 @@ socket.on("online users", users => {
         const name = document.createElement("span");
         name.textContent = user.username || "Unknown";
         name.title = user.realName || user.username || "Unknown";
+        name.onclick = () => {
+            socket.emit("request profile", user.realName || user.username);
+        };
 
         const room = document.createElement("small");
 
@@ -1294,8 +2003,8 @@ socket.on("online users", users => {
                 ? "Blue Cheese"
                 : user.room === "butter"
                     ? "Butter"
-                    : user.room === "updateLog"
-                        ? "Update Log"
+                    : user.room === "mozzarella"
+                        ? "Mozzarella"
                         : "Cheese Lounge";
 
         div.appendChild(dot);
@@ -1303,11 +2012,42 @@ socket.on("online users", users => {
         div.appendChild(room);
 
         onlineUsers.appendChild(div);
+
+        if (adminPlayerSelect) {
+            const option = document.createElement("option");
+            option.value = user.realName || user.username;
+            option.textContent = user.username;
+            adminPlayerSelect.appendChild(option);
+        }
     });
 });
 
 socket.on("message rejected", message => {
     showChatNotice(message);
+});
+
+socket.on("coin notice", message => {
+    showChatNotice(message);
+});
+
+socket.on("shop reply", message => {
+    showShopReply(message);
+});
+
+socket.on("crate opened", data => {
+    renderCrateResult(data);
+});
+
+socket.on("cosmetic choice", data => {
+    renderCosmeticChoice(data.choices || []);
+});
+
+socket.on("player data", data => {
+    updatePlayerData(data);
+});
+
+socket.on("profile data", data => {
+    renderProfile(data);
 });
 
 socket.on("typing", data => {
@@ -1334,10 +2074,6 @@ socket.on("admin reply", message => {
     adminReply.textContent = message;
 });
 
-socket.on("admin state", data => {
-    renderScheduledEvents(data.scheduledEvents || []);
-});
-
 socket.on("schedule state", events => {
     renderScheduledEvents(events || []);
 });
@@ -1349,6 +2085,29 @@ socket.on("chaos level", level => {
 
 socket.on("chaos event", data => {
     runChaosEvent(data.type);
+});
+
+socket.on("poll started", data => {
+    latestPoll = data;
+    latestPollVotes = {};
+    renderPoll();
+});
+
+socket.on("poll update", data => {
+    latestPollVotes = data.votes || {};
+    renderPoll();
+});
+
+socket.on("poll ended", data => {
+    const winner = data.winner;
+    showChatNotice(`🗳️ ${winner.name} won the poll!`);
+    latestPoll = null;
+    latestPollVotes = {};
+    renderPoll();
+});
+
+socket.on("poll reply", message => {
+    showChatNotice(message);
 });
 
 socket.on("visual name override", name => {

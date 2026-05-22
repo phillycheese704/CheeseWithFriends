@@ -84,7 +84,7 @@
             </div>
 
             <p class="tiny-note">
-                Cheese Lounge is filtered. Butter is mild. Blue Cheese is chaos. Update Log is read-only.
+                Cheese Lounge is filtered. Butter is mild. Blue Cheese is chaos. Mozzarella is the crate shop.
             </p>
 
         </div>
@@ -141,13 +141,13 @@
 
             <button
                 class="room-button"
-                id="room-updateLog"
-                onclick="switchRoom('updateLog')"
+                id="room-mozzarella"
+                onclick="switchRoom('mozzarella')"
             >
-                <span class="room-icon">📢</span>
+                <span class="room-icon">⚪</span>
                 <span>
-                    <strong>Update Log</strong>
-                    <small>official patch notes</small>
+                    <strong>Mozzarella</strong>
+                    <small>crate shop • no chat</small>
                 </span>
             </button>
 
@@ -156,7 +156,7 @@
                 class="admin-open-btn hidden"
                 onclick="openAdminPanel()"
             >
-                🧀 Admin Panel
+                ⚙️ Cheese Panel 🧀
             </button>
 
             <button
@@ -188,12 +188,89 @@
                 </div>
 
                 <div class="chat-header-pill">
+                    <span id="coinPill">🧀 0</span>
                     <span id="onlineCount">0 online</span>
                 </div>
 
             </header>
 
             <div id="schedulePopup" class="schedule-popup hidden"></div>
+
+            <div id="pollBox" class="poll-box hidden"></div>
+
+            <section id="mozzarellaShop" class="mozzarella-shop hidden">
+
+                <div class="shop-hero">
+                    <div>
+                        <h2>⚪ Mozzarella</h2>
+                        <p>No-chat crate shop. Buy chaos abilities, cosmetics, and manage your inventory.</p>
+                    </div>
+
+                    <div class="shop-balance">
+                        <span>Cheese Coins</span>
+                        <strong id="shopCoins">0 🧀</strong>
+                    </div>
+                </div>
+
+                <div class="shop-grid">
+
+                    <div class="shop-panel">
+                        <div class="panel-title">
+                            <h3>📦 Chaos Crates</h3>
+                            <p>Single-use chaos abilities.</p>
+                        </div>
+
+                        <div id="chaosCrateList" class="crate-list"></div>
+                    </div>
+
+                    <div class="shop-panel">
+                        <div class="panel-title">
+                            <h3>✨ Swiss Crate</h3>
+                            <p>Cosmetics. Pick between 2 items. Duplicates become coins.</p>
+                        </div>
+
+                        <div id="swissCrateBox" class="swiss-crate-box"></div>
+                    </div>
+
+                    <div class="shop-panel inventory-panel">
+                        <div class="panel-title">
+                            <h3>🎒 Inventory</h3>
+                            <p>Select 1 chaos ability and run it. Cooldown: 1 minute.</p>
+                        </div>
+
+                        <div id="inventorySelected" class="inventory-selected">
+                            No ability selected.
+                        </div>
+
+                        <button
+                            id="runSelectedChaosBtn"
+                            class="run-chaos-btn"
+                            onclick="runSelectedChaosAbility()"
+                        >
+                            Run Selected Chaos
+                        </button>
+
+                        <div id="chaosCooldownText" class="cooldown-text"></div>
+
+                        <div id="inventoryList" class="inventory-list"></div>
+
+                        <button
+                            class="open-index-btn"
+                            onclick="openIndexBook()"
+                        >
+                            📚 Open Cheese Index
+                        </button>
+                    </div>
+
+                </div>
+
+                <div id="crateResultBox" class="crate-result-box hidden"></div>
+
+                <div id="cosmeticChoiceBox" class="cosmetic-choice-box hidden"></div>
+
+                <p id="shopReply" class="shop-reply"></p>
+
+            </section>
 
             <div id="messages" class="messages">
 
@@ -256,6 +333,12 @@
 
             <div id="onlineUsers" class="online-users"></div>
 
+            <div class="profile-mini-card">
+                <h3>👤 Your Profile</h3>
+                <p id="miniProfileStats">Loading...</p>
+                <button onclick="openOwnProfile()">Open Profile</button>
+            </div>
+
             <div class="sidebar-arcade-card">
                 <h3>🧀 Cheese Arcade 🎮</h3>
                 <p>Coming soon.</p>
@@ -269,10 +352,60 @@
 
     </main>
 
+    <section id="profileModal" class="modal hidden">
+
+        <div class="modal-card profile-card">
+
+            <button class="modal-close" onclick="closeProfile()">×</button>
+
+            <div id="profileContent"></div>
+
+        </div>
+
+    </section>
+
+    <section id="indexModal" class="modal hidden">
+
+        <div class="modal-card index-card">
+
+            <button class="modal-close" onclick="closeIndexBook()">×</button>
+
+            <div class="index-header">
+                <div>
+                    <h2>📚 Cheese Index</h2>
+                    <p>The book inside your inventory.</p>
+                </div>
+
+                <div class="completion-badge">
+                    <span>Total Completion</span>
+                    <strong id="bookCompletionText">0%</strong>
+                </div>
+            </div>
+
+            <div class="index-tabs">
+                <button class="index-tab active" onclick="switchIndexTab('events')">
+                    🌪️ Events
+                </button>
+
+                <button class="index-tab" onclick="switchIndexTab('cosmetics')">
+                    ✨ Cosmetics
+                </button>
+
+                <button class="index-tab" onclick="switchIndexTab('achievements')">
+                    🏆 Achievements
+                </button>
+            </div>
+
+            <div id="indexContent" class="index-content"></div>
+
+        </div>
+
+    </section>
+
     <section id="adminPanel" class="admin-panel hidden">
 
         <div id="adminHeader" class="admin-header">
-            <strong>🧀 Swiss Admin Console</strong>
+            <strong>⚙️ Cheese Panel 🧀</strong>
 
             <div>
                 <button onclick="collapseAdminPanel()">_</button>
@@ -297,6 +430,50 @@
 
                 <p id="adminReply"></p>
 
+                <div class="admin-helper">
+                    <h4>Quick Builder</h4>
+
+                    <select id="adminCommandSelect" onchange="buildAdminCommand()">
+                        <option value="">Choose command...</option>
+                        <option value="warning">Warning</option>
+                        <option value="ban">Ban</option>
+                        <option value="tempban">Temp Ban</option>
+                        <option value="mute">Mute</option>
+                        <option value="givecoins">Give Coins</option>
+                        <option value="setcoins">Set Coins</option>
+                        <option value="clearchat">Clear Chat</option>
+                        <option value="offline">Appear Offline</option>
+                        <option value="online">Appear Online</option>
+                        <option value="announcement">Announcement</option>
+                        <option value="startpoll">Start Poll</option>
+                    </select>
+
+                    <select id="adminPlayerSelect" onchange="buildAdminCommand()">
+                        <option value="">Select online player...</option>
+                    </select>
+
+                    <input
+                        id="adminAmountInput"
+                        type="text"
+                        placeholder="Amount / duration / time..."
+                        oninput="buildAdminCommand()"
+                    >
+
+                    <input
+                        id="adminTextInput"
+                        type="text"
+                        placeholder="Text / reason / poll title..."
+                        oninput="buildAdminCommand()"
+                    >
+
+                    <input
+                        id="adminEventsInput"
+                        type="text"
+                        placeholder="Poll events: Cheese Rain|Cheesenado|Cheese Moon"
+                        oninput="buildAdminCommand()"
+                    >
+                </div>
+
                 <div class="admin-help">
                     <strong>Moderation</strong>
                     <span>;/Warning: &lt;Player&gt;, &lt;Text&gt;</span>
@@ -306,6 +483,10 @@
                     <span>;/Offline</span>
                     <span>;/Online</span>
                     <span>;/Announcement: &lt;Message&gt;</span>
+                    <span>;/GiveCoins: &lt;Player&gt;, &lt;Amount&gt;</span>
+                    <span>;/SetCoins: &lt;Player&gt;, &lt;Amount&gt;</span>
+                    <span>;/ClearChat:</span>
+                    <span>;/StartPoll: &lt;Time&gt;, &lt;Title&gt;, &lt;Event1|Event2&gt;</span>
 
                     <strong>Chaos</strong>
                     <span>+/CheeseRain\</span>
@@ -318,8 +499,13 @@
                     <span>+/Cheesequake\</span>
                     <span>+/CheesePortal\</span>
                     <span>+/MouldTakeover\</span>
+                    <span>+/CheeseMoon\</span>
+                    <span>+/GiantMouseTrap\</span>
+                    <span>+/CheeseMeteor\</span>
+                    <span>+/Cheesenado\</span>
                     <span>+/Filter: &lt;Room&gt;, &lt;On/Off&gt;\</span>
                     <span>+/SetName: &lt;Name&gt;\</span>
+                    <span>+/ClearName\</span>
                     <span>+/ClearVisuals\</span>
                 </div>
 
@@ -340,6 +526,10 @@
                     <option value="+/Cheesequake\">Cheesequake</option>
                     <option value="+/CheesePortal\">Cheese Portal</option>
                     <option value="+/MouldTakeover\">Mould Takeover</option>
+                    <option value="+/CheeseMoon\">Cheese Moon</option>
+                    <option value="+/GiantMouseTrap\">Giant Mouse Trap</option>
+                    <option value="+/CheeseMeteor\">Cheese Meteor</option>
+                    <option value="+/Cheesenado\">Cheesenado</option>
                 </select>
 
                 <input
