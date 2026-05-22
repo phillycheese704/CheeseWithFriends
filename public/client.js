@@ -14,6 +14,7 @@ let selectedChaosAbility = "";
 let currentIndexTab = "events";
 let latestPoll = null;
 let latestPollVotes = {};
+let isOpeningCrate = false;
 
 const roomMessageCache = {
     cheeseLounge: [],
@@ -280,7 +281,11 @@ function updateRoomUI(roomId, roomInfo) {
     }
 
     if (replyPreview) {
-        replyPreview.classList.toggle("hidden", isMozzarella || !replyingTo);
+        if (isMozzarella || !replyingTo) {
+            replyPreview.classList.add("hidden");
+        } else {
+            replyPreview.classList.remove("hidden");
+        }
     }
 
     if (typingIndicator) {
@@ -305,6 +310,7 @@ function updateRoomUI(roomId, roomInfo) {
 
     renderSchedulePopup();
     renderShop();
+    renderInventory();
 }
 
 function clearMessages() {
@@ -598,6 +604,18 @@ function rarityClass(rarity) {
     return `rarity-${String(rarity || "common").toLowerCase()}`;
 }
 
+function rarityEmoji(rarity) {
+    const map = {
+        common: "⚪",
+        uncommon: "🟢",
+        rare: "🔵",
+        epic: "🟣",
+        legendary: "🟡"
+    };
+
+    return map[rarity] || "⚪";
+}
+
 function formatEvent(eventId) {
     if (!latestPlayerData || !latestPlayerData.chaosEvents) {
         return {
@@ -626,25 +644,42 @@ function formatCosmetic(cosmeticId) {
 
 function renderShop() {
     if (!latestPlayerData) return;
-
     if (!chaosCrateList || !swissCrateBox) return;
 
     chaosCrateList.innerHTML = "";
 
     Object.values(latestPlayerData.crates || {}).forEach(crate => {
         const card = document.createElement("div");
-        card.className = "crate-card";
+        card.className = "crate-card clean-crate-card";
 
-        const odds = crate.odds
-            .map(entry => `${entry.rarity}: ${entry.chance}%`)
-            .join(" • ");
+        const oddsHtml = crate.odds
+            .map(entry => {
+                return `
+                    <div class="crate-odds-row ${rarityClass(entry.rarity)}">
+                        <span>${rarityEmoji(entry.rarity)} ${rarityLabel(entry.rarity)}</span>
+                        <strong>${entry.chance}%</strong>
+                    </div>
+                `;
+            })
+            .join("");
 
         card.innerHTML = `
-            <h4>${crate.name}</h4>
-            <strong>${crate.price} 🧀</strong>
-            <p>${odds}</p>
+            <div class="crate-card-top">
+                <div class="crate-icon">📦</div>
+                <div>
+                    <h4>${crate.name}</h4>
+                    <p>Single-use chaos ability</p>
+                </div>
+            </div>
+
+            <div class="crate-price">${crate.price} 🧀</div>
+
+            <div class="crate-odds-list">
+                ${oddsHtml}
+            </div>
+
             <button onclick="buyChaosCrate('${crate.id}')">
-                Buy ${crate.name}
+                Open ${crate.name}
             </button>
         `;
 
@@ -654,20 +689,52 @@ function renderShop() {
     const swiss = latestPlayerData.swissCrate;
 
     swissCrateBox.innerHTML = `
-        <div class="crate-card swiss">
-            <h4>✨ ${swiss.name}</h4>
-            <strong>${swiss.price} 🧀</strong>
-            <p>Cosmetics only. Pick 1 of 2. Duplicates become coins.</p>
-            <button onclick="openSwissCrate()">Open Swiss Crate</button>
+        <div class="crate-card clean-crate-card swiss">
+            <div class="crate-card-top">
+                <div class="crate-icon">✨</div>
+                <div>
+                    <h4>${swiss.name}</h4>
+                    <p>Cosmetics only</p>
+                </div>
+            </div>
+
+            <div class="crate-price">${swiss.price} 🧀</div>
+
+            <div class="crate-odds-list">
+                ${swiss.odds.map(entry => `
+                    <div class="crate-odds-row ${rarityClass(entry.rarity)}">
+                        <span>${rarityEmoji(entry.rarity)} ${rarityLabel(entry.rarity)}</span>
+                        <strong>${entry.chance}%</strong>
+                    </div>
+                `).join("")}
+            </div>
+
+            <p class="crate-note">
+                Pick between 2 cosmetics. Duplicates become Cheese Coins.
+            </p>
+
+            <button onclick="openSwissCrate()">
+                Open Swiss Crate
+            </button>
         </div>
     `;
 }
 
 function buyChaosCrate(crateId) {
+    if (isOpeningCrate) return;
+
+    isOpeningCrate = true;
+    showCrateOpeningAnimation("Chaos Crate", "Rolling chaos ability...", "chaos");
+
     socket.emit("buy chaos crate", crateId);
 }
 
 function openSwissCrate() {
+    if (isOpeningCrate) return;
+
+    isOpeningCrate = true;
+    showCrateOpeningAnimation("Swiss Crate", "Rolling cosmetics...", "cosmetic");
+
     socket.emit("open swiss crate");
 }
 
@@ -682,15 +749,25 @@ function renderInventory() {
     if (entries.length === 0) {
         inventoryList.innerHTML = `
             <div class="empty-inventory">
-                No chaos abilities yet. Open crates in Mozzarella ⚪
+                <strong>No chaos abilities yet.</strong>
+                <span>Open crates in Mozzarella ⚪</span>
             </div>
         `;
     } else {
         entries
             .sort((a, b) => {
+                const order = {
+                    common: 1,
+                    uncommon: 2,
+                    rare: 3,
+                    epic: 4,
+                    legendary: 5
+                };
+
                 const eventA = formatEvent(a);
                 const eventB = formatEvent(b);
-                return eventA.rarity.localeCompare(eventB.rarity);
+
+                return (order[eventB.rarity] || 0) - (order[eventA.rarity] || 0);
             })
             .forEach(eventId => {
                 const event = formatEvent(eventId);
@@ -706,7 +783,7 @@ function renderInventory() {
                 item.innerHTML = `
                     <span>${event.icon}</span>
                     <strong>${event.name}</strong>
-                    <small>${rarityLabel(event.rarity)} • x${count}</small>
+                    <small>${rarityEmoji(event.rarity)} ${rarityLabel(event.rarity)} • x${count}</small>
                 `;
 
                 item.onclick = () => {
@@ -721,10 +798,14 @@ function renderInventory() {
     if (selectedChaosAbility) {
         const selected = formatEvent(selectedChaosAbility);
         inventorySelected.innerHTML = `
-            Selected: <strong>${selected.icon} ${selected.name}</strong>
+            <span>Selected ability</span>
+            <strong>${selected.icon} ${selected.name}</strong>
         `;
     } else {
-        inventorySelected.textContent = "No ability selected.";
+        inventorySelected.innerHTML = `
+            <span>Selected ability</span>
+            <strong>None selected</strong>
+        `;
     }
 
     updateCooldownText();
@@ -770,56 +851,156 @@ function showShopReply(text) {
     showChatNotice(text);
 }
 
-function renderCrateResult(data) {
+/* =========================
+   CRATE ANIMATIONS
+========================= */
+
+function showCrateOpeningAnimation(title, subtitle, type) {
     if (!crateResultBox) return;
 
     crateResultBox.classList.remove("hidden");
     crateResultBox.innerHTML = `
-        <div class="crate-result ${rarityClass(data.reward.rarity)}">
-            <h3>📦 ${data.crate.name} opened!</h3>
-            <div class="big-reward">${data.reward.icon}</div>
-            <h2>${data.reward.name}</h2>
-            <p>${rarityLabel(data.reward.rarity)} chaos ability added to inventory.</p>
+        <div class="crate-opening-animation ${type}">
+            <div class="crate-opening-stage">
+                <div class="crate-shine"></div>
+                <div class="crate-box-emoji">📦</div>
+                <div class="crate-sparkles">
+                    <span>✨</span>
+                    <span>🧀</span>
+                    <span>✨</span>
+                    <span>🧀</span>
+                </div>
+            </div>
+
+            <h3>${title}</h3>
+            <p>${subtitle}</p>
+
+            <div class="crate-rarity-spinner">
+                <span>COMMON</span>
+                <span>UNCOMMON</span>
+                <span>RARE</span>
+                <span>EPIC</span>
+                <span>LEGENDARY</span>
+            </div>
         </div>
     `;
 
+    if (cosmeticChoiceBox) {
+        cosmeticChoiceBox.classList.add("hidden");
+    }
+}
+
+function renderCrateResult(data) {
+    if (!crateResultBox) return;
+
     setTimeout(() => {
-        crateResultBox.classList.add("hidden");
-    }, 6500);
+        isOpeningCrate = false;
+
+        crateResultBox.classList.remove("hidden");
+        crateResultBox.innerHTML = `
+            <div class="crate-result ${rarityClass(data.reward.rarity)}">
+                <div class="reward-burst"></div>
+
+                <h3>${data.crate.name} opened!</h3>
+
+                <div class="big-reward">${data.reward.icon}</div>
+
+                <h2>${data.reward.name}</h2>
+
+                <div class="reward-rarity-pill ${rarityClass(data.reward.rarity)}">
+                    ${rarityEmoji(data.reward.rarity)} ${rarityLabel(data.reward.rarity)}
+                </div>
+
+                <p>Added to your chaos inventory.</p>
+            </div>
+        `;
+
+        setTimeout(() => {
+            crateResultBox.classList.add("hidden");
+        }, 7000);
+    }, 1700);
 }
 
 function renderCosmeticChoice(choices) {
     if (!cosmeticChoiceBox) return;
 
-    cosmeticChoiceBox.classList.remove("hidden");
-    cosmeticChoiceBox.innerHTML = `
-        <h3>✨ Choose one cosmetic</h3>
-        <div class="cosmetic-choice-grid"></div>
-    `;
+    setTimeout(() => {
+        isOpeningCrate = false;
 
-    const grid = cosmeticChoiceBox.querySelector(".cosmetic-choice-grid");
+        if (crateResultBox) {
+            crateResultBox.classList.add("hidden");
+        }
 
-    choices.forEach(choice => {
-        const card = document.createElement("button");
-        card.className = `cosmetic-choice ${rarityClass(choice.rarity)}`;
+        cosmeticChoiceBox.classList.remove("hidden");
+        cosmeticChoiceBox.innerHTML = `
+            <div class="cosmetic-choice-header">
+                <h3>✨ Choose one cosmetic</h3>
+                <p>Pick carefully. Duplicates turn into Cheese Coins.</p>
+            </div>
 
-        card.innerHTML = `
-            <strong>${choice.name}</strong>
-            <span>${rarityLabel(choice.rarity)} • ${choice.type}</span>
-            ${
-                choice.duplicate
-                    ? `<em>Duplicate: +${choice.duplicateCoins} 🧀</em>`
-                    : `<em>NEW • Added to Index</em>`
-            }
+            <div class="cosmetic-choice-grid"></div>
         `;
 
-        card.onclick = () => {
-            socket.emit("choose cosmetic", choice.id);
-            cosmeticChoiceBox.classList.add("hidden");
-        };
+        const grid = cosmeticChoiceBox.querySelector(".cosmetic-choice-grid");
 
-        grid.appendChild(card);
-    });
+        choices.forEach(choice => {
+            const card = document.createElement("button");
+            card.className = `cosmetic-choice ${rarityClass(choice.rarity)}`;
+
+            card.innerHTML = `
+                <div class="cosmetic-choice-icon">
+                    ${choice.type === "background" ? "🎨" : choice.type === "font" ? "🔤" : "🧩"}
+                </div>
+
+                <strong>${choice.name}</strong>
+
+                <span>
+                    ${rarityEmoji(choice.rarity)} ${rarityLabel(choice.rarity)} • ${choice.type}
+                </span>
+
+                ${
+                    choice.duplicate
+                        ? `<em class="duplicate-tag">Duplicate: +${choice.duplicateCoins} 🧀</em>`
+                        : `<em class="new-tag">NEW • Added to Index</em>`
+                }
+            `;
+
+            card.onclick = () => {
+                socket.emit("choose cosmetic", choice.id);
+                cosmeticChoiceBox.classList.add("hidden");
+
+                if (crateResultBox) {
+                    crateResultBox.classList.remove("hidden");
+                    crateResultBox.innerHTML = `
+                        <div class="crate-result ${rarityClass(choice.rarity)}">
+                            <div class="reward-burst"></div>
+                            <h3>Cosmetic chosen!</h3>
+                            <div class="big-reward">
+                                ${choice.type === "background" ? "🎨" : choice.type === "font" ? "🔤" : "🧩"}
+                            </div>
+                            <h2>${choice.name}</h2>
+                            <div class="reward-rarity-pill ${rarityClass(choice.rarity)}">
+                                ${rarityEmoji(choice.rarity)} ${rarityLabel(choice.rarity)}
+                            </div>
+                            <p>
+                                ${
+                                    choice.duplicate
+                                        ? `Duplicate converted into ${choice.duplicateCoins} Cheese Coins.`
+                                        : "Added to your Cheese Index."
+                                }
+                            </p>
+                        </div>
+                    `;
+
+                    setTimeout(() => {
+                        crateResultBox.classList.add("hidden");
+                    }, 5500);
+                }
+            };
+
+            grid.appendChild(card);
+        });
+    }, 1700);
 }
 
 /* =========================
@@ -898,7 +1079,7 @@ function renderEventIndex() {
         card.innerHTML = `
             <div class="index-icon">${discovered ? event.icon : "❔"}</div>
             <h4>${discovered ? event.name : "Unknown Event"}</h4>
-            <strong>${rarityLabel(event.rarity)}</strong>
+            <strong>${rarityEmoji(event.rarity)} ${rarityLabel(event.rarity)}</strong>
             <p>${discovered ? event.description : "Discover this event to reveal it."}</p>
             <span>${used[event.id] ? "Used ✅" : discovered ? "Witnessed ✅" : "Locked 🔒"}</span>
             ${
@@ -945,9 +1126,11 @@ function renderCosmeticIndex() {
                 card.className = `index-item ${rarityClass(cosmetic.rarity)} ${hasItem ? "" : "locked"}`;
 
                 card.innerHTML = `
-                    <div class="index-icon">${hasItem ? "✨" : "❔"}</div>
+                    <div class="index-icon">
+                        ${hasItem ? type === "background" ? "🎨" : type === "font" ? "🔤" : "🧩" : "❔"}
+                    </div>
                     <h4>${hasItem ? cosmetic.name : "Unknown Cosmetic"}</h4>
-                    <strong>${rarityLabel(cosmetic.rarity)}</strong>
+                    <strong>${rarityEmoji(cosmetic.rarity)} ${rarityLabel(cosmetic.rarity)}</strong>
                     <p>${hasItem ? cosmetic.type : "Find this in a Swiss Crate."}</p>
                     <span>${isEquipped ? "Equipped ✅" : hasItem ? "Owned ✅" : "Locked 🔒"}</span>
                     ${
@@ -1460,21 +1643,7 @@ function cheeseStorm() {
     clouds.className = "storm-clouds";
     effectLayer.appendChild(clouds);
 
-    for (let i = 0; i < 140; i++) {
-        const cheese = document.createElement("div");
-
-        cheese.className = "falling-cheese storm-fall";
-        cheese.textContent = Math.random() > 0.18 ? "🧀" : "🫕";
-        cheese.style.left = `${Math.random() * 100}vw`;
-        cheese.style.animationDuration = `${1.25 + Math.random() * 2.2}s`;
-        cheese.style.fontSize = `${20 + Math.random() * 34}px`;
-        cheese.style.animationDelay = `${Math.random() * 1.3}s`;
-        cheese.style.setProperty("--sway", `${-170 + Math.random() * 340}px`);
-
-        effectLayer.appendChild(cheese);
-
-        setTimeout(() => cheese.remove(), 6800);
-    }
+    cheeseRain(140);
 
     for (let i = 0; i < 6; i++) {
         const lightning = document.createElement("div");
@@ -1524,16 +1693,11 @@ function butterBomb() {
     pulse.className = "butter-screen-pulse";
     effectLayer.appendChild(pulse);
 
-    const shadow = document.createElement("div");
-    shadow.className = "butter-shadow";
-    shadow.style.left = `${x}vw`;
-
     const bomb = document.createElement("div");
     bomb.className = "butter-bomb";
     bomb.textContent = "🧈";
     bomb.style.left = `${x}vw`;
 
-    effectLayer.appendChild(shadow);
     effectLayer.appendChild(bomb);
 
     setTimeout(() => {
@@ -1879,11 +2043,7 @@ function runChaosEvent(type) {
         .replace(/-/g, "")
         .replace(/_/g, "");
 
-    if (cleanType === "clearvisuals") {
-        clearEffects();
-        return;
-    }
-
+    if (cleanType === "clearvisuals") clearEffects();
     if (cleanType === "cheeserain") cheeseRain();
     if (cleanType === "cheesestorm") cheeseStorm();
     if (cleanType === "mouserun") mouseRun();
@@ -2031,6 +2191,7 @@ socket.on("coin notice", message => {
 });
 
 socket.on("shop reply", message => {
+    isOpeningCrate = false;
     showShopReply(message);
 });
 

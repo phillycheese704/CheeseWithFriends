@@ -14,14 +14,12 @@ body {
     transition: background 0.35s ease, color 0.35s ease;
 }
 
-/* Login can scroll 🧀 */
 html:has(#authScreen:not(.hidden)),
 body:has(#authScreen:not(.hidden)) {
     overflow-y: auto !important;
     overflow-x: hidden !important;
 }
 
-/* App stays locked after login */
 html:has(#app:not(.hidden)),
 body:has(#app:not(.hidden)) {
     overflow: hidden !important;
@@ -909,8 +907,6 @@ input:disabled {
     white-space: nowrap;
 }
 
-/* RIGHT SIDEBAR CARDS */
-
 .profile-mini-card,
 .sidebar-arcade-card {
     margin-top: 18px;
@@ -948,20 +944,25 @@ input:disabled {
 /* MOZZARELLA SHOP */
 
 .mozzarella-shop {
-    flex: 1 1 0;
+    flex: 1 1 auto;
     min-height: 0;
+    height: 100%;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 18px;
+    display: block;
 }
 
 .shop-hero {
-    display: flex;
-    justify-content: space-between;
-    gap: 14px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px;
     align-items: center;
     padding: 18px;
-    border-radius: 28px;
-    background: rgba(255, 255, 255, 0.7);
+    border-radius: 30px;
+    background:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.75), transparent 35%),
+        rgba(255, 255, 255, 0.68);
     border: 3px solid rgba(255, 216, 77, 0.9);
     box-shadow: 0 12px 28px rgba(75, 52, 0, 0.12);
     margin-bottom: 18px;
@@ -969,23 +970,26 @@ input:disabled {
 
 .shop-hero h2 {
     margin: 0;
-    font-size: clamp(28px, 5vw, 48px);
+    line-height: 1.05;
+    font-size: clamp(30px, 5vw, 52px);
 }
 
 .shop-hero p {
     margin: 6px 0 0;
+    max-width: 680px;
     font-weight: 800;
     opacity: 0.72;
 }
 
 .shop-balance {
     flex-shrink: 0;
-    padding: 14px;
-    border-radius: 18px;
-    background: rgba(255, 216, 77, 0.72);
+    padding: 14px 18px;
+    border-radius: 20px;
+    background: rgba(255, 216, 77, 0.78);
     display: grid;
     text-align: center;
     gap: 4px;
+    border: 2px solid rgba(216, 155, 0, 0.5);
 }
 
 .shop-balance span {
@@ -995,26 +999,29 @@ input:disabled {
 }
 
 .shop-balance strong {
-    font-size: 24px;
+    font-size: 26px;
 }
 
 .shop-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
+    grid-template-columns: minmax(270px, 1.1fr) minmax(260px, 0.9fr) minmax(300px, 1fr);
+    gap: 16px;
+    align-items: start;
 }
 
 .shop-panel {
     min-width: 0;
     padding: 16px;
-    border-radius: 24px;
-    background: rgba(255, 255, 255, 0.68);
+    border-radius: 26px;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.76), rgba(255,255,255,0.58));
     border: 2px solid rgba(216, 155, 0, 0.5);
-    box-shadow: 0 8px 18px rgba(75, 52, 0, 0.1);
+    box-shadow: 0 8px 20px rgba(75, 52, 0, 0.1);
 }
 
 .panel-title h3 {
     margin: 0 0 4px;
+    font-size: 22px;
 }
 
 .panel-title p {
@@ -1030,22 +1037,59 @@ input:disabled {
     gap: 10px;
 }
 
+.crate-list {
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.inventory-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.inventory-list {
+    max-height: 360px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
+}
+
+.clean-crate-card,
 .crate-card {
     padding: 14px;
-    border-radius: 18px;
-    background: rgba(255, 245, 190, 0.72);
+    border-radius: 20px;
+    background:
+        radial-gradient(circle at 18% 16%, rgba(255,255,255,0.75), transparent 26%),
+        rgba(255, 245, 190, 0.76);
     display: grid;
-    gap: 8px;
+    gap: 10px;
     color: #4b3400;
+    border: 2px solid rgba(216, 155, 0, 0.35);
+}
+
+.crate-card-top {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+}
+
+.crate-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, 0.72);
+    font-size: 25px;
+    box-shadow: inset 0 0 0 2px rgba(216, 155, 0, 0.22);
 }
 
 .crate-card h4 {
     margin: 0;
     font-size: 18px;
-}
-
-.crate-card strong {
-    font-size: 17px;
 }
 
 .crate-card p {
@@ -1055,10 +1099,44 @@ input:disabled {
     opacity: 0.68;
 }
 
+.crate-price {
+    width: fit-content;
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: rgba(255, 216, 77, 0.78);
+    font-weight: 1000;
+    font-size: 14px;
+}
+
+.crate-odds-list {
+    display: grid;
+    gap: 5px;
+}
+
+.crate-odds-row {
+    padding: 6px 8px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.52);
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 900;
+    border: 2px solid transparent;
+}
+
+.crate-note {
+    padding: 8px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.48);
+}
+
 .crate-card button {
     width: 100%;
     padding: 10px;
-    border-radius: 12px;
+    border-radius: 14px;
+    margin-top: 2px;
 }
 
 .swiss-crate-box .crate-card {
@@ -1069,35 +1147,45 @@ input:disabled {
 }
 
 .inventory-selected {
-    padding: 11px;
-    border-radius: 14px;
-    background: rgba(255, 216, 77, 0.62);
+    padding: 12px;
+    border-radius: 16px;
+    background: rgba(255, 216, 77, 0.66);
     font-weight: 900;
-    margin-bottom: 10px;
+    display: grid;
+    gap: 3px;
+}
+
+.inventory-selected span {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.inventory-selected strong {
+    font-size: 16px;
 }
 
 .run-chaos-btn,
 .open-index-btn {
     width: 100%;
-    margin-bottom: 10px;
+    margin-bottom: 0;
 }
 
 .cooldown-text {
     font-size: 12px;
     font-weight: 900;
     opacity: 0.7;
-    margin-bottom: 12px;
     text-align: center;
 }
 
 .inventory-item {
     width: 100%;
+    min-height: 72px;
     padding: 12px;
-    border-radius: 16px;
+    border-radius: 18px;
     text-align: left;
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 6px 10px;
+    gap: 5px 10px;
     align-items: center;
     background: rgba(255, 255, 255, 0.72);
     color: #3a2600;
@@ -1113,45 +1201,295 @@ input:disabled {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    line-height: 1.1;
 }
 
 .inventory-item small {
     opacity: 0.7;
     font-weight: 800;
+    line-height: 1.1;
 }
 
 .inventory-item.selected {
-    border-color: #4b3400;
+    border-color: #4b3400 !important;
     box-shadow: 0 0 0 4px rgba(255, 183, 3, 0.24);
 }
 
 .empty-inventory {
-    padding: 14px;
-    border-radius: 16px;
+    padding: 16px;
+    border-radius: 18px;
     background: rgba(255, 255, 255, 0.54);
     font-weight: 800;
     text-align: center;
+    display: grid;
+    gap: 5px;
+}
+
+.empty-inventory span {
+    opacity: 0.7;
+    font-size: 13px;
 }
 
 .crate-result-box,
 .cosmetic-choice-box {
-    margin-top: 16px;
+    margin: 18px 0 0;
+    width: 100%;
     padding: 16px;
-    border-radius: 24px;
-    background: rgba(255, 255, 255, 0.78);
+    border-radius: 26px;
+    background:
+        radial-gradient(circle at top, rgba(255,255,255,0.82), transparent 36%),
+        rgba(255, 255, 255, 0.78);
     border: 3px solid #ffd84d;
     text-align: center;
     box-shadow: 0 14px 34px rgba(75, 52, 0, 0.16);
 }
 
-.crate-result h3 {
+.shop-reply {
+    min-height: 22px;
+    font-weight: 900;
+    text-align: center;
+    margin: 14px 0 0;
+}
+
+/* CRATE ANIMATION */
+
+.crate-opening-animation {
+    min-height: 310px;
+    display: grid;
+    place-items: center;
+    gap: 10px;
+    padding: 22px;
+    border-radius: 24px;
+    position: relative;
+    overflow: hidden;
+}
+
+.crate-opening-animation::before {
+    content: "";
+    position: absolute;
+    inset: -40%;
+    background:
+        conic-gradient(
+            from 0deg,
+            rgba(255, 255, 255, 0),
+            rgba(255, 216, 77, 0.45),
+            rgba(255, 255, 255, 0),
+            rgba(255, 183, 3, 0.38),
+            rgba(255, 255, 255, 0)
+        );
+    animation: crateSpinBg 1.25s linear infinite;
+}
+
+.crate-opening-stage {
+    width: 150px;
+    height: 150px;
+    position: relative;
+    display: grid;
+    place-items: center;
+    z-index: 2;
+}
+
+.crate-shine {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(255, 216, 77, 0.45);
+    filter: blur(18px);
+    animation: crateGlowPulse 0.8s ease-in-out infinite alternate;
+}
+
+.crate-box-emoji {
+    position: relative;
+    z-index: 3;
+    font-size: 86px;
+    animation: crateShake 0.42s ease-in-out infinite;
+    filter: drop-shadow(0 14px 18px rgba(75, 52, 0, 0.24));
+}
+
+.crate-sparkles span {
+    position: absolute;
+    z-index: 4;
+    animation: crateSparkle 1.2s ease-in-out infinite;
+}
+
+.crate-sparkles span:nth-child(1) {
+    left: 0;
+    top: 10px;
+}
+
+.crate-sparkles span:nth-child(2) {
+    right: 2px;
+    top: 18px;
+    animation-delay: 0.2s;
+}
+
+.crate-sparkles span:nth-child(3) {
+    left: 18px;
+    bottom: 8px;
+    animation-delay: 0.4s;
+}
+
+.crate-sparkles span:nth-child(4) {
+    right: 20px;
+    bottom: 0;
+    animation-delay: 0.6s;
+}
+
+.crate-opening-animation h3,
+.crate-opening-animation p,
+.crate-rarity-spinner {
+    position: relative;
+    z-index: 2;
+}
+
+.crate-opening-animation h3 {
     margin: 0;
+    font-size: 28px;
+}
+
+.crate-opening-animation p {
+    margin: 0;
+    font-weight: 900;
+    opacity: 0.72;
+}
+
+.crate-rarity-spinner {
+    height: 28px;
+    overflow: hidden;
+    border-radius: 999px;
+    padding: 0 14px;
+    background: rgba(75, 52, 0, 0.86);
+    color: #ffe57a;
+    font-weight: 1000;
+    min-width: 170px;
+}
+
+.crate-rarity-spinner span {
+    display: block;
+    height: 28px;
+    line-height: 28px;
+    animation: raritySlot 0.55s steps(5) infinite;
+}
+
+@keyframes crateSpinBg {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes crateGlowPulse {
+    from {
+        transform: scale(0.82);
+        opacity: 0.6;
+    }
+
+    to {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+}
+
+@keyframes crateShake {
+    0%, 100% {
+        transform: translateX(0) rotate(0deg) scale(1);
+    }
+
+    25% {
+        transform: translateX(-5px) rotate(-6deg) scale(1.03);
+    }
+
+    50% {
+        transform: translateX(4px) rotate(5deg) scale(1.08);
+    }
+
+    75% {
+        transform: translateX(-3px) rotate(-3deg) scale(1.03);
+    }
+}
+
+@keyframes crateSparkle {
+    0%, 100% {
+        opacity: 0;
+        transform: scale(0.5) rotate(0deg);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.4) rotate(30deg);
+    }
+}
+
+@keyframes raritySlot {
+    from {
+        transform: translateY(0);
+    }
+
+    to {
+        transform: translateY(-140px);
+    }
+}
+
+.crate-result {
+    position: relative;
+    min-height: 310px;
+    display: grid;
+    place-items: center;
+    gap: 8px;
+    overflow: hidden;
+    padding: 22px;
+    border-radius: 24px;
+    animation: rewardCardPop 0.45s ease-out;
+}
+
+.reward-burst {
+    position: absolute;
+    width: 190px;
+    height: 190px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle, rgba(255, 255, 255, 0.9), rgba(255, 216, 77, 0.45), transparent 68%);
+    animation: rewardBurst 1.2s ease-out forwards;
 }
 
 .big-reward {
-    font-size: 64px;
+    position: relative;
+    z-index: 2;
+    font-size: 74px;
     margin: 8px 0;
     animation: rewardPop 0.8s ease-out;
+    filter: drop-shadow(0 12px 18px rgba(75, 52, 0, 0.24));
+}
+
+.crate-result h3,
+.crate-result h2,
+.crate-result p,
+.reward-rarity-pill {
+    position: relative;
+    z-index: 2;
+}
+
+.crate-result h3 {
+    margin: 0;
+    opacity: 0.8;
+}
+
+.crate-result h2 {
+    margin: 0;
+    font-size: clamp(26px, 5vw, 48px);
+}
+
+.crate-result p {
+    margin: 0;
+    font-weight: 900;
+    opacity: 0.72;
+}
+
+.reward-rarity-pill {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.65);
+    font-weight: 1000;
+    border: 2px solid rgba(75, 52, 0, 0.15);
 }
 
 @keyframes rewardPop {
@@ -1170,26 +1508,82 @@ input:disabled {
     }
 }
 
+@keyframes rewardBurst {
+    0% {
+        transform: scale(0.2);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(2.4);
+        opacity: 0;
+    }
+}
+
+@keyframes rewardCardPop {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* COSMETIC CHOICE */
+
+.cosmetic-choice-header h3 {
+    margin: 0;
+    font-size: 26px;
+}
+
+.cosmetic-choice-header p {
+    margin: 6px 0 0;
+    font-weight: 900;
+    opacity: 0.65;
+}
+
 .cosmetic-choice-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
-    margin-top: 12px;
+    margin-top: 14px;
 }
 
 .cosmetic-choice {
-    padding: 16px;
-    border-radius: 18px;
+    min-height: 170px;
+    padding: 18px;
+    border-radius: 22px;
     display: grid;
-    gap: 7px;
+    gap: 8px;
+    place-items: center;
     text-align: center;
     color: #3a2600;
-    background: rgba(255, 245, 190, 0.75);
+    background:
+        radial-gradient(circle at top, rgba(255,255,255,0.75), transparent 36%),
+        rgba(255, 245, 190, 0.75);
     border: 3px solid rgba(216, 155, 0, 0.5);
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.cosmetic-choice:hover {
+    transform: translateY(-4px) scale(1.01);
+}
+
+.cosmetic-choice-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 18px;
+    display: grid;
+    place-items: center;
+    background: rgba(255,255,255,0.72);
+    font-size: 28px;
 }
 
 .cosmetic-choice strong {
-    font-size: 17px;
+    font-size: 18px;
 }
 
 .cosmetic-choice span,
@@ -1198,10 +1592,12 @@ input:disabled {
     font-weight: 900;
 }
 
-.shop-reply {
-    min-height: 22px;
-    font-weight: 900;
-    text-align: center;
+.new-tag {
+    color: #1f7a35;
+}
+
+.duplicate-tag {
+    color: #9a6a00;
 }
 
 /* RARITIES */
@@ -1500,6 +1896,7 @@ input:disabled {
     top: 70px;
     right: 50px;
     width: min(680px, 90vw);
+    max-height: calc(100vh - 40px);
     z-index: 10000;
     border-radius: 26px;
     border: 5px solid #4b2b08;
@@ -1510,16 +1907,20 @@ input:disabled {
         linear-gradient(135deg, #fff1a8, #ffd35a);
     box-shadow: 0 25px 70px rgba(0,0,0,0.28);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .admin-panel.collapsed {
     width: 240px;
+    max-height: none;
     height: auto;
     border-radius: 999px;
     overflow: hidden;
 }
 
 .admin-header {
+    flex: 0 0 auto;
     padding: 12px 16px;
     background: rgba(75, 43, 8, 0.12);
     display: flex;
@@ -1552,10 +1953,19 @@ input:disabled {
 }
 
 .admin-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: calc(100vh - 110px);
     padding: 12px;
     display: grid;
     grid-template-columns: 1fr 230px;
     gap: 12px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.admin-panel.collapsed .admin-body {
+    display: none !important;
 }
 
 .admin-body h3 {
@@ -1564,6 +1974,7 @@ input:disabled {
 
 .admin-command-box,
 .event-scheduler {
+    min-height: 0;
     padding: 12px;
     border-radius: 20px;
     background: rgba(255,255,255,0.45);
@@ -1571,6 +1982,8 @@ input:disabled {
 
 #adminCommandInput {
     width: 100%;
+    min-height: 70px;
+    max-height: 140px;
     height: 72px;
     border-radius: 14px;
     border: 3px solid #4b2b08;
@@ -1621,8 +2034,9 @@ input:disabled {
     gap: 5px;
     margin-top: 10px;
     font-size: 12px;
-    max-height: 210px;
+    max-height: 240px;
     overflow-y: auto;
+    overflow-x: hidden;
     padding-right: 4px;
 }
 
@@ -1643,6 +2057,9 @@ input:disabled {
     display: grid;
     gap: 8px;
     margin-top: 10px;
+    max-height: 230px;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .scheduled-event {
@@ -1658,6 +2075,39 @@ input:disabled {
     margin: 0;
     padding: 2px 6px;
     width: fit-content;
+}
+
+/* SCROLLBARS */
+
+.mozzarella-shop::-webkit-scrollbar,
+.inventory-list::-webkit-scrollbar,
+.crate-list::-webkit-scrollbar,
+.admin-body::-webkit-scrollbar,
+.admin-help::-webkit-scrollbar,
+.scheduled-events::-webkit-scrollbar,
+.modal-card::-webkit-scrollbar {
+    width: 8px;
+}
+
+.mozzarella-shop::-webkit-scrollbar-thumb,
+.inventory-list::-webkit-scrollbar-thumb,
+.crate-list::-webkit-scrollbar-thumb,
+.admin-body::-webkit-scrollbar-thumb,
+.admin-help::-webkit-scrollbar-thumb,
+.scheduled-events::-webkit-scrollbar-thumb,
+.modal-card::-webkit-scrollbar-thumb {
+    background: rgba(75, 52, 0, 0.35);
+    border-radius: 999px;
+}
+
+.mozzarella-shop::-webkit-scrollbar-track,
+.inventory-list::-webkit-scrollbar-track,
+.crate-list::-webkit-scrollbar-track,
+.admin-body::-webkit-scrollbar-track,
+.admin-help::-webkit-scrollbar-track,
+.scheduled-events::-webkit-scrollbar-track,
+.modal-card::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.25);
 }
 
 /* CHAOS BASE */
@@ -1881,25 +2331,6 @@ input:disabled {
 
     100% {
         transform: translateY(58vh) rotate(36deg) scale(1.15);
-    }
-}
-
-.butter-shadow {
-    position: absolute;
-    top: 58vh;
-    width: 150px;
-    height: 42px;
-    border-radius: 50%;
-    z-index: 20010;
-    background: rgba(90, 55, 0, 0.28);
-    transform: translateX(-45px) scale(0.2);
-    animation: butterShadow 0.93s ease-in forwards;
-}
-
-@keyframes butterShadow {
-    to {
-        transform: translateX(-45px) scale(1.25);
-        opacity: 0.45;
     }
 }
 
@@ -2855,9 +3286,13 @@ input:disabled {
 
 /* MOBILE */
 
-@media (max-width: 1100px) {
+@media (max-width: 1180px) {
     .shop-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .inventory-panel {
+        grid-column: 1 / -1;
     }
 }
 
@@ -2933,6 +3368,42 @@ input:disabled {
     }
 }
 
+@media (max-width: 760px) {
+    .mozzarella-shop {
+        padding: 12px;
+    }
+
+    .shop-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .shop-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .inventory-list,
+    .crate-list {
+        max-height: none;
+    }
+
+    .cosmetic-choice-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-panel {
+        top: 10px !important;
+        left: 10px !important;
+        right: auto !important;
+        width: calc(100vw - 20px) !important;
+        max-height: calc(100vh - 20px);
+    }
+
+    .admin-body {
+        max-height: calc(100vh - 90px);
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 620px) {
     .auth-card {
         padding: 20px;
@@ -2971,12 +3442,6 @@ input:disabled {
         max-width: 150px;
     }
 
-    .admin-panel {
-        top: 16px;
-        left: 10px;
-        width: calc(100vw - 20px);
-    }
-
     .admin-panel.collapsed {
         width: 210px;
     }
@@ -2986,15 +3451,6 @@ input:disabled {
         font-size: 13px;
     }
 
-    .shop-hero {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .cosmetic-choice-grid {
-        grid-template-columns: 1fr;
-    }
-
     .profile-stat-grid {
         grid-template-columns: 1fr;
     }
@@ -3002,5 +3458,14 @@ input:disabled {
     .index-header {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .crate-opening-animation,
+    .crate-result {
+        min-height: 260px;
+    }
+
+    .big-reward {
+        font-size: 58px;
     }
 }
