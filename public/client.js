@@ -15,6 +15,9 @@ let currentIndexTab = "events";
 let latestPoll = null;
 let latestPollVotes = {};
 let isOpeningCrate = false;
+let latestClickerData = null;
+let currentClickerTab = "cheese";
+let goldenCheeseTimer = null;
 
 const roomMessageCache = {
     cheeseLounge: [],
@@ -594,6 +597,16 @@ function updatePlayerData(data) {
     if (miniProfileStats) {
         miniProfileStats.textContent =
             `${data.coins} coins • ${data.bookCompletion}% book`;
+    }
+
+    const arcadeCoinPill = document.getElementById("arcadeCoinPill");
+    if (arcadeCoinPill) {
+        arcadeCoinPill.textContent = `${data.coins} 🧀`;
+    }
+
+    if (data.arcade && data.arcade.cheeseClicker) {
+        latestClickerData = data.arcade.cheeseClicker;
+        updateClickerUI();
     }
 
     renderShop();
@@ -1336,11 +1349,167 @@ function updatePollTimer() {
 function openArcade() {
     chatPage.classList.add("hidden");
     arcadePage.classList.remove("hidden");
+    socket.emit("cheese clicker request");
 }
 
 function closeArcade() {
     arcadePage.classList.add("hidden");
     chatPage.classList.remove("hidden");
+    closeCheeseClicker();
+}
+
+function openCheeseClicker() {
+    const home = document.getElementById("arcadeHome");
+    const game = document.getElementById("cheeseClickerGame");
+    if (home) home.classList.add("hidden");
+    if (game) game.classList.remove("hidden");
+    socket.emit("cheese clicker request");
+    scheduleGoldenCheese();
+}
+
+function closeCheeseClicker() {
+    const home = document.getElementById("arcadeHome");
+    const game = document.getElementById("cheeseClickerGame");
+    if (game) game.classList.add("hidden");
+    if (home) home.classList.remove("hidden");
+    if (goldenCheeseTimer) clearTimeout(goldenCheeseTimer);
+}
+
+function switchClickerTab(tab) {
+    currentClickerTab = tab;
+    document.querySelectorAll(".clicker-tab").forEach(button => button.classList.remove("active"));
+    const index = tab === "cheese" ? 0 : tab === "helpers" ? 1 : 2;
+    const button = document.querySelectorAll(".clicker-tab")[index];
+    if (button) button.classList.add("active");
+    renderClickerUpgradeContent();
+}
+
+function formatCheeseNumber(number) {
+    return Math.floor(Number(number) || 0).toLocaleString();
+}
+
+function updateClickerUI() {
+    if (!latestClickerData) return;
+
+    const cheese = document.getElementById("clickerCheese");
+    const perClick = document.getElementById("clickerPerClick");
+    const perSecond = document.getElementById("clickerPerSecond");
+    const multiplier = document.getElementById("clickerMultiplier");
+    const cardHigh = document.getElementById("clickerCardHighScore");
+
+    if (cheese) cheese.textContent = `${formatCheeseNumber(latestClickerData.cheese)} 🧀`;
+    if (perClick) perClick.textContent = `${formatCheeseNumber(latestClickerData.cheesePerClick)} 🧀`;
+    if (perSecond) perSecond.textContent = `${formatCheeseNumber(latestClickerData.cheesePerSecond)} 🧀`;
+    if (multiplier) multiplier.textContent = `x${latestClickerData.cheeseifyMultiplier}`;
+    if (cardHigh) cardHigh.textContent = formatCheeseNumber(latestClickerData.highestCheese || 0);
+
+    renderClickerUpgradeContent();
+}
+
+function getClickerUpgradeCost(baseCost, level) {
+    return Math.floor(baseCost * Math.pow(1.18, level));
+}
+
+function renderClickerUpgradeContent() {
+    const box = document.getElementById("clickerUpgradeContent");
+    if (!box || !latestClickerData) return;
+
+    if (currentClickerTab === "cheese") {
+        box.innerHTML = `<h3>🧀 Cheese Upgrades</h3><p>Types of cheese increase your click power.</p>`;
+        latestClickerData.clickUpgradeDefs.forEach(upgrade => {
+            const level = latestClickerData.clickUpgrades[upgrade.id] || 0;
+            const cost = getClickerUpgradeCost(upgrade.baseCost, level);
+            const card = document.createElement("button");
+            card.className = "clicker-upgrade-card";
+            card.onclick = () => socket.emit("cheese clicker buy upgrade", { type: "click", id: upgrade.id });
+            card.innerHTML = `<span class="upgrade-icon">${upgrade.icon}</span><div><strong>${upgrade.name}</strong><small>${upgrade.description}</small><em>+${upgrade.perClick} 🧀 per click • Level ${level}</em></div><b>${formatCheeseNumber(cost)} 🧀</b>`;
+            box.appendChild(card);
+        });
+        return;
+    }
+
+    if (currentClickerTab === "helpers") {
+        box.innerHTML = `<h3>🐭 Helpers</h3><p>Helpers make cheese every second.</p>`;
+        latestClickerData.helperUpgradeDefs.forEach(upgrade => {
+            const level = latestClickerData.helperUpgrades[upgrade.id] || 0;
+            const cost = getClickerUpgradeCost(upgrade.baseCost, level);
+            const card = document.createElement("button");
+            card.className = "clicker-upgrade-card";
+            card.onclick = () => socket.emit("cheese clicker buy upgrade", { type: "helper", id: upgrade.id });
+            card.innerHTML = `<span class="upgrade-icon">${upgrade.icon}</span><div><strong>${upgrade.name}</strong><small>${upgrade.description}</small><em>+${upgrade.perSecond} 🧀 per second • Level ${level}</em></div><b>${formatCheeseNumber(cost)} 🧀</b>`;
+            box.appendChild(card);
+        });
+        return;
+    }
+
+    box.innerHTML = `
+        <h3>🧀 CHEESEIFY 🧀</h3>
+        <p>Reset cheese, upgrades, and helpers. Keep a permanent multiplier.</p>
+        <div class="cheeseify-card">
+            <span>Current multiplier</span>
+            <strong>x${latestClickerData.cheeseifyMultiplier}</strong>
+            <span>Next Cheeseify adds</span>
+            <strong>x${latestClickerData.nextCheeseifyMultiplier}</strong>
+            <span>Cost</span>
+            <strong>${formatCheeseNumber(latestClickerData.nextCheeseifyCost)} 🧀</strong>
+            <button onclick="cheeseifyClicker()">🧀 CHEESEIFY 🧀</button>
+        </div>
+    `;
+}
+
+function clickBigCheese() {
+    const button = document.getElementById("bigCheeseButton");
+    const shock = document.getElementById("clickerShockwave");
+    if (button) {
+        button.classList.remove("clicked");
+        void button.offsetWidth;
+        button.classList.add("clicked");
+    }
+    if (shock) {
+        shock.classList.remove("active");
+        void shock.offsetWidth;
+        shock.classList.add("active");
+    }
+    socket.emit("cheese clicker click");
+}
+
+function spawnClickerFloat(amount) {
+    const stage = document.getElementById("clickerCheeseStage");
+    if (!stage) return;
+    const item = document.createElement("div");
+    item.className = "clicker-float-number";
+    item.textContent = `+${formatCheeseNumber(amount)} 🧀`;
+    item.style.left = `${45 + Math.random() * 10}%`;
+    stage.appendChild(item);
+    setTimeout(() => item.remove(), 900);
+}
+
+function cheeseifyClicker() {
+    socket.emit("cheese clicker cheeseify");
+}
+
+function scheduleGoldenCheese() {
+    if (goldenCheeseTimer) clearTimeout(goldenCheeseTimer);
+    goldenCheeseTimer = setTimeout(() => {
+        const game = document.getElementById("cheeseClickerGame");
+        if (!game || game.classList.contains("hidden")) return;
+        spawnGoldenCheeseMouse();
+        scheduleGoldenCheese();
+    }, 30000 + Math.random() * 60000);
+}
+
+function spawnGoldenCheeseMouse() {
+    const stage = document.getElementById("clickerCheeseStage");
+    if (!stage) return;
+    const runner = document.createElement("button");
+    runner.className = "golden-cheese-mouse";
+    runner.innerHTML = `<span>🐭💨</span><strong>🟡🧀</strong>`;
+    runner.onclick = () => {
+        runner.remove();
+        socket.emit("cheese clicker golden collect");
+    };
+    stage.appendChild(runner);
+    setTimeout(() => runner.remove(), 8000);
 }
 
 function changeTabName() {
@@ -2311,6 +2480,24 @@ socket.on("banned", data => {
 socket.on("force logout", message => {
     alert(message);
     location.reload();
+});
+
+socket.on("cheese clicker data", data => {
+    latestClickerData = data;
+    updateClickerUI();
+});
+
+socket.on("cheese clicker clicked", data => {
+    spawnClickerFloat(data.gained || 0);
+});
+
+socket.on("cheese clicker cheeseified", data => {
+    showChatNotice(`🧀 CHEESEIFIED! New multiplier: x${data.multiplier}`);
+});
+
+socket.on("cheese clicker golden reward", data => {
+    showChatNotice(`🟡 Golden Cheese! +${formatCheeseNumber(data.reward)} 🧀`);
+    spawnClickerFloat(data.reward || 0);
 });
 
 updateCounter();

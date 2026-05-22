@@ -200,7 +200,7 @@
 
             <section id="mozzarellaShop" class="mozzarella-shop hidden">
 
-                <header class="mozzarella-full-header mozzarella-glass-topbar">
+                <header class="mozzarella-full-header">
 
                     <button
                         class="mozzarella-back-btn"
@@ -211,7 +211,7 @@
 
                     <div class="mozzarella-title">
                         <h1>⚪ Mozzarella Shop</h1>
-                        <p>Featured crates • chaos abilities • inventory • Cheese Index</p>
+                        <p>No-chat crate shop • buy abilities • manage inventory</p>
                     </div>
 
                     <div class="mozzarella-coins">
@@ -221,97 +221,22 @@
 
                 </header>
 
-                <div class="mozzarella-carousel-layout">
+                <div class="mozzarella-full-layout">
 
-                    <section class="mozzarella-featured-crate glass-panel">
+                    <section class="mozzarella-crates-zone">
 
-                        <button
-                            class="mozzarella-carousel-arrow"
-                            type="button"
-                            aria-label="Previous crate"
-                        >
-                            ←
-                        </button>
+                        <div class="shop-panel mozzarella-main-panel">
 
-                        <div class="mozzarella-feature-main">
-
-                            <div class="mozzarella-feature-emoji">
-                                🌀📦
+                            <div class="panel-title">
+                                <h3>📦 Chaos Crates</h3>
+                                <p>Open crates to get single-use chaos abilities.</p>
                             </div>
 
-                            <div class="mozzarella-feature-copy">
-
-                                <div class="mozzarella-kicker">
-                                    FEATURED CRATE
-                                </div>
-
-                                <h2>Chaos Crate</h2>
-
-                                <p>
-                                    The premium chaos crate. Higher chances for epic and legendary chaos abilities.
-                                </p>
-
-                                <div class="mozzarella-feature-actions">
-                                    <span class="mozzarella-feature-price">
-                                        850 🧀
-                                    </span>
-
-                                    <button
-                                        class="mozzarella-feature-open"
-                                        onclick="buyChaosCrate('chaos')"
-                                    >
-                                        Open Featured Crate
-                                    </button>
-                                </div>
-
-                                <div class="mozzarella-feature-stats">
-                                    <div>
-                                        <span>Common</span>
-                                        <strong>25%</strong>
-                                    </div>
-
-                                    <div>
-                                        <span>Epic</span>
-                                        <strong>30%</strong>
-                                    </div>
-
-                                    <div>
-                                        <span>Legendary</span>
-                                        <strong>10%</strong>
-                                    </div>
-                                </div>
-
-                            </div>
+                            <div id="chaosCrateList" class="crate-list"></div>
 
                         </div>
 
-                        <button
-                            class="mozzarella-carousel-arrow"
-                            type="button"
-                            aria-label="Next crate"
-                        >
-                            →
-                        </button>
-
-                    </section>
-
-                    <section class="mozzarella-shelf-section">
-
-                        <div class="mozzarella-section-title">
-                            <h2>📦 Crate Shelf</h2>
-                            <p>Open crates to collect single-use chaos abilities.</p>
-                        </div>
-
-                        <div
-                            id="chaosCrateList"
-                            class="crate-list mozzarella-crate-shelf"
-                        ></div>
-
-                    </section>
-
-                    <section class="mozzarella-lower-grid">
-
-                        <div class="shop-panel mozzarella-main-panel mozzarella-swiss-panel glass-panel">
+                        <div class="shop-panel mozzarella-main-panel">
 
                             <div class="panel-title">
                                 <h3>✨ Swiss Crate</h3>
@@ -322,11 +247,15 @@
 
                         </div>
 
-                        <div class="shop-panel inventory-panel mozzarella-main-panel mozzarella-inventory-panel glass-panel">
+                    </section>
+
+                    <section class="mozzarella-inventory-zone">
+
+                        <div class="shop-panel inventory-panel mozzarella-main-panel">
 
                             <div class="panel-title">
-                                <h3>🎒 Selected Ability</h3>
-                                <p>Choose one chaos ability. You can run 1 every minute.</p>
+                                <h3>🎒 Inventory</h3>
+                                <p>Select 1 chaos ability. You can run 1 every minute.</p>
                             </div>
 
                             <div id="inventorySelected" class="inventory-selected">
@@ -342,11 +271,6 @@
                             </button>
 
                             <div id="chaosCooldownText" class="cooldown-text"></div>
-
-                            <div class="mozzarella-section-title small">
-                                <h2>Inventory</h2>
-                                <p>Your collected chaos abilities.</p>
-                            </div>
 
                             <div id="inventoryList" class="inventory-list"></div>
 
@@ -408,10 +332,123 @@
 
         <section id="arcadePage" class="arcade-page hidden">
 
-            <div class="coming-soon-card">
-                <h2>CHEESE ARCADE 🧀🎮</h2>
-                <p>Coming soon.</p>
-                <button onclick="closeArcade()">Back to Chat</button>
+            <div class="arcade-shell">
+
+                <header class="arcade-topbar">
+                    <button class="arcade-back-btn" onclick="closeArcade()">
+                        ← Back to Chat
+                    </button>
+
+                    <div class="arcade-title">
+                        <div class="arcade-marquee">
+                            <span></span>
+                            🧀 CHEESE ARCADE 🎮
+                            <span></span>
+                        </div>
+                        <p>Insert cheese. Pick a game. Chase the high score.</p>
+                    </div>
+
+                    <div class="arcade-coin-pill">
+                        <span>Cheese Coins</span>
+                        <strong id="arcadeCoinPill">0 🧀</strong>
+                    </div>
+                </header>
+
+                <section id="arcadeHome" class="arcade-home">
+
+                    <div class="arcade-main-panel">
+                        <div class="arcade-section-head">
+                            <div>
+                                <h2>Game Cards</h2>
+                                <p>Cheese Clicker is ready. More games are planned.</p>
+                            </div>
+                            <div class="arcade-status-chip">1 playable • 3 planned</div>
+                        </div>
+
+                        <div class="arcade-game-grid">
+                            <article class="arcade-game-card">
+                                <div class="arcade-cover">
+                                    <div class="arcade-card-label">PLAYABLE</div>
+                                    <div class="arcade-cover-icon">🧀</div>
+                                </div>
+                                <div class="arcade-card-body">
+                                    <h3>Cheese Clicker</h3>
+                                    <p>Click, cheese, repeat.</p>
+                                    <div class="arcade-score-box">
+                                        <div>
+                                            <span>HIGHEST CHEESE</span>
+                                            <strong id="clickerCardHighScore">0</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="arcade-play-btn" onclick="openCheeseClicker()">
+                                    ▶ Play Cheese Clicker
+                                </button>
+                            </article>
+
+                            <article class="arcade-game-card coming-soon">
+                                <div class="arcade-cover"><div class="arcade-card-label">COMING SOON</div><div class="arcade-cover-icon">🐭</div></div>
+                                <div class="arcade-card-body"><h3>Mouse Catcher</h3><p>Tap mice before they steal the cheese.</p><div class="arcade-score-box"><div><span>HIGHEST SCORE</span><strong>0</strong></div></div></div>
+                                <button class="arcade-play-btn">Locked</button>
+                            </article>
+
+                            <article class="arcade-game-card coming-soon">
+                                <div class="arcade-cover"><div class="arcade-card-label">COMING SOON</div><div class="arcade-cover-icon">🌪️</div></div>
+                                <div class="arcade-card-body"><h3>Cheese Dodge</h3><p>Dodge chaos, survive, collect coins.</p><div class="arcade-score-box"><div><span>HIGHEST SCORE</span><strong>0s</strong></div></div></div>
+                                <button class="arcade-play-btn">Locked</button>
+                            </article>
+
+                            <article class="arcade-game-card coming-soon">
+                                <div class="arcade-cover"><div class="arcade-card-label">COMING SOON</div><div class="arcade-cover-icon">📦</div></div>
+                                <div class="arcade-card-body"><h3>Crate Rush</h3><p>Time the rarity meter. Hit the jackpot.</p><div class="arcade-score-box"><div><span>HIGHEST SCORE</span><strong>0</strong></div></div></div>
+                                <button class="arcade-play-btn">Locked</button>
+                            </article>
+                        </div>
+                    </div>
+
+                    <aside class="arcade-settings-panel">
+                        <h2>⚙️ Arcade Settings</h2>
+                        <p>Future settings for scores, effects, and sound.</p>
+                        <div class="arcade-setting-card"><strong>High Scores</strong><small>Reset buttons can live here later.</small><button>Reset All High Scores</button></div>
+                        <div class="arcade-setting-card"><strong>Effects</strong><small>Keep arcade animations satisfying.</small><button>Effects: Cozy</button></div>
+                        <div class="arcade-setting-card"><strong>Sound</strong><small>Click sounds and jingles can be added later.</small><button>Sound: Off</button></div>
+                    </aside>
+
+                </section>
+
+                <section id="cheeseClickerGame" class="cheese-clicker-game hidden">
+                    <button class="arcade-back-btn" onclick="closeCheeseClicker()">← Back to Arcade</button>
+
+                    <div class="clicker-layout">
+                        <section class="clicker-stage-panel">
+                            <div class="clicker-stats-row">
+                                <div><span>CHEESE</span><strong id="clickerCheese">0 🧀</strong></div>
+                                <div><span>PER CLICK</span><strong id="clickerPerClick">1 🧀</strong></div>
+                                <div><span>PER SECOND</span><strong id="clickerPerSecond">0 🧀</strong></div>
+                                <div><span>CHEESEIFY</span><strong id="clickerMultiplier">x1</strong></div>
+                            </div>
+
+                            <div class="clicker-cheese-stage" id="clickerCheeseStage">
+                                <div class="clicker-glow"></div>
+                                <div class="clicker-shockwave" id="clickerShockwave"></div>
+                                <button id="bigCheeseButton" class="big-cheese-button" onclick="clickBigCheese()">🧀</button>
+                            </div>
+
+                            <p class="clicker-hint">Occasionally, a mouse drags a golden cheese across the background. Click it for 100–1000 cheese.</p>
+                        </section>
+
+                        <aside class="clicker-upgrades-panel">
+                            <div class="clicker-tabs">
+                                <button class="clicker-tab active" onclick="switchClickerTab('cheese')">🧀 Cheese</button>
+                                <button class="clicker-tab" onclick="switchClickerTab('helpers')">🐭 Helpers</button>
+                                <button class="clicker-tab" onclick="switchClickerTab('cheeseify')">🧀 Cheeseify</button>
+                            </div>
+
+                            <div id="clickerUpgradeContent" class="clicker-upgrade-content"></div>
+                        </aside>
+                    </div>
+                </section>
+
             </div>
 
         </section>

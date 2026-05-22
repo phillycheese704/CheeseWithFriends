@@ -3587,616 +3587,413 @@ body:has(#room-mozzarella.active) .mozzarella-shop {
     }
 }
 
-/* =========================================================
-   COZY GLASS UI OVERHAUL
-   Safe visual layer: keeps your existing room/server names,
-   IDs, buttons, socket events, and admin/server code intact.
-========================================================= */
+/* =========================
+   CHEESE ARCADE + CLICKER
+========================= */
 
-body[data-theme="cheese"] {
-    --text: #4b3400;
-    --page-bg:
-        radial-gradient(circle at 14% 8%, rgba(255,255,255,0.9), transparent 30%),
-        radial-gradient(circle at 84% 18%, rgba(255, 196, 0, 0.42), transparent 28%),
-        linear-gradient(135deg, #fff7bd, #ffc13b);
-    --panel: rgba(255, 255, 255, 0.48);
-    --panel-border: rgba(255, 255, 255, 0.72);
-    --chat-bg: rgba(255, 255, 255, 0.28);
-    --bubble: rgba(255, 255, 255, 0.82);
-    --accent: #ffd84d;
-    --accent2: #ff9800;
-}
-
-body[data-theme="butter"] {
-    --text: #4a3300;
-    --page-bg:
-        radial-gradient(circle at 14% 8%, rgba(255,255,255,0.9), transparent 30%),
-        radial-gradient(circle at 84% 18%, rgba(255, 219, 116, 0.45), transparent 28%),
-        linear-gradient(135deg, #fff8df, #f1c75c);
-    --panel: rgba(255, 255, 255, 0.50);
-    --panel-border: rgba(255, 255, 255, 0.72);
-    --chat-bg: rgba(255, 255, 255, 0.28);
-    --bubble: rgba(255, 255, 255, 0.84);
-    --accent: #ffe08a;
-    --accent2: #d99a2b;
-}
-
-body[data-theme="blue"] {
-    --text: #d9fff5;
-    --page-bg:
-        radial-gradient(circle at 14% 8%, rgba(255,255,255,0.28), transparent 30%),
-        radial-gradient(circle at 84% 18%, rgba(111,196,179,0.34), transparent 28%),
-        linear-gradient(135deg, #214c50, #527a69);
-    --panel: rgba(255, 255, 255, 0.18);
-    --panel-border: rgba(255, 255, 255, 0.26);
-    --chat-bg: rgba(255, 255, 255, 0.10);
-    --bubble: rgba(216, 255, 242, 0.90);
-    --accent: #95ead8;
-    --accent2: #3c8b82;
-}
-
-.auth-card,
-.rooms-sidebar,
-.users-sidebar,
-.chat-header,
-.message-bar,
-.profile-mini-card,
-.sidebar-arcade-card,
-.server-card,
-.room-button,
-.online-user,
-.shop-panel,
-.modal-card,
-.admin-panel,
-.schedule-popup,
-.poll-box,
-.coming-soon-card,
-.crate-overlay-card,
-.glass-panel {
-    background: rgba(255, 255, 255, 0.48) !important;
-    border: 1px solid rgba(255, 255, 255, 0.72) !important;
-    box-shadow: 0 20px 50px rgba(109, 73, 0, 0.16) !important;
-    backdrop-filter: blur(20px);
-}
-
-.app {
-    gap: 16px;
-    padding: 16px;
-    background: transparent;
-}
-
-.rooms-sidebar,
-.users-sidebar {
-    border-radius: 32px;
-    height: calc(100vh - 32px);
-    max-height: calc(100vh - 32px);
-    border-right: 1px solid rgba(255,255,255,0.72) !important;
-    border-left: 1px solid rgba(255,255,255,0.72) !important;
-}
-
-.chat-page,
 .arcade-page {
+    min-height: 100vh;
+    overflow-y: auto;
+    background:
+        radial-gradient(circle at 20% 8%, rgba(255, 183, 3, 0.30), transparent 28%),
+        radial-gradient(circle at 80% 16%, rgba(255, 97, 0, 0.22), transparent 26%),
+        linear-gradient(135deg, #120b24, #211139 45%, #4a2600);
+    color: #fff1b8;
+}
+
+.arcade-shell {
+    min-height: 100vh;
+    padding: 24px;
+    display: grid;
+    gap: 22px;
+}
+
+.arcade-topbar,
+.arcade-main-panel,
+.arcade-settings-panel,
+.clicker-stage-panel,
+.clicker-upgrades-panel {
     border-radius: 32px;
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.28);
-    box-shadow: 0 20px 50px rgba(109, 73, 0, 0.14);
+    background: linear-gradient(135deg, rgba(255, 183, 3, 0.12), rgba(134, 66, 255, 0.12)), rgba(18, 12, 45, 0.74);
+    border: 2px solid rgba(255, 211, 70, 0.38);
+    box-shadow: 0 0 32px rgba(255, 183, 3, 0.14), inset 0 0 22px rgba(255, 183, 3, 0.08);
     backdrop-filter: blur(18px);
 }
 
-.chat-header {
-    border-bottom: 1px solid rgba(255,255,255,0.72);
-}
-
-.message-bar {
-    border-top: 1px solid rgba(255,255,255,0.72);
-}
-
-.room-button {
-    border-radius: 20px;
-}
-
-.room-button.active {
-    background: linear-gradient(135deg, #ffd84d, #ff9800) !important;
-    border-color: rgba(255,255,255,0.75) !important;
-    box-shadow:
-        0 12px 24px rgba(255,152,0,0.25),
-        inset 0 0 0 3px rgba(126,82,0,0.08) !important;
-}
-
-.auth-box,
-.tab-renamer {
-    background: rgba(255, 216, 77, 0.42);
-    border: 1px solid rgba(255,255,255,0.65);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25);
-}
-
-.logo-bubble {
-    background: linear-gradient(135deg, #fff2a6, #ffb703);
-    border: 1px solid rgba(255,255,255,0.72);
-    box-shadow: 0 16px 28px rgba(75,52,0,0.14);
-}
-
-.message {
-    border-radius: 20px;
-    padding: 11px 13px;
-    background: rgba(255,255,255,0.82);
-    box-shadow: 0 8px 18px rgba(75,52,0,0.08);
-}
-
-.system-message {
-    background: rgba(255, 216, 77, 0.66);
-    box-shadow: 0 8px 18px rgba(75,52,0,0.08);
-}
-
-#messageInput,
-.auth-box input,
-.tab-renamer input,
-.password-wrap input,
-.admin-helper input,
-.admin-helper select,
-.admin-command-box textarea,
-.event-scheduler select,
-.event-scheduler input {
-    background: rgba(255, 249, 220, 0.78) !important;
-    border: 1px solid rgba(216,155,0,0.38) !important;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35);
-}
-
-.auth-box button,
-.tab-renamer button,
-.message-bar button,
-.coming-soon-card button,
-.shop-panel button,
-.profile-mini-card button,
-.sidebar-arcade-card button,
-.modal-card button,
-.admin-command-box button,
-.event-scheduler button,
-.run-chaos-btn,
-.open-index-btn,
-.mozzarella-feature-open {
-    border-radius: 18px;
-    background: linear-gradient(135deg, #ffd84d, #ff9800) !important;
-    box-shadow: 0 12px 24px rgba(255,152,0,0.18);
-}
-
-/* Keep room/server names unchanged; only the skin changes. */
-
-/* =========================================================
-   ROOMY MOZZARELLA CAROUSEL LAYOUT
-========================================================= */
-
-body:has(#room-mozzarella.active) .app {
-    padding: 0;
-    gap: 0;
-}
-
-body:has(#room-mozzarella.active) .chat-page {
-    border-radius: 0;
-    width: 100vw;
-    height: 100vh;
-    max-height: 100vh;
-}
-
-.mozzarella-shop {
-    flex: 1 1 auto;
-    height: 100vh;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 24px;
-    background:
-        radial-gradient(circle at 15% 10%, rgba(255,255,255,0.90), transparent 28%),
-        radial-gradient(circle at 82% 18%, rgba(255,196,0,0.38), transparent 26%),
-        linear-gradient(135deg, #fff7bd, #ffc13b);
-}
-
-.mozzarella-glass-topbar,
-.mozzarella-full-header {
-    height: auto;
-    min-height: 92px;
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    border-radius: 34px;
-    padding: 18px 22px;
+.arcade-topbar {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 18px;
     align-items: center;
-    background: rgba(255,255,255,0.50) !important;
-    border: 1px solid rgba(255,255,255,0.72) !important;
-    box-shadow: 0 20px 50px rgba(109,73,0,0.16) !important;
-    backdrop-filter: blur(20px);
+    padding: 18px 20px;
 }
 
-.mozzarella-back-btn {
+.arcade-back-btn,
+.arcade-play-btn,
+.arcade-setting-card button,
+.cheeseify-card button {
+    padding: 12px 16px;
     border-radius: 18px;
-    background: #4b3400 !important;
-    color: #fff1a8 !important;
-    box-shadow: 0 12px 24px rgba(75,52,0,0.16);
-}
-
-.mozzarella-title h1 {
-    font-size: clamp(28px, 4vw, 46px);
-    letter-spacing: -1px;
-}
-
-.mozzarella-title p {
-    opacity: 0.68;
-}
-
-.mozzarella-coins {
-    background: rgba(255,216,77,0.65);
-    border: 1px solid rgba(255,255,255,0.72);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
-}
-
-.mozzarella-carousel-layout {
-    display: grid;
-    gap: 22px;
-    padding-top: 22px;
-}
-
-.mozzarella-featured-crate {
-    border-radius: 40px;
-    padding: 38px;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 32px;
-    align-items: center;
-    background:
-        radial-gradient(circle at top left, rgba(255,255,255,0.72), transparent 34%),
-        linear-gradient(135deg, rgba(255,255,255,0.54), rgba(255,216,77,0.42)) !important;
-}
-
-.mozzarella-carousel-arrow {
-    width: 62px;
-    height: 62px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.64);
-    color: #4b3400;
-    font-size: 26px;
+    color: #1b1000;
+    background: linear-gradient(135deg, #ffe16d, #ff9f1c);
     font-weight: 1000;
-    box-shadow: 0 12px 24px rgba(75,52,0,0.12);
+    box-shadow: 0 0 20px rgba(255, 183, 3, 0.32);
 }
 
-.mozzarella-feature-main {
-    min-width: 0;
-    display: grid;
-    grid-template-columns: minmax(210px, 280px) minmax(0, 1fr);
-    gap: 38px;
-    align-items: center;
+.arcade-title {
+    text-align: center;
 }
 
-.mozzarella-feature-emoji {
-    aspect-ratio: 1;
-    border-radius: 58px;
-    display: grid;
-    place-items: center;
-    font-size: clamp(90px, 10vw, 140px);
-    background:
-        radial-gradient(circle at 35% 25%, rgba(255,255,255,0.86), transparent 32%),
-        rgba(255,255,255,0.45);
-    box-shadow:
-        inset 0 0 0 4px rgba(255,255,255,0.58),
-        0 22px 38px rgba(75,52,0,0.16);
-}
-
-.mozzarella-kicker {
-    width: max-content;
-    padding: 8px 12px;
-    border-radius: 999px;
-    background: rgba(255,216,77,0.72);
-    font-weight: 1000;
-    font-size: 13px;
-    margin-bottom: 12px;
-}
-
-.mozzarella-feature-copy h2 {
-    margin: 0;
-    font-size: clamp(44px, 6vw, 80px);
-    line-height: 0.94;
-    letter-spacing: -2px;
-}
-
-.mozzarella-feature-copy p {
-    margin: 18px 0;
-    max-width: 640px;
-    font-size: 17px;
-    line-height: 1.5;
-    font-weight: 800;
-    opacity: 0.70;
-}
-
-.mozzarella-feature-actions {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.mozzarella-feature-price {
-    width: max-content;
-    padding: 10px 14px;
-    border-radius: 999px;
-    background: rgba(255,216,77,0.78);
-    font-weight: 1000;
-}
-
-.mozzarella-feature-open {
-    padding: 14px 18px;
-    color: #3a2600;
-    font-weight: 1000;
-}
-
-.mozzarella-feature-stats {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+.arcade-marquee {
+    display: inline-grid;
+    grid-auto-flow: column;
     gap: 10px;
-    margin-top: 20px;
-}
-
-.mozzarella-feature-stats div {
-    padding: 12px;
-    border-radius: 18px;
-    background: rgba(255,255,255,0.50);
+    align-items: center;
+    padding: 10px 18px;
+    border-radius: 999px;
+    color: #2a1600;
+    background: linear-gradient(135deg, #ffe66d, #ffb703);
+    box-shadow: 0 0 22px rgba(255, 183, 3, 0.72);
+    font-size: clamp(24px, 4vw, 46px);
     font-weight: 1000;
 }
 
-.mozzarella-feature-stats span {
+.arcade-marquee span {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #fff8c7;
+    box-shadow: 0 0 12px #fff8c7;
+    animation: arcadeBlink 1.1s infinite alternate;
+}
+
+@keyframes arcadeBlink { to { opacity: 0.35; transform: scale(0.85); } }
+
+.arcade-coin-pill {
+    padding: 12px 16px;
+    border-radius: 22px;
+    color: #2a1600;
+    background: rgba(255, 214, 80, 0.88);
+    font-weight: 1000;
+    text-align: center;
+}
+
+.arcade-coin-pill span {
     display: block;
     font-size: 12px;
-    opacity: 0.60;
-    margin-bottom: 4px;
+    opacity: 0.7;
 }
 
-.mozzarella-section-title {
-    padding: 0 4px;
-}
-
-.mozzarella-section-title h2 {
-    margin: 0;
-    font-size: 28px;
-}
-
-.mozzarella-section-title p {
-    margin: 4px 0 0;
-    opacity: 0.65;
-    font-weight: 850;
-}
-
-.mozzarella-section-title.small h2 {
-    font-size: 20px;
-}
-
-.mozzarella-shelf-section {
+.arcade-home {
     display: grid;
-    gap: 14px;
-}
-
-.mozzarella-crate-shelf,
-.mozzarella-shelf-section .crate-list {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(220px, 1fr));
-    gap: 16px;
-    overflow: visible;
-    padding: 0;
-}
-
-.mozzarella-crate-shelf .crate-card,
-.swiss-crate-box .crate-card {
-    min-height: 100%;
-    border-radius: 28px;
-    padding: 18px;
-    background: rgba(255,255,255,0.54);
-    border: 1px solid rgba(255,255,255,0.72);
-    box-shadow: 0 12px 24px rgba(75,52,0,0.10);
-}
-
-.mozzarella-crate-shelf .crate-card:hover,
-.swiss-crate-box .crate-card:hover,
-.inventory-item:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 18px 32px rgba(75,52,0,0.14);
-}
-
-.crate-card-top {
-    align-items: center;
-}
-
-.crate-icon {
-    background: rgba(255,216,77,0.75);
-    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.40);
-}
-
-.crate-price,
-.crate-odds-row,
-.crate-note {
-    background: rgba(255,255,255,0.55);
-}
-
-.mozzarella-lower-grid {
-    display: grid;
-    grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1.15fr);
+    grid-template-columns: minmax(0, 1fr) 330px;
     gap: 22px;
     align-items: start;
 }
 
-.mozzarella-swiss-panel,
-.mozzarella-inventory-panel {
-    max-height: none;
-    overflow: visible;
+.arcade-main-panel,
+.arcade-settings-panel,
+.clicker-stage-panel,
+.clicker-upgrades-panel {
+    padding: 22px;
 }
 
-.mozzarella-inventory-panel {
-    display: grid;
-    gap: 12px;
+.arcade-section-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: end;
+    margin-bottom: 18px;
 }
 
-.inventory-selected {
-    border-radius: 22px;
-    background: rgba(255,255,255,0.56);
-    border: 1px solid rgba(255,255,255,0.72);
-    box-shadow: 0 12px 24px rgba(75,52,0,0.10);
+.arcade-section-head h2,
+.arcade-settings-panel h2 {
+    margin: 0;
+    font-size: clamp(28px, 4vw, 42px);
+    color: #ffe66d;
+    text-shadow: 0 0 16px rgba(255, 183, 3, 0.55);
 }
 
-.inventory-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(210px, 1fr));
-    gap: 10px;
-    max-height: 320px;
-    overflow-y: auto;
-    padding-right: 4px;
-}
-
-.inventory-item {
-    border-radius: 22px;
-    background: rgba(255,255,255,0.56);
-    border: 1px solid rgba(255,255,255,0.72);
-    box-shadow: 0 10px 20px rgba(75,52,0,0.08);
-}
-
-.inventory-item.selected {
-    outline: 4px solid rgba(255,183,3,0.55);
-}
-
-.run-chaos-btn {
-    width: 100%;
-    font-size: 17px;
-}
-
-.shop-reply {
-    width: fit-content;
-    max-width: 100%;
-    margin: 12px auto 0;
-    padding: 10px 14px;
+.arcade-status-chip {
+    padding: 9px 12px;
     border-radius: 999px;
-    background: rgba(75,52,0,0.12);
+    background: rgba(255, 183, 3, 0.18);
+    border: 1px solid rgba(255, 211, 70, 0.55);
+    color: #ffe66d;
+    font-weight: 1000;
+}
+
+.arcade-game-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(230px, 1fr));
+    gap: 18px;
+}
+
+.arcade-game-card {
+    min-height: 410px;
+    padding: 14px;
+    border-radius: 30px;
+    background: linear-gradient(180deg, rgba(255, 183, 3, 0.18), rgba(255, 97, 0, 0.08)), #191135;
+    border: 2px solid rgba(255, 211, 70, 0.48);
+    box-shadow: 0 0 24px rgba(255, 183, 3, 0.18), inset 0 0 24px rgba(255, 183, 3, 0.08);
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 14px;
+}
+
+.arcade-game-card.coming-soon { opacity: 0.74; }
+
+.arcade-cover {
+    position: relative;
+    height: 190px;
+    border-radius: 24px;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.75), transparent 24%), linear-gradient(135deg, #ffcf40, #ff7a00);
+    box-shadow: inset 0 0 0 3px rgba(255,255,255,0.18), 0 14px 28px rgba(0,0,0,0.20);
+    overflow: hidden;
+}
+
+.arcade-cover-icon {
+    font-size: 92px;
+    animation: cheeseBob 2.2s ease-in-out infinite;
+}
+
+.arcade-card-label {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    color: #2a1600;
+    background: rgba(255, 246, 190, 0.88);
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.arcade-card-body h3 {
+    margin: 0;
+    color: #ffe66d;
+    font-size: 25px;
+}
+
+.arcade-card-body p,
+.arcade-settings-panel p,
+.arcade-setting-card small {
+    color: #cabaff;
+    font-weight: 850;
+}
+
+.arcade-score-box,
+.arcade-setting-card {
+    padding: 12px;
+    border-radius: 18px;
+    background: rgba(0,0,0,0.22);
+    border: 1px solid rgba(255, 211, 70, 0.26);
+}
+
+.arcade-score-box span {
+    display: block;
+    font-size: 12px;
+    color: #cabaff;
+    font-weight: 1000;
+}
+
+.arcade-score-box strong {
+    color: #ffe66d;
+    font-size: 26px;
+}
+
+.arcade-settings-panel {
+    display: grid;
+    gap: 16px;
+}
+
+.clicker-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 430px;
+    gap: 22px;
+    align-items: start;
+}
+
+.clicker-stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.clicker-stats-row div {
+    padding: 12px;
+    border-radius: 18px;
+    background: rgba(0,0,0,0.22);
+    border: 1px solid rgba(255, 211, 70, 0.26);
+}
+
+.clicker-stats-row span {
+    display: block;
+    color: #cabaff;
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.clicker-stats-row strong {
+    color: #ffe66d;
+    font-size: 24px;
+}
+
+.clicker-cheese-stage {
+    position: relative;
+    min-height: 430px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+}
+
+.clicker-glow {
+    position: absolute;
+    width: min(360px, 70vw);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 230, 80, 0.56), rgba(255, 153, 0, 0.25) 42%, transparent 70%);
+    filter: blur(22px);
+    animation: clickerGlow 2.7s ease-in-out infinite;
+}
+
+@keyframes clickerGlow { 50% { transform: scale(1.08); opacity: 1; } }
+
+.big-cheese-button {
+    position: relative;
+    z-index: 2;
+    font-size: clamp(150px, 24vw, 250px);
+    background: transparent;
+    filter: drop-shadow(0 0 20px rgba(255,214,80,.9)) drop-shadow(0 18px 26px rgba(0,0,0,.4));
+    animation: cheeseBob 2.6s ease-in-out infinite;
+    transform-origin: center 70%;
+}
+
+.big-cheese-button.clicked {
+    animation: cheeseBob 2.6s ease-in-out infinite, cheeseSquish 0.32s cubic-bezier(.2,.9,.2,1);
+}
+
+@keyframes cheeseBob { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-16px) rotate(1deg); } }
+@keyframes cheeseSquish { 35% { scale: 1.08 .88; rotate: -3deg; } 70% { scale: .96 1.05; rotate: 2deg; } }
+
+.clicker-shockwave {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 214, 80, 0.9);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.clicker-shockwave.active { animation: clickerShock 0.56s ease-out; }
+@keyframes clickerShock { from { opacity: .75; transform: translate(-50%,-50%) scale(.35); } to { opacity: 0; transform: translate(-50%,-50%) scale(4.3); } }
+
+.clicker-float-number {
+    position: absolute;
+    top: 34%;
+    z-index: 6;
+    color: #ffe66d;
+    font-size: clamp(28px, 5vw, 46px);
+    font-weight: 1000;
+    text-shadow: 0 0 12px #ffb703, 0 0 24px rgba(255,183,3,.7);
+    pointer-events: none;
+    animation: clickerFloat 0.9s ease-out forwards;
+}
+
+@keyframes clickerFloat { from { opacity: 0; transform: translate(-50%, 12px) scale(.8); } 15% { opacity: 1; } to { opacity: 0; transform: translate(-50%, -115px) scale(1.08); } }
+
+.clicker-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.clicker-tab,
+.clicker-upgrade-card {
+    border-radius: 16px;
+    background: rgba(255,255,255,0.10);
+    color: #fff1b8;
+    border: 1px solid rgba(255,255,255,0.12);
     font-weight: 900;
 }
 
-/* Cozy glass modals/admin polish */
-
-.modal {
-    backdrop-filter: blur(8px);
+.clicker-tab.active {
+    background: linear-gradient(135deg, #ffe16d, #ff9f1c);
+    color: #1b1000;
 }
 
-.admin-header {
-    background: rgba(75, 52, 0, 0.90) !important;
-    color: #fff1a8;
+.clicker-upgrade-content {
+    display: grid;
+    gap: 10px;
+    max-height: 580px;
+    overflow-y: auto;
 }
 
-.admin-body,
-.admin-command-box,
-.event-scheduler {
-    background: rgba(255,255,255,0.44);
+.clicker-upgrade-card {
+    width: 100%;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    text-align: left;
+    align-items: center;
 }
 
-/* Mobile and smaller screens */
+.upgrade-icon { font-size: 34px; }
+.clicker-upgrade-card strong,
+.cheeseify-card strong { color: #ffe66d; }
+.clicker-upgrade-card small,
+.clicker-upgrade-card em { display: block; color: #cabaff; font-style: normal; font-size: 12px; }
 
-@media (max-width: 1200px) {
-    .mozzarella-crate-shelf,
-    .mozzarella-shelf-section .crate-list {
-        grid-template-columns: repeat(2, minmax(220px, 1fr));
-    }
-
-    .mozzarella-lower-grid {
-        grid-template-columns: 1fr;
-    }
+.cheeseify-card {
+    display: grid;
+    gap: 10px;
+    padding: 16px;
+    border-radius: 22px;
+    background: rgba(0,0,0,0.22);
 }
 
-@media (max-width: 980px) {
-    .app {
-        padding: 10px;
-        gap: 10px;
-    }
-
-    .rooms-sidebar,
-    .users-sidebar {
-        height: auto;
-        max-height: 230px;
-        border-radius: 26px;
-    }
-
-    .chat-page,
-    .arcade-page {
-        border-radius: 26px;
-    }
-
-    body:has(#room-mozzarella.active) .app {
-        padding: 0;
-    }
-
-    .mozzarella-shop {
-        padding: 10px;
-    }
-
-    .mozzarella-full-header,
-    .mozzarella-glass-topbar {
-        position: static;
-        border-radius: 26px;
-        grid-template-columns: 1fr;
-        text-align: center;
-    }
-
-    .mozzarella-back-btn,
-    .mozzarella-coins {
-        width: 100%;
-    }
-
-    .mozzarella-featured-crate {
-        border-radius: 30px;
-        padding: 22px;
-        grid-template-columns: 1fr;
-        text-align: center;
-    }
-
-    .mozzarella-carousel-arrow {
-        display: none;
-    }
-
-    .mozzarella-feature-main {
-        grid-template-columns: 1fr;
-    }
-
-    .mozzarella-feature-emoji {
-        width: min(300px, 70vw);
-        margin: 0 auto;
-    }
-
-    .mozzarella-kicker,
-    .mozzarella-feature-price {
-        margin-left: auto;
-        margin-right: auto;
-    }
-
-    .mozzarella-feature-actions {
-        justify-content: center;
-    }
-
-    .mozzarella-feature-stats {
-        grid-template-columns: 1fr;
-    }
-
-    .mozzarella-crate-shelf,
-    .mozzarella-shelf-section .crate-list,
-    .inventory-list {
-        grid-template-columns: 1fr;
-    }
+.golden-cheese-mouse {
+    position: absolute;
+    left: -220px;
+    bottom: 70px;
+    z-index: 10;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: transparent;
+    font-size: 46px;
+    filter: drop-shadow(0 0 18px rgba(255, 214, 80, 1));
+    animation: goldenMouseRun 7.5s linear forwards;
 }
 
-@media (max-width: 620px) {
-    .chat-header,
-    .message-bar {
-        border-radius: 0;
-    }
+.golden-cheese-mouse strong { font-size: 62px; animation: cheeseBob 1.2s ease-in-out infinite; }
+@keyframes goldenMouseRun { to { transform: translateX(calc(100vw + 360px)); } }
 
-    .message {
-        max-width: 96%;
-    }
+.clicker-hint {
+    color: #ffd76b;
+    font-weight: 900;
+    opacity: 0.78;
+    text-align: center;
+}
 
-    .mozzarella-feature-copy h2 {
-        font-size: 44px;
-    }
+@media (max-width: 1150px) {
+    .arcade-home,
+    .clicker-layout { grid-template-columns: 1fr; }
+    .arcade-game-grid { grid-template-columns: repeat(2, minmax(230px, 1fr)); }
+}
+
+@media (max-width: 760px) {
+    .arcade-shell { padding: 12px; }
+    .arcade-topbar { grid-template-columns: 1fr; text-align: center; }
+    .arcade-game-grid,
+    .clicker-stats-row { grid-template-columns: 1fr; }
+    .arcade-back-btn,
+    .arcade-coin-pill { width: 100%; }
 }

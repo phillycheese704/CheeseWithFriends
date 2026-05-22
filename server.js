@@ -20,6 +20,20 @@ const ADMIN_LOGIN_USERNAME = "PhillyCheese#;";
 const ADMIN_DISPLAY_NAME = "PhillyCheese";
 const ADMIN_PASSWORD = "AdminAccount##;";
 
+function normaliseReservedName(text) {
+    return String(text || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+}
+
+function isPhillyCheeseShape(username) {
+    return normaliseReservedName(username).includes("phillycheese");
+}
+
+function isExactAdminCredentials(username, password) {
+    return username === ADMIN_LOGIN_USERNAME && password === ADMIN_PASSWORD;
+}
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -251,8 +265,177 @@ function createDefaultPlayerProfile(username) {
             icon: ""
         },
 
+        arcade: createDefaultArcadeData(),
+
         achievementsText: "Coming soon 🧀🏆"
     };
+}
+
+
+/* =========================
+   CHEESE CLICKER / ARCADE
+========================= */
+
+const CHEESE_CLICKER_CLICK_UPGRADES = [
+    { id: "cheddar", name: "Cheddar", icon: "🧀", perClick: 1, baseCost: 20, description: "Mild, savoury, and reliable" },
+    { id: "matureCheddar", name: "Mature Cheddar", icon: "🧀", perClick: 2, baseCost: 80, description: "Rich, tangy, and sharp" },
+    { id: "brie", name: "Brie", icon: "🧀", perClick: 5, baseCost: 120, description: "Oozing, creamy, and sophisticated" },
+    { id: "gouda", name: "Gouda", icon: "🧀", perClick: 10, baseCost: 300, description: "Smooth and smoky" },
+    { id: "swiss", name: "Swiss", icon: "🧀", perClick: 20, baseCost: 850, description: "Full of holes; full of potential" },
+    { id: "blueCheese", name: "Blue Cheese", icon: "🧀", perClick: 50, baseCost: 2500, description: "Bold, mouldy, and extremely rich" },
+    { id: "feta", name: "Feta", icon: "🧀", perClick: 75, baseCost: 4500, description: "Watery, crumbly, and great for salads" },
+    { id: "mozzarella", name: "Mozzarella", icon: "⚪", perClick: 100, baseCost: 6000, description: "Mild, milky, and stretchy" },
+    { id: "parmesan", name: "Parmesan", icon: "🧀", perClick: 125, baseCost: 7500, description: "Hard and salty" }
+];
+
+const CHEESE_CLICKER_HELPER_UPGRADES = [
+    { id: "mouseHelper", name: "Mouse Helper", icon: "🐭", perSecond: 1, baseCost: 50, description: "A suspiciously helpful mouse" },
+    { id: "ratHelper", name: "Rat Helper", icon: "🐀", perSecond: 5, baseCost: 180, description: "Bigger, faster, and slightly concerning" },
+    { id: "hamsterHelper", name: "Hamster Helper", icon: "🐹", perSecond: 12, baseCost: 500, description: "Stores cheese in emergency cheeks" },
+    { id: "cheeseChef", name: "Cheese Chef", icon: "🧑‍🍳", perSecond: 30, baseCost: 1600, description: "Crafts premium cheese nonstop" },
+    { id: "mozzarellaStretcher", name: "Mozzarella Stretcher", icon: "⚪", perSecond: 80, baseCost: 4800, description: "Stretches cheese around the clock" },
+    { id: "cheeseGoblin", name: "Cheese Goblin", icon: "👹", perSecond: 250, baseCost: 15000, description: "Lives entirely off stolen cheese" },
+    { id: "cheeseDragon", name: "Cheese Dragon", icon: "🐉", perSecond: 1000, baseCost: 90000, description: "Sleeps on mountains of molten cheese" }
+];
+
+const CHEESEIFY_STEPS = [
+    { level: 1, cost: 1000, multiplier: 1.25 },
+    { level: 2, cost: 2000, multiplier: 1.5 },
+    { level: 3, cost: 4000, multiplier: 1.75 },
+    { level: 4, cost: 8000, multiplier: 2 },
+    { level: 5, cost: 20000, multiplier: 4 }
+];
+
+function createDefaultArcadeData() {
+    return {
+        cheeseClicker: {
+            cheese: 0,
+            highestCheese: 0,
+            totalCheeseMade: 0,
+            totalClicks: 0,
+            clickUpgrades: {},
+            helperUpgrades: {},
+            cheeseifyLevel: 0,
+            cheeseifyMultiplier: 1,
+            lastUpdatedAt: Date.now()
+        }
+    };
+}
+
+function ensureArcadeData(profile) {
+    if (!profile.arcade) profile.arcade = createDefaultArcadeData();
+    if (!profile.arcade.cheeseClicker) profile.arcade.cheeseClicker = createDefaultArcadeData().cheeseClicker;
+
+    const c = profile.arcade.cheeseClicker;
+    if (!c.clickUpgrades) c.clickUpgrades = {};
+    if (!c.helperUpgrades) c.helperUpgrades = {};
+    if (!Number.isFinite(c.cheese)) c.cheese = 0;
+    if (!Number.isFinite(c.highestCheese)) c.highestCheese = 0;
+    if (!Number.isFinite(c.totalCheeseMade)) c.totalCheeseMade = 0;
+    if (!Number.isFinite(c.totalClicks)) c.totalClicks = 0;
+    if (!Number.isFinite(c.cheeseifyLevel)) c.cheeseifyLevel = 0;
+    if (!Number.isFinite(c.cheeseifyMultiplier) || c.cheeseifyMultiplier < 1) c.cheeseifyMultiplier = calculateCheeseifyMultiplier(c.cheeseifyLevel);
+    if (!Number.isFinite(c.lastUpdatedAt)) c.lastUpdatedAt = Date.now();
+    return c;
+}
+
+function getUpgradeCost(baseCost, level) {
+    return Math.floor(baseCost * Math.pow(1.18, level));
+}
+
+function calculateCheeseifyMultiplier(level) {
+    let multiplier = 1;
+
+    for (let i = 1; i <= level; i++) {
+        const step = CHEESEIFY_STEPS[i - 1];
+        multiplier *= step ? step.multiplier : 4;
+    }
+
+    return Number(multiplier.toFixed(4));
+}
+
+function getCheeseifyCost(level) {
+    const nextLevel = level + 1;
+    const step = CHEESEIFY_STEPS[nextLevel - 1];
+    if (step) return step.cost;
+    return Math.floor(20000 * Math.pow(2.5, nextLevel - 5));
+}
+
+function getNextCheeseifyMultiplier(level) {
+    const step = CHEESEIFY_STEPS[level];
+    return step ? step.multiplier : 4;
+}
+
+function calculateClickPower(clicker) {
+    let power = 1;
+
+    for (const upgrade of CHEESE_CLICKER_CLICK_UPGRADES) {
+        const level = clicker.clickUpgrades[upgrade.id] || 0;
+        power += level * upgrade.perClick;
+    }
+
+    return power;
+}
+
+function calculateHelperPower(clicker) {
+    let power = 0;
+
+    for (const helper of CHEESE_CLICKER_HELPER_UPGRADES) {
+        const level = clicker.helperUpgrades[helper.id] || 0;
+        power += level * helper.perSecond;
+    }
+
+    return power;
+}
+
+function applyClickerOfflineProgress(profile) {
+    const clicker = ensureArcadeData(profile);
+    const now = Date.now();
+    const elapsedSeconds = Math.min(3600, Math.max(0, (now - clicker.lastUpdatedAt) / 1000));
+    const perSecond = calculateHelperPower(clicker) * clicker.cheeseifyMultiplier;
+    const earned = Math.floor(perSecond * elapsedSeconds);
+
+    if (earned > 0) {
+        clicker.cheese += earned;
+        clicker.totalCheeseMade += earned;
+        if (clicker.cheese > clicker.highestCheese) clicker.highestCheese = clicker.cheese;
+    }
+
+    clicker.lastUpdatedAt = now;
+    return clicker;
+}
+
+function getPublicClickerData(username) {
+    const profile = getPlayerProfile(username);
+    const clicker = applyClickerOfflineProgress(profile);
+    clicker.cheeseifyMultiplier = calculateCheeseifyMultiplier(clicker.cheeseifyLevel);
+    savePlayerProfile(profile);
+
+    const rawClickPower = calculateClickPower(clicker);
+    const rawHelperPower = calculateHelperPower(clicker);
+
+    return {
+        cheese: Math.floor(clicker.cheese),
+        highestCheese: Math.floor(clicker.highestCheese),
+        totalCheeseMade: Math.floor(clicker.totalCheeseMade),
+        totalClicks: clicker.totalClicks,
+        clickUpgrades: clicker.clickUpgrades,
+        helperUpgrades: clicker.helperUpgrades,
+        rawClickPower,
+        rawHelperPower,
+        cheeseifyLevel: clicker.cheeseifyLevel,
+        cheeseifyMultiplier: clicker.cheeseifyMultiplier,
+        cheesePerClick: Math.floor(rawClickPower * clicker.cheeseifyMultiplier),
+        cheesePerSecond: Math.floor(rawHelperPower * clicker.cheeseifyMultiplier),
+        nextCheeseifyCost: getCheeseifyCost(clicker.cheeseifyLevel),
+        nextCheeseifyMultiplier: getNextCheeseifyMultiplier(clicker.cheeseifyLevel),
+        clickUpgradeDefs: CHEESE_CLICKER_CLICK_UPGRADES,
+        helperUpgradeDefs: CHEESE_CLICKER_HELPER_UPGRADES
+    };
+}
+
+function emitCheeseClickerData(socket, username) {
+    socket.emit("cheese clicker data", getPublicClickerData(username));
 }
 
 function getPlayerProfile(username) {
@@ -264,6 +447,7 @@ function getPlayerProfile(username) {
         writePlayerDataFile(data);
     }
 
+    ensureArcadeData(data.players[key]);
     return data.players[key];
 }
 
@@ -877,7 +1061,10 @@ function getPublicPlayerData(username) {
         cosmetics: COSMETICS,
         crates: CHAOS_CRATES,
         swissCrate: SWISS_CRATE,
-        duplicateCoins: DUPLICATE_COSMETIC_COINS
+        duplicateCoins: DUPLICATE_COSMETIC_COINS,
+        arcade: {
+            cheeseClicker: getPublicClickerData(username)
+        }
     };
 }
 
@@ -1415,10 +1602,10 @@ app.post("/signup", async (req, res) => {
         });
     }
 
-    if (username.toLowerCase() === ADMIN_LOGIN_USERNAME.toLowerCase()) {
+    if (isPhillyCheeseShape(username)) {
         return res.json({
             success: false,
-            message: "That username is reserved."
+            message: "You dare impersonate me?!"
         });
     }
 
@@ -1471,9 +1658,14 @@ app.post("/login", async (req, res) => {
         });
     }
 
-    const isAdminLogin =
-        username === ADMIN_LOGIN_USERNAME &&
-        password === ADMIN_PASSWORD;
+    const isAdminLogin = isExactAdminCredentials(username, password);
+
+    if (isPhillyCheeseShape(username) && !isAdminLogin) {
+        return res.json({
+            success: false,
+            message: "You dare impersonate me?!"
+        });
+    }
 
     if (isAdminLogin) {
         const token = makeToken();
@@ -1783,8 +1975,59 @@ function handleAdminTextCommand(socket, session, command) {
     socket.emit("admin reply", `Unknown command: ${commandName}`);
 }
 
+
+function runCheeseRng(socket) {
+    const online = [...onlineUsers.entries()]
+        .map(([socketId, user]) => ({ socketId, user }))
+        .filter(entry => entry.user && entry.user.username);
+
+    if (online.length === 0) {
+        socket.emit("admin reply", "No players online for Cheese RNG.");
+        return true;
+    }
+
+    const chosen = online[Math.floor(Math.random() * online.length)];
+    const username = chosen.user.username;
+    const targetSocket = io.sockets.sockets.get(chosen.socketId);
+    const crateChance = Math.random() < 0.20;
+
+    sendGlobalSystemMessage("🎲 CHEESE RNG has been activated...");
+    sendGlobalSystemMessage(`👀 The cheese gods picked ${username}!`);
+
+    if (crateChance) {
+        const crateIds = Object.keys(CHAOS_CRATES);
+        const crateId = crateIds[Math.floor(Math.random() * crateIds.length)];
+        const result = rollChaosCrate(crateId);
+
+        if (result && result.event) {
+            addInventoryItem(username, result.event.id, 1);
+            markEventWitnessed(username, result.event.id);
+            sendGlobalSystemMessage(`🎁 ${username} won a ${result.crate.name} and pulled ${result.event.icon} ${result.event.name}!`);
+        } else {
+            const fallbackCoins = 100;
+            addCoins(username, fallbackCoins);
+            sendGlobalSystemMessage(`🎁 ${username} won ${fallbackCoins} Cheese Coins!`);
+        }
+    } else {
+        const coins = Math.floor(Math.random() * 100) + 1;
+        addCoins(username, coins);
+        sendGlobalSystemMessage(`🧀 ${username} won ${coins} Cheese Coins!`);
+    }
+
+    if (targetSocket) {
+        emitPlayerData(targetSocket, username);
+    }
+
+    socket.emit("admin reply", "Cheese RNG complete.");
+    return true;
+}
+
 function handleSpecialChaosCommand(socket, command) {
     const raw = String(command || "").trim();
+
+    if (/^\+\/CheeseRng\?$/i.test(raw) || /^\+\/CheeseRNG\?$/i.test(raw)) {
+        return runCheeseRng(socket);
+    }
 
     const filterMatch = raw.match(/^\+\/Filter:\s*([^,]+),\s*(On|Off)\\?$/i);
 
@@ -2307,6 +2550,104 @@ io.on("connection", socket => {
         emitChaosEvent(eventId, session.username);
 
         emitPlayerData(socket, session.username);
+    });
+
+
+    socket.on("cheese clicker request", () => {
+        if (!session) return;
+        emitCheeseClickerData(socket, session.username);
+    });
+
+    socket.on("cheese clicker click", () => {
+        if (!session) return;
+        const profile = getPlayerProfile(session.username);
+        const clicker = applyClickerOfflineProgress(profile);
+        clicker.cheeseifyMultiplier = calculateCheeseifyMultiplier(clicker.cheeseifyLevel);
+        const gained = Math.max(1, Math.floor(calculateClickPower(clicker) * clicker.cheeseifyMultiplier));
+
+        clicker.cheese += gained;
+        clicker.totalCheeseMade += gained;
+        clicker.totalClicks += 1;
+        if (clicker.cheese > clicker.highestCheese) clicker.highestCheese = clicker.cheese;
+        clicker.lastUpdatedAt = Date.now();
+
+        savePlayerProfile(profile);
+        socket.emit("cheese clicker clicked", { gained });
+        emitCheeseClickerData(socket, session.username);
+    });
+
+    socket.on("cheese clicker buy upgrade", data => {
+        if (!session) return;
+        const type = data && data.type;
+        const id = data && data.id;
+        const profile = getPlayerProfile(session.username);
+        const clicker = applyClickerOfflineProgress(profile);
+        const list = type === "helper" ? CHEESE_CLICKER_HELPER_UPGRADES : CHEESE_CLICKER_CLICK_UPGRADES;
+        const upgrade = list.find(item => item.id === id);
+
+        if (!upgrade) {
+            socket.emit("shop reply", "That Cheese Clicker upgrade does not exist.");
+            return;
+        }
+
+        const bucket = type === "helper" ? clicker.helperUpgrades : clicker.clickUpgrades;
+        const level = bucket[id] || 0;
+        const cost = getUpgradeCost(upgrade.baseCost, level);
+
+        if (clicker.cheese < cost) {
+            socket.emit("shop reply", "Not enough cheese for that upgrade.");
+            emitCheeseClickerData(socket, session.username);
+            return;
+        }
+
+        clicker.cheese -= cost;
+        bucket[id] = level + 1;
+        clicker.lastUpdatedAt = Date.now();
+        savePlayerProfile(profile);
+        emitCheeseClickerData(socket, session.username);
+    });
+
+    socket.on("cheese clicker cheeseify", () => {
+        if (!session) return;
+        const profile = getPlayerProfile(session.username);
+        const clicker = applyClickerOfflineProgress(profile);
+        const cost = getCheeseifyCost(clicker.cheeseifyLevel);
+
+        if (clicker.cheese < cost) {
+            socket.emit("shop reply", "Not enough cheese to CHEESEIFY.");
+            emitCheeseClickerData(socket, session.username);
+            return;
+        }
+
+        clicker.cheese = 0;
+        clicker.clickUpgrades = {};
+        clicker.helperUpgrades = {};
+        clicker.cheeseifyLevel += 1;
+        clicker.cheeseifyMultiplier = calculateCheeseifyMultiplier(clicker.cheeseifyLevel);
+        clicker.lastUpdatedAt = Date.now();
+
+        savePlayerProfile(profile);
+        socket.emit("cheese clicker cheeseified", {
+            level: clicker.cheeseifyLevel,
+            multiplier: clicker.cheeseifyMultiplier
+        });
+        emitCheeseClickerData(socket, session.username);
+    });
+
+    socket.on("cheese clicker golden collect", () => {
+        if (!session) return;
+        const profile = getPlayerProfile(session.username);
+        const clicker = applyClickerOfflineProgress(profile);
+        const reward = Math.floor(Math.random() * 901) + 100;
+
+        clicker.cheese += reward;
+        clicker.totalCheeseMade += reward;
+        if (clicker.cheese > clicker.highestCheese) clicker.highestCheese = clicker.cheese;
+        clicker.lastUpdatedAt = Date.now();
+
+        savePlayerProfile(profile);
+        socket.emit("cheese clicker golden reward", { reward });
+        emitCheeseClickerData(socket, session.username);
     });
 
     socket.on("vote poll", eventId => {
