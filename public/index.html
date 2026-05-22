@@ -200,7 +200,7 @@
 
             <section id="mozzarellaShop" class="mozzarella-shop hidden">
 
-                <header class="mozzarella-full-header">
+                <header class="mozzarella-full-header mozzarella-glass-topbar">
 
                     <button
                         class="mozzarella-back-btn"
@@ -211,7 +211,7 @@
 
                     <div class="mozzarella-title">
                         <h1>⚪ Mozzarella Shop</h1>
-                        <p>No-chat crate shop • buy abilities • manage inventory</p>
+                        <p>Featured crates • chaos abilities • inventory • Cheese Index</p>
                     </div>
 
                     <div class="mozzarella-coins">
@@ -221,22 +221,97 @@
 
                 </header>
 
-                <div class="mozzarella-full-layout">
+                <div class="mozzarella-carousel-layout">
 
-                    <section class="mozzarella-crates-zone">
+                    <section class="mozzarella-featured-crate glass-panel">
 
-                        <div class="shop-panel mozzarella-main-panel">
+                        <button
+                            class="mozzarella-carousel-arrow"
+                            type="button"
+                            aria-label="Previous crate"
+                        >
+                            ←
+                        </button>
 
-                            <div class="panel-title">
-                                <h3>📦 Chaos Crates</h3>
-                                <p>Open crates to get single-use chaos abilities.</p>
+                        <div class="mozzarella-feature-main">
+
+                            <div class="mozzarella-feature-emoji">
+                                🌀📦
                             </div>
 
-                            <div id="chaosCrateList" class="crate-list"></div>
+                            <div class="mozzarella-feature-copy">
+
+                                <div class="mozzarella-kicker">
+                                    FEATURED CRATE
+                                </div>
+
+                                <h2>Chaos Crate</h2>
+
+                                <p>
+                                    The premium chaos crate. Higher chances for epic and legendary chaos abilities.
+                                </p>
+
+                                <div class="mozzarella-feature-actions">
+                                    <span class="mozzarella-feature-price">
+                                        850 🧀
+                                    </span>
+
+                                    <button
+                                        class="mozzarella-feature-open"
+                                        onclick="buyChaosCrate('chaos')"
+                                    >
+                                        Open Featured Crate
+                                    </button>
+                                </div>
+
+                                <div class="mozzarella-feature-stats">
+                                    <div>
+                                        <span>Common</span>
+                                        <strong>25%</strong>
+                                    </div>
+
+                                    <div>
+                                        <span>Epic</span>
+                                        <strong>30%</strong>
+                                    </div>
+
+                                    <div>
+                                        <span>Legendary</span>
+                                        <strong>10%</strong>
+                                    </div>
+                                </div>
+
+                            </div>
 
                         </div>
 
-                        <div class="shop-panel mozzarella-main-panel">
+                        <button
+                            class="mozzarella-carousel-arrow"
+                            type="button"
+                            aria-label="Next crate"
+                        >
+                            →
+                        </button>
+
+                    </section>
+
+                    <section class="mozzarella-shelf-section">
+
+                        <div class="mozzarella-section-title">
+                            <h2>📦 Crate Shelf</h2>
+                            <p>Open crates to collect single-use chaos abilities.</p>
+                        </div>
+
+                        <div
+                            id="chaosCrateList"
+                            class="crate-list mozzarella-crate-shelf"
+                        ></div>
+
+                    </section>
+
+                    <section class="mozzarella-lower-grid">
+
+                        <div class="shop-panel mozzarella-main-panel mozzarella-swiss-panel glass-panel">
 
                             <div class="panel-title">
                                 <h3>✨ Swiss Crate</h3>
@@ -247,15 +322,11 @@
 
                         </div>
 
-                    </section>
-
-                    <section class="mozzarella-inventory-zone">
-
-                        <div class="shop-panel inventory-panel mozzarella-main-panel">
+                        <div class="shop-panel inventory-panel mozzarella-main-panel mozzarella-inventory-panel glass-panel">
 
                             <div class="panel-title">
-                                <h3>🎒 Inventory</h3>
-                                <p>Select 1 chaos ability. You can run 1 every minute.</p>
+                                <h3>🎒 Selected Ability</h3>
+                                <p>Choose one chaos ability. You can run 1 every minute.</p>
                             </div>
 
                             <div id="inventorySelected" class="inventory-selected">
@@ -271,6 +342,11 @@
                             </button>
 
                             <div id="chaosCooldownText" class="cooldown-text"></div>
+
+                            <div class="mozzarella-section-title small">
+                                <h2>Inventory</h2>
+                                <p>Your collected chaos abilities.</p>
+                            </div>
 
                             <div id="inventoryList" class="inventory-list"></div>
 
