@@ -42,6 +42,7 @@ const typingIndicator = document.getElementById("typingIndicator");
 const onlineUsers = document.getElementById("onlineUsers");
 const onlineCount = document.getElementById("onlineCount");
 const coinPill = document.getElementById("coinPill");
+const tokenPill = document.getElementById("tokenPill");
 
 const chatPage = document.getElementById("chatPage");
 const arcadePage = document.getElementById("arcadePage");
@@ -276,6 +277,16 @@ function updateRoomUI(roomId, roomInfo) {
         messageInput.placeholder = "Enter the blue zone...";
     }
 
+    if (roomId === "grilledCheese") {
+        roomSubtitle.textContent = "Chill goofy admin hangout • filtered for racism, NSFW, and gore";
+        messageInput.placeholder = "Say something toasted...";
+    }
+
+    if (roomId === "cheddar") {
+        roomSubtitle.textContent = "Temporary server browser • no chat";
+        messageInput.placeholder = "Cheddar is a browser, not a chat.";
+    }
+
     if (roomId === "mozzarella") {
         roomSubtitle.textContent = "No-chat crate shop • inventory • Cheese Index";
         messageInput.placeholder = "Mozzarella is no-chat.";
@@ -283,13 +294,14 @@ function updateRoomUI(roomId, roomInfo) {
 
     if (mozzarellaShop) {
         mozzarellaShop.classList.toggle("hidden", !isMozzarella);
+    }
+
     if (cheddarBrowser) {
         cheddarBrowser.classList.toggle("hidden", roomId !== "cheddar");
     }
-    }
 
     if (messages) {
-        messages.classList.toggle("hidden", isMozzarella);
+        messages.classList.toggle("hidden", isMozzarella || roomId === "cheddar");
     }
 
     if (replyPreview) {
@@ -383,6 +395,8 @@ function renderCurrentRoomFromCache() {
 function getEmptyStateText(room) {
     if (room === "butter") return "Smooth silence. Suspiciously spreadable.";
     if (room === "blueCheese") return "The mould is quiet... for now.";
+    if (room === "grilledCheese") return "The toast is warm. Admins may appear.";
+    if (room === "cheddar") return "Cheddar is where temporary servers will appear.";
     if (room === "mozzarella") return "Mozzarella is a no-chat shop.";
     return "Nobody is talking yet. Suspiciously cheesy.";
 }
@@ -405,6 +419,31 @@ function addMessage(data) {
     removeEmptyState();
     renderMessageNode(data);
     safeScrollToBottom();
+}
+
+
+function renderMentionedText(container, rawText) {
+    const text = String(rawText || "");
+    const parts = text.split(/(@[a-zA-Z0-9_#;-]+)/g);
+
+    parts.forEach(part => {
+        if (!part) return;
+
+        if (part.startsWith("@")) {
+            const span = document.createElement("span");
+            span.className = "mention";
+            span.textContent = part;
+            container.appendChild(span);
+
+            const mentionedName = part.slice(1).toLowerCase();
+            if (currentUser && mentionedName === String(currentUser).toLowerCase()) {
+                showChatNotice(`🧀 You were tagged: ${part}`);
+            }
+            return;
+        }
+
+        container.appendChild(document.createTextNode(part));
+    });
 }
 
 function renderMessageNode(data) {
@@ -436,7 +475,7 @@ function renderMessageNode(data) {
     meta.appendChild(time);
 
     const text = document.createElement("p");
-    text.textContent = data.text || "";
+    renderMentionedText(text, data.text || "");
 
     const actions = document.createElement("div");
     actions.className = "message-actions";
@@ -594,13 +633,17 @@ function updatePlayerData(data) {
         coinPill.textContent = `🧀 ${data.coins}`;
     }
 
+    if (tokenPill) {
+        tokenPill.textContent = `🪙 ${data.cheeseTokens || 0}`;
+    }
+
     if (shopCoins) {
         shopCoins.textContent = `${data.coins} 🧀`;
     }
 
     if (miniProfileStats) {
         miniProfileStats.textContent =
-            `${data.coins} coins • ${data.bookCompletion}% book`;
+            `${data.coins} coins • ${data.cheeseTokens || 0} tokens • ${data.bookCompletion}% book`;
     }
 
     renderShop();
@@ -1246,6 +1289,7 @@ function renderProfile(data) {
 
         <div class="profile-stat-grid">
             <div><span>Current Coins</span><strong>${data.coins}</strong></div>
+            <div><span>Cheese Tokens</span><strong>${data.cheeseTokens || 0}</strong></div>
             <div><span>Highest Coins</span><strong>${data.highestCoins}</strong></div>
             <div><span>Total Coins</span><strong>${data.totalCoinsEarned}</strong></div>
             <div><span>Messages Sent</span><strong>${data.messagesSent}</strong></div>
@@ -2192,9 +2236,13 @@ socket.on("online users", users => {
                 ? "Blue Cheese"
                 : user.room === "butter"
                     ? "Butter"
-                    : user.room === "mozzarella"
-                        ? "Mozzarella"
-                        : "Cheese Lounge";
+                    : user.room === "grilledCheese"
+                        ? "Grilled Cheese"
+                        : user.room === "cheddar"
+                            ? "Cheddar"
+                            : user.room === "mozzarella"
+                                ? "Mozzarella"
+                                : "Cheese Lounge";
 
         div.appendChild(dot);
         div.appendChild(name);

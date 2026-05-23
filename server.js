@@ -240,6 +240,7 @@ let chaosLevel = 0;
 let scheduledEvents = [];
 let activePoll = null;
 let scheduledShutdown = null;
+let activeCheeseBank = null;
 
 
 function isProtectedOwnerTarget(username) {
@@ -450,6 +451,11 @@ function getPlayerProfile(username) {
 
     if (!data.players[key]) {
         data.players[key] = createDefaultPlayerProfile(username);
+        writePlayerDataFile(data);
+    }
+
+    if (typeof data.players[key].cheeseTokens !== "number") {
+        data.players[key].cheeseTokens = 0;
         writePlayerDataFile(data);
     }
 
@@ -1071,6 +1077,7 @@ function getPublicPlayerData(username) {
     return {
         username: profile.username,
         coins: profile.coins,
+        cheeseTokens: safeNumber(profile.cheeseTokens, 0),
         highestCoins: profile.highestCoins,
         totalCoinsEarned: profile.totalCoinsEarned,
         messagesSent: profile.messagesSent,
@@ -1212,6 +1219,18 @@ const mildBlockedRoots = [
     "shemale"
 ];
 
+const grilledBlockedRoots = [
+    ...mildBlockedRoots,
+    "porn",
+    "sex",
+    "sexual",
+    "blowjob",
+    "massacre",
+    "murder",
+    "gore",
+    "gorey"
+];
+
 function containsBlockedLanguage(text, roomId) {
     const room = rooms[roomId] || rooms.cheeseLounge;
 
@@ -1223,7 +1242,9 @@ function containsBlockedLanguage(text, roomId) {
     const list =
         room.filterLevel === "mild"
             ? mildBlockedRoots
-            : strictBlockedRoots;
+            : room.filterLevel === "grilled"
+                ? grilledBlockedRoots
+                : strictBlockedRoots;
 
     return list.some(root => normalised.includes(root));
 }
@@ -1443,6 +1464,38 @@ function runChaosCommand(rawCommand, usedBy = "Admin") {
     };
 }
 
+
+function spawnCheeseBank(socket) {
+    const bankRoomIds = ["cheeseLounge", "butter", "blueCheese", "grilledCheese"].filter(roomId => rooms[roomId]);
+    const roomId = pickRandom(bankRoomIds);
+    const roomName = rooms[roomId]?.name || roomId;
+
+    const bank = {
+        id: makeId(),
+        room: roomId,
+        roomName,
+        reward: 50,
+        expiresAt: Date.now() + 45000,
+        claimed: false
+    };
+
+    activeCheeseBank = bank;
+
+    io.emit("cheese bank spawned", bank);
+    sendGlobalSystemMessage(`💰 A bank has been built in ${roomName}, ROB IT 🧀💰`);
+
+    if (socket) {
+        socket.emit("admin reply", `Cheese Bank spawned in ${roomName}.`);
+    }
+
+    setTimeout(() => {
+        if (activeCheeseBank && activeCheeseBank.id === bank.id && !activeCheeseBank.claimed) {
+            activeCheeseBank = null;
+            io.emit("cheese bank ended", bank.id);
+        }
+    }, 45000);
+}
+
 function findOnlineSocketByUsername(username) {
     const key = getPlayerKey(username);
     for (const [socketId, online] of onlineUsers.entries()) {
@@ -1506,6 +1559,7 @@ function giveRolledCrateToPlayer(playerName, crateId, amount = 1) {
 
 function runCheeseRng(socket, session) {
     const candidates = [...onlineUsers.values()].filter(user => !user.isAdmin || !adminAppearsOffline);
+
     if (candidates.length === 0) {
         socket.emit("admin reply", "No online players to pick from.");
         return;
@@ -1513,22 +1567,50 @@ function runCheeseRng(socket, session) {
 
     const chosen = pickRandom(candidates);
     const playerName = chosen.username;
-    sendGlobalSystemMessage("🎲 THE CHEESE RNG HAS BEEN ACTIVATED...");
+    const playerNames = candidates.map(user => user.username);
 
-    if (Math.random() < 0.20) {
+    const roll = Math.random() * 100;
+    let reward = {
+        type: "coins",
+        text: ""
+    };
+
+    if (roll < 1) {
+        addTokens(playerName, 1);
+        reward = {
+            type: "token",
+            text: "🪙 JACKPOT — 1 Cheese Token"
+        };
+        socket.emit("admin reply", `Cheese RNG gave ${playerName} 1 Cheese Token.`);
+    } else if (roll < 25) {
         const crateIds = Object.keys(CHAOS_CRATES);
         const crateId = pickRandom(crateIds);
         const result = giveRolledCrateToPlayer(playerName, crateId, 1);
-        sendGlobalSystemMessage(`🎲 Cheese RNG picked ${playerName}! Reward: 1x ${CHAOS_CRATES[crateId].name} 📦`);
+
+        reward = {
+            type: "crate",
+            text: `📦 ${CHAOS_CRATES[crateId].name}`
+        };
         socket.emit("admin reply", result.message);
-        return;
+    } else {
+        const amount = Math.floor(Math.random() * 751) + 50;
+        addCoins(playerName, amount);
+        reward = {
+            type: "coins",
+            text: `🧀 ${amount} Cheese Coins`
+        };
+        socket.emit("admin reply", `Cheese RNG gave ${playerName} ${amount} Cheese Coins.`);
     }
 
-    const amount = Math.floor(Math.random() * 100) + 1;
-    addCoins(playerName, amount);
     emitPlayerDataByUsername(playerName);
-    sendGlobalSystemMessage(`🎲 Cheese RNG picked ${playerName}! Reward: +${amount} Cheese Coins 🧀`);
-    socket.emit("admin reply", `Cheese RNG gave ${playerName} ${amount} Cheese Coins.`);
+
+    io.emit("cheese rng animation", {
+        users: playerNames,
+        winner: playerName,
+        reward
+    });
+
+    sendGlobalSystemMessage(`🎲 Cheese RNG picked ${playerName}! Reward: ${reward.text}`);
 }
 
 /* =========================
@@ -2100,6 +2182,42 @@ function handleAdminTextCommand(socket, session, command) {
         return;
     }
 
+    if (commandName === "unmute") {
+        const args = splitCommandArgs(commandBody);
+        const playerName = args[0];
+
+        if (!playerName) {
+            socket.emit("admin reply", "Usage: ;/Unmute: <Player>");
+            return;
+        }
+
+        mutedUsers.delete(playerName.toLowerCase());
+
+        const target = getOnlineUserByName(playerName);
+
+        if (target) {
+            io.to(target.socketId).emit("message rejected", "You were unmuted.");
+        }
+
+        socket.emit("admin reply", `${playerName} was unmuted.`);
+        return;
+    }
+
+    if (commandName === "shutdown") {
+        const args = splitCommandArgs(commandBody);
+        const duration = args[0];
+        const reason = args.slice(1).join(", ") || "Scheduled maintenance.";
+
+        if (!duration) {
+            socket.emit("admin reply", "Usage: ;/Shutdown: <10m>, <Reason>");
+            return;
+        }
+
+        const result = startScheduledShutdown(duration, reason);
+        socket.emit("admin reply", result.message);
+        return;
+    }
+
     if (commandName === "offline") {
         adminAppearsOffline = true;
         emitOnlineUsers();
@@ -2155,6 +2273,7 @@ function handleAdminTextCommand(socket, session, command) {
         }
 
         addTokens(playerName, amount);
+        emitPlayerDataByUsername(playerName);
         socket.emit("admin reply", `${amount} Cheese Tokens given to ${playerName}.`);
         return;
     }
@@ -2170,6 +2289,7 @@ function handleAdminTextCommand(socket, session, command) {
         }
 
         setTokens(playerName, amount);
+        emitPlayerDataByUsername(playerName);
         socket.emit("admin reply", `${playerName}'s Cheese Tokens set to ${amount}.`);
         return;
     }
@@ -2228,6 +2348,75 @@ function handleAdminTextCommand(socket, session, command) {
 
 function handleSpecialChaosCommand(socket, command, session) {
     const raw = String(command || "").trim();
+
+
+    const cheeseRngMatch = raw.match(/^\+\/CheeseRNG\\?$/i);
+
+    if (cheeseRngMatch) {
+        if (!canRunEvents(session)) {
+            denyLimitedAdmin(socket);
+            return true;
+        }
+
+        runCheeseRng(socket, session);
+        return true;
+    }
+
+    const cheeseBankMatch = raw.match(/^\+\/CheeseBank\\?$/i);
+
+    if (cheeseBankMatch) {
+        if (!canRunEvents(session)) {
+            denyLimitedAdmin(socket);
+            return true;
+        }
+
+        spawnCheeseBank(socket);
+        return true;
+    }
+
+    const giveCrateMatch = raw.match(/^\+\/GiveCrate:\s*([^,]+),\s*([^,]+)(?:,\s*([0-9]+))?\\?$/i);
+
+    if (giveCrateMatch) {
+        if (!canGiveInventory(session)) {
+            denyLimitedAdmin(socket);
+            return true;
+        }
+
+        const playerName = giveCrateMatch[1].trim();
+        const crateId = resolveCrateId(giveCrateMatch[2].trim());
+        const amount = safeNumber(giveCrateMatch[3], 1);
+
+        if (!crateId) {
+            socket.emit("admin reply", "That crate does not exist.");
+            return true;
+        }
+
+        const result = giveRolledCrateToPlayer(playerName, crateId, amount);
+        socket.emit("admin reply", result.message);
+        return true;
+    }
+
+    const giveAbilityMatch = raw.match(/^\+\/Give:\s*([^,]+),\s*([^,]+)(?:,\s*([0-9]+))?\\?$/i);
+
+    if (giveAbilityMatch) {
+        if (!canGiveInventory(session)) {
+            denyLimitedAdmin(socket);
+            return true;
+        }
+
+        const playerName = giveAbilityMatch[1].trim();
+        const eventId = resolveChaosEventId(giveAbilityMatch[2].trim());
+        const amount = safeNumber(giveAbilityMatch[3], 1);
+
+        if (!eventId) {
+            socket.emit("admin reply", "That chaos ability does not exist.");
+            return true;
+        }
+
+        const result = giveChaosEventToPlayer(playerName, eventId, amount);
+        socket.emit("admin reply", result.message);
+        return true;
+    }
 
     const filterMatch = raw.match(/^\+\/Filter:\s*([^,]+),\s*(On|Off)\\?$/i);
 
@@ -2422,6 +2611,32 @@ io.on("connection", socket => {
         const text = String(data.text || "").trim();
 
         if (!text) return;
+
+        if (text.toLowerCase().startsWith("/w ")) {
+            const whisperMatch = text.match(/^\/w\s+([^\s]+)\s+"(.+)"$/i);
+
+            if (!whisperMatch) {
+                socket.emit("message rejected", 'Whisper format: /w Player "message"');
+                return;
+            }
+
+            const targetName = whisperMatch[1];
+            const whisperText = whisperMatch[2].slice(0, 200);
+            const target = getOnlineUserByName(targetName);
+
+            if (!target) {
+                socket.emit("message rejected", `${targetName} is not online.`);
+                return;
+            }
+
+            io.to(target.socketId).emit("whisper", {
+                from: session.username,
+                text: whisperText
+            });
+
+            socket.emit("message rejected", `Whisper sent to ${target.user.username}.`);
+            return;
+        }
 
         if (text.length > 100) {
             socket.emit("message rejected", "Messages can only be 100 characters.");
@@ -2794,12 +3009,28 @@ io.on("connection", socket => {
 
 
     socket.on("claim cheese bank", data => {
-        const session = sessions.get(socket.id);
         if (!session) return;
 
-        const reward = 50;
+        if (!activeCheeseBank || activeCheeseBank.claimed) {
+            socket.emit("message rejected", "That Cheese Bank is already gone.");
+            return;
+        }
+
+        if (String(data && data.id) !== String(activeCheeseBank.id)) {
+            socket.emit("message rejected", "That Cheese Bank is already gone.");
+            return;
+        }
+
+        activeCheeseBank.claimed = true;
+
+        const reward = activeCheeseBank.reward || 50;
         addCoins(session.username, reward);
+        emitPlayerData(socket, session.username);
+
+        io.emit("cheese bank ended", activeCheeseBank.id);
         io.emit("system notice", `💰 ${session.username} robbed the Cheese Bank and got ${reward} Cheese Coins!`);
+
+        activeCheeseBank = null;
     });
 
     socket.on("disconnect", () => {
