@@ -93,7 +93,7 @@ const schedulePopup = document.getElementById("schedulePopup");
 const pollBox = document.getElementById("pollBox");
 
 const mozzarellaShop = document.getElementById("mozzarellaShop");
-const fetaBotMenu = document.getElementById("fetaBotMenu");
+const cheeseBotMenu = document.getElementById("cheeseBotMenu");
 const shopCoins = document.getElementById("shopCoins");
 const chaosCrateList = document.getElementById("chaosCrateList");
 const swissCrateBox = document.getElementById("swissCrateBox");
@@ -367,7 +367,7 @@ function updateRoomUI(roomId, roomInfo) {
 
     const room = roomInfo || {};
     const isMozzarella = roomId === "mozzarella";
-    const isFeta = roomId === "feta";
+    const isCheeseBots = roomId === "feta";
 
     document.body.dataset.theme = room.theme || "cheese";
 
@@ -403,6 +403,11 @@ function updateRoomUI(roomId, roomInfo) {
         messageInput.placeholder = "Mozzarella is no-chat.";
     }
 
+    if (roomId === "feta") {
+        roomSubtitle.textContent = "Robotic cheese helpers • bots • mini games";
+        messageInput.placeholder = "Use the Cheese Bots panel.";
+    }
+
     if (room.isTempServer) {
         roomSubtitle.textContent = `${room.owner || "Someone"}'s temporary server • melts away soon`;
         messageInput.placeholder = `Message ${room.name || "temp server"}...`;
@@ -416,8 +421,8 @@ function updateRoomUI(roomId, roomInfo) {
         cheddarBrowser.classList.toggle("hidden", roomId !== "cheddar");
     }
 
-    if (fetaBotMenu) {
-        fetaBotMenu.classList.toggle("hidden", !isFeta);
+    if (cheeseBotMenu) {
+        cheeseBotMenu.classList.toggle("hidden", !isCheeseBots);
     }
 
     if (messages) {
@@ -1804,6 +1809,7 @@ function buildAdminCommand() {
     if (command === "cheesebank") commandInput.value = "+/CheeseBank\\";
     if (command === "clearchat") commandInput.value = ";/ClearChat:";
     if (command === "shutdown") commandInput.value = `;/Shutdown: ${amount || "10m"}, ${text || "Maintenance"}`;
+    if (command === "cancelshutdown") commandInput.value = ";/CancelShutdown";
     if (command === "offline") commandInput.value = ";/Offline";
     if (command === "online") commandInput.value = ";/Online";
     if (command === "announcement") commandInput.value = `;/Announcement: ${text || "Announcement"}`;
@@ -2675,7 +2681,7 @@ const cheeseClickerCheeseUpgrades = [
     { id: "gouda", name: "Gouda", power: 10, cost: 300, description: "Smooth and smoky" },
     { id: "swiss", name: "Swiss", power: 20, cost: 850, description: "Full of holes; full of potential" },
     { id: "blueCheese", name: "Blue Cheese", power: 50, cost: 2500, description: "Bold, mouldy, and extremely rich" },
-    { id: "feta", name: "Feta", power: 75, cost: 4500, description: "Watery, crumbly, and great for salads" },
+    { id: "feta", name: "Cheese Bots", power: 75, cost: 4500, description: "Watery, crumbly, and great for salads" },
     { id: "mozzarella", name: "Mozzarella", power: 100, cost: 6000, description: "Mild, milky, and stretchy" },
     { id: "parmesan", name: "Parmesan", power: 125, cost: 7500, description: "Hard and salty" }
 ];

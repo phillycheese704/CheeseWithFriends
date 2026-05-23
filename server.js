@@ -197,9 +197,9 @@ const rooms = {
 
     feta: {
         id: "feta",
-        name: "Feta",
-        icon: "🫙",
-        theme: "feta",
+        name: "Cheese Bots",
+        icon: "🤖🧀",
+        theme: "cheeseBots",
         readOnly: false,
         noChat: false,
         filterLevel: "strict",
@@ -252,6 +252,7 @@ let visualNameOverride = "";
 let chaosLevel = 0;
 let scheduledEvents = [];
 let activePoll = null;
+let scheduledShutdownTimeout = null;
 let scheduledShutdown = null;
 let activeCheeseBank = null;
 let tempServers = [];
@@ -1875,10 +1876,10 @@ function getLeaderboard(currentUsername) {
 }
 
 const triviaQuestions = [
-    { q: "Which cheese is traditionally used on pizza?", a: "Mozzarella", options: ["Brie", "Mozzarella", "Feta", "Blue Cheese"] },
+    { q: "Which cheese is traditionally used on pizza?", a: "Mozzarella", options: ["Brie", "Mozzarella", "Cheese Bots", "Blue Cheese"] },
     { q: "Which cheese is famous for holes?", a: "Swiss", options: ["Swiss", "Cheddar", "Parmesan", "Gouda"] },
-    { q: "Which cheese is salty and crumbly?", a: "Feta", options: ["Feta", "Brie", "Mozzarella", "Gouda"] },
-    { q: "Which cheese is often aged and grated over pasta?", a: "Parmesan", options: ["Parmesan", "Brie", "Swiss", "Feta"] }
+    { q: "Which cheese is salty and crumbly?", a: "Cheese Bots", options: ["Cheese Bots", "Brie", "Mozzarella", "Gouda"] },
+    { q: "Which cheese is often aged and grated over pasta?", a: "Parmesan", options: ["Parmesan", "Brie", "Swiss", "Cheese Bots"] }
 ];
 let activeTrivia = null;
 let triviaCooldownUntil = 0;
@@ -2930,6 +2931,27 @@ function handleAdminTextCommand(socket, session, command) {
 
         const result = removeTempServer(tempServerName);
         socket.emit("admin reply", result.message);
+        return;
+    }
+
+
+    if (commandName === "cancelshutdown" || commandName === "cancel shutdown") {
+        if (scheduledShutdownTimeout) {
+            clearTimeout(scheduledShutdownTimeout);
+            scheduledShutdownTimeout = null;
+        }
+
+        if (typeof shutdownUntil !== "undefined") {
+            shutdownUntil = 0;
+        }
+
+        if (typeof offlineUntil !== "undefined") {
+            offlineUntil = 0;
+        }
+
+        io.emit("system notice", "✅ Scheduled server shutdown cancelled.");
+        socket.emit("admin reply", "Scheduled shutdown cancelled.");
+        addAdminLog(session.username, "cancel shutdown", "", "Cancelled scheduled server shutdown");
         return;
     }
 
@@ -4309,14 +4331,14 @@ io.on("connection", socket => {
     socket.on("request tutorial", data => {
         if (!session) return;
         if (session.room !== "feta") {
-            socket.emit("message rejected", "That bot only works in Feta.");
+            socket.emit("message rejected", "That bot only works in Cheese Bots.");
             return;
         }
         const topic = String(data && data.topic || "basics").slice(0, 30);
         const lines = [
             `Welcome to CheeseWithFriends tutorial: ${topic}.`,
             "Use rooms on the left, earn cheese coins, and watch for chaos.",
-            "Mozzarella is the shop. Cheddar is for temp servers. Feta is for bots."
+            "Mozzarella is the shop. Cheddar is for temp servers. Cheese Bots is for robotic cheese helpers."
         ];
         lines.forEach((line, index) => setTimeout(() => sendFetaBotMessage("Tutorial Bot", line), 1200 * index));
     });
@@ -4324,7 +4346,7 @@ io.on("connection", socket => {
     socket.on("roll dice", data => {
         if (!session) return;
         if (session.room !== "feta") {
-            socket.emit("message rejected", "That bot only works in Feta.");
+            socket.emit("message rejected", "That bot only works in Cheese Bots.");
             return;
         }
         const sides = Math.max(2, Math.min(100, Math.floor(Number(data && data.sides) || 6)));
@@ -4335,7 +4357,7 @@ io.on("connection", socket => {
     socket.on("ask trivia", () => {
         if (!session) return;
         if (session.room !== "feta") {
-            socket.emit("message rejected", "That bot only works in Feta.");
+            socket.emit("message rejected", "That bot only works in Cheese Bots.");
             return;
         }
         if (Date.now() < triviaCooldownUntil) {
@@ -4351,7 +4373,7 @@ io.on("connection", socket => {
         if (!session) return;
 
         if (session.room !== "feta") {
-            socket.emit("message rejected", "That bot only works in Feta.");
+            socket.emit("message rejected", "That bot only works in Cheese Bots.");
             return;
         }
 
@@ -4368,7 +4390,7 @@ io.on("connection", socket => {
     socket.on("coin flip", data => {
         if (!session) return;
         if (session.room !== "feta") {
-            socket.emit("message rejected", "That bot only works in Feta.");
+            socket.emit("message rejected", "That bot only works in Cheese Bots.");
             return;
         }
         const wager = Math.max(0, Math.min(500, Math.floor(Number(data && data.wager) || 0)));

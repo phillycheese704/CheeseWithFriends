@@ -173,9 +173,9 @@
                 id="room-feta"
                 onclick="switchRoom('feta')"
             >
-                <span class="room-icon">🫙</span>
+                <span class="room-icon">🤖🧀</span>
                 <span>
-                    <strong>Feta</strong>
+                    <strong>Cheese Bots</strong>
                 </span>
                 <span class="unread-badge hidden" data-unread-for="feta">0</span>
             </button>
@@ -379,14 +379,14 @@
 
             </div>
 
-            <section id="fetaBotMenu" class="feta-bot-menu hidden">
-                <div class="feta-bot-tabs">
-                    <button onclick="socket.emit('request tutorial', { topic: 'basics' })">Tutorial Bot</button>
-                    <button onclick="rollDicePrompt()">Roller Bot</button>
-                    <button onclick="socket.emit('ask trivia')">Trivia Bot</button>
-                    <button onclick="coinFlipPrompt()">Coin Flip Bot</button>
-                    <button disabled>🔮 Oracle Bot</button>
-                    <button disabled>🎵 Vibe Bot</button>
+            <section id="cheeseBotMenu" class="cheese-bot-menu hidden">
+                <div class="cheese-bot-tabs">
+                    <button onclick="socket.emit('request tutorial', { topic: 'basics' })">Tutorial Bot 🤖</button>
+                    <button onclick="rollDicePrompt()">Dice Bot 🎲</button>
+                    <button onclick="socket.emit('ask trivia')">Trivia Bot 🧠</button>
+                    <button onclick="coinFlipPrompt()">Coin Bot 🪙</button>
+                    <button disabled>🔮 Oracle Bot 🔮</button>
+                    <button disabled>🎵 Vibe Bot 🎵</button>
                 </div>
             </section>
 
@@ -737,6 +737,7 @@
                         <option value="cheesebank">Cheese Bank</option>
                         <option value="clearchat">Clear Chat</option>
                         <option value="shutdown">Shutdown</option>
+                        <option value="cancelshutdown">Cancel Shutdown</option>
                         <option value="offline">Appear Offline</option>
                         <option value="online">Appear Online</option>
                         <option value="announcement">Announcement</option>
