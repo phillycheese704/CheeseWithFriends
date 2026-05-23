@@ -332,124 +332,113 @@
 
         <section id="arcadePage" class="arcade-page hidden">
 
-            <div class="arcade-shell">
+            <div class="arcade-full-header">
+                <button class="arcade-back-btn" onclick="closeArcade()">
+                    ← Back
+                </button>
 
-                <header class="arcade-topbar">
-                    <button class="arcade-back-btn" onclick="closeArcade()">
-                        ← Back to Chat
+                <div>
+                    <h1>🧀 CHEESE ARCADE 🎮</h1>
+                    <p>Pick a game. Chase the high score. Get cheesy.</p>
+                </div>
+
+                <div class="arcade-status-pill">
+                    Cheese Clicker ready
+                </div>
+            </div>
+
+            <div class="arcade-full-layout">
+
+                <section class="arcade-game-card playable">
+                    <div class="arcade-cover cheese-clicker-cover">
+                        <span class="arcade-cover-label">PLAYABLE</span>
+                        <span class="arcade-cover-icon">🧀</span>
+                    </div>
+
+                    <div class="arcade-game-info">
+                        <h2>Cheese Clicker</h2>
+                        <p>Click, cheese, repeat.</p>
+
+                        <div class="arcade-score-box">
+                            <span>Highest Score</span>
+                            <strong id="cheeseClickerHighScore">0 🧀</strong>
+                        </div>
+                    </div>
+
+                    <button class="arcade-play-btn" onclick="openCheeseClicker()">
+                        Play Cheese Clicker
                     </button>
-
-                    <div class="arcade-title">
-                        <div class="arcade-marquee">
-                            <span></span>
-                            🧀 CHEESE ARCADE 🎮
-                            <span></span>
-                        </div>
-                        <p>Insert cheese. Pick a game. Chase the high score.</p>
-                    </div>
-
-                    <div class="arcade-coin-pill">
-                        <span>Cheese Coins</span>
-                        <strong id="arcadeCoinPill">0 🧀</strong>
-                    </div>
-                </header>
-
-                <section id="arcadeHome" class="arcade-home">
-
-                    <div class="arcade-main-panel">
-                        <div class="arcade-section-head">
-                            <div>
-                                <h2>Game Cards</h2>
-                                <p>Cheese Clicker is ready. More games are planned.</p>
-                            </div>
-                            <div class="arcade-status-chip">1 playable • 3 planned</div>
-                        </div>
-
-                        <div class="arcade-game-grid">
-                            <article class="arcade-game-card">
-                                <div class="arcade-cover">
-                                    <div class="arcade-card-label">PLAYABLE</div>
-                                    <div class="arcade-cover-icon">🧀</div>
-                                </div>
-                                <div class="arcade-card-body">
-                                    <h3>Cheese Clicker</h3>
-                                    <p>Click, cheese, repeat.</p>
-                                    <div class="arcade-score-box">
-                                        <div>
-                                            <span>HIGHEST CHEESE</span>
-                                            <strong id="clickerCardHighScore">0</strong>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button class="arcade-play-btn" onclick="openCheeseClicker()">
-                                    ▶ Play Cheese Clicker
-                                </button>
-                            </article>
-
-                            <article class="arcade-game-card coming-soon">
-                                <div class="arcade-cover"><div class="arcade-card-label">COMING SOON</div><div class="arcade-cover-icon">🐭</div></div>
-                                <div class="arcade-card-body"><h3>Mouse Catcher</h3><p>Tap mice before they steal the cheese.</p><div class="arcade-score-box"><div><span>HIGHEST SCORE</span><strong>0</strong></div></div></div>
-                                <button class="arcade-play-btn">Locked</button>
-                            </article>
-
-                            <article class="arcade-game-card coming-soon">
-                                <div class="arcade-cover"><div class="arcade-card-label">COMING SOON</div><div class="arcade-cover-icon">🌪️</div></div>
-                                <div class="arcade-card-body"><h3>Cheese Dodge</h3><p>Dodge chaos, survive, collect coins.</p><div class="arcade-score-box"><div><span>HIGHEST SCORE</span><strong>0s</strong></div></div></div>
-                                <button class="arcade-play-btn">Locked</button>
-                            </article>
-
-                            <article class="arcade-game-card coming-soon">
-                                <div class="arcade-cover"><div class="arcade-card-label">COMING SOON</div><div class="arcade-cover-icon">📦</div></div>
-                                <div class="arcade-card-body"><h3>Crate Rush</h3><p>Time the rarity meter. Hit the jackpot.</p><div class="arcade-score-box"><div><span>HIGHEST SCORE</span><strong>0</strong></div></div></div>
-                                <button class="arcade-play-btn">Locked</button>
-                            </article>
-                        </div>
-                    </div>
-
-                    <aside class="arcade-settings-panel">
-                        <h2>⚙️ Arcade Settings</h2>
-                        <p>Future settings for scores, effects, and sound.</p>
-                        <div class="arcade-setting-card"><strong>High Scores</strong><small>Reset buttons can live here later.</small><button>Reset All High Scores</button></div>
-                        <div class="arcade-setting-card"><strong>Effects</strong><small>Keep arcade animations satisfying.</small><button>Effects: Cozy</button></div>
-                        <div class="arcade-setting-card"><strong>Sound</strong><small>Click sounds and jingles can be added later.</small><button>Sound: Off</button></div>
-                    </aside>
-
                 </section>
 
-                <section id="cheeseClickerGame" class="cheese-clicker-game hidden">
-                    <button class="arcade-back-btn" onclick="closeCheeseClicker()">← Back to Arcade</button>
-
-                    <div class="clicker-layout">
-                        <section class="clicker-stage-panel">
-                            <div class="clicker-stats-row">
-                                <div><span>CHEESE</span><strong id="clickerCheese">0 🧀</strong></div>
-                                <div><span>PER CLICK</span><strong id="clickerPerClick">1 🧀</strong></div>
-                                <div><span>PER SECOND</span><strong id="clickerPerSecond">0 🧀</strong></div>
-                                <div><span>CHEESEIFY</span><strong id="clickerMultiplier">x1</strong></div>
-                            </div>
-
-                            <div class="clicker-cheese-stage" id="clickerCheeseStage">
-                                <div class="clicker-glow"></div>
-                                <div class="clicker-shockwave" id="clickerShockwave"></div>
-                                <button id="bigCheeseButton" class="big-cheese-button" onclick="clickBigCheese()">🧀</button>
-                            </div>
-
-                            <p class="clicker-hint">Occasionally, a mouse drags a golden cheese across the background. Click it for 100–1000 cheese.</p>
-                        </section>
-
-                        <aside class="clicker-upgrades-panel">
-                            <div class="clicker-tabs">
-                                <button class="clicker-tab active" onclick="switchClickerTab('cheese')">🧀 Cheese</button>
-                                <button class="clicker-tab" onclick="switchClickerTab('helpers')">🐭 Helpers</button>
-                                <button class="clicker-tab" onclick="switchClickerTab('cheeseify')">🧀 Cheeseify</button>
-                            </div>
-
-                            <div id="clickerUpgradeContent" class="clicker-upgrade-content"></div>
-                        </aside>
+                <section class="arcade-game-card locked">
+                    <div class="arcade-cover">
+                        <span class="arcade-cover-label">COMING SOON</span>
+                        <span class="arcade-cover-icon">🐭</span>
                     </div>
+
+                    <div class="arcade-game-info">
+                        <h2>Mouse Catcher</h2>
+                        <p>Tap mice before they steal the cheese.</p>
+
+                        <div class="arcade-score-box">
+                            <span>Highest Score</span>
+                            <strong>0</strong>
+                        </div>
+                    </div>
+
+                    <button class="arcade-play-btn" disabled>
+                        Coming soon
+                    </button>
+                </section>
+
+                <section class="arcade-settings-panel">
+                    <h2>⚙️ Arcade Settings</h2>
+                    <p>Reset high scores and tune future arcade options here.</p>
+
+                    <button onclick="resetCheeseClickerHighScore()">
+                        Reset Cheese Clicker High Score
+                    </button>
+
+                    <button onclick="resetCheeseClickerSave()">
+                        Reset Cheese Clicker Save
+                    </button>
                 </section>
 
             </div>
+
+            <section id="cheeseClickerGame" class="cheese-clicker-game hidden">
+                <button class="arcade-back-btn" onclick="closeCheeseClicker()">
+                    ← Back to Arcade
+                </button>
+
+                <div class="clicker-layout">
+                    <section class="clicker-main-panel">
+                        <h2>🧀 Cheese Clicker</h2>
+
+                        <div class="clicker-stat-row">
+                            <div><span>Cheese</span><strong id="clickerCheeseTotal">0 🧀</strong></div>
+                            <div><span>Per Click</span><strong id="clickerPerClick">1 🧀</strong></div>
+                            <div><span>Per Second</span><strong id="clickerPerSecond">0 🧀</strong></div>
+                            <div><span>Multiplier</span><strong id="clickerMultiplier">x1</strong></div>
+                        </div>
+
+                        <div class="clicker-stage">
+                            <button id="cheeseClickButton" class="big-cheese-button" onclick="clickBigCheese()"><span>🧀</span></button>
+                            <div id="clickerFloatLayer" class="clicker-float-layer"></div>
+                            <div id="goldenCheeseLayer" class="golden-cheese-layer"></div>
+                        </div>
+                    </section>
+
+                    <aside class="clicker-upgrades-panel">
+                        <div class="clicker-tabs">
+                            <button class="clicker-tab active" onclick="switchClickerTab('cheese')">🧀 Cheese</button>
+                            <button class="clicker-tab" onclick="switchClickerTab('helpers')">🐭 Helpers</button>
+                            <button class="clicker-tab" onclick="switchClickerTab('cheeseify')">🧀 Cheeseify</button>
+                        </div>
+                        <div id="clickerUpgradeList" class="clicker-upgrade-list"></div>
+                    </aside>
+                </div>
+            </section>
 
         </section>
 
@@ -473,10 +462,10 @@
 
             <div class="sidebar-arcade-card">
                 <h3>🧀 Cheese Arcade 🎮</h3>
-                <p>Coming soon.</p>
+                <p>Cheese Clicker is ready.</p>
 
                 <button onclick="openArcade()">
-                    Open Arcade
+                    Play gamesss 🧀
                 </button>
             </div>
 
@@ -619,6 +608,7 @@
                     <span>;/SetCoins: &lt;Player&gt;, &lt;Amount&gt;</span>
                     <span>;/ClearChat:</span>
                     <span>;/StartPoll: &lt;Time&gt;, &lt;Title&gt;, &lt;Event1|Event2&gt;</span>
+                    <span>;/Shutdown: &lt;10m&gt;, &lt;Reason&gt;</span>
 
                     <strong>Chaos</strong>
                     <span>+/CheeseRain\</span>
@@ -638,6 +628,10 @@
                     <span>+/Filter: &lt;Room&gt;, &lt;On/Off&gt;\</span>
                     <span>+/SetName: &lt;Name&gt;\</span>
                     <span>+/ClearName\</span>
+                    <span>;/Admin: &lt;Player&gt;, &lt;10m&gt;</span>
+                    <span>+/CheeseRNG\</span>
+                    <span>+/GiveCrate: &lt;Player&gt;, &lt;Crate&gt;, &lt;Amount&gt;\</span>
+                    <span>+/Give: &lt;Player&gt;, &lt;Ability&gt;, &lt;Amount&gt;\</span>
                     <span>+/ClearVisuals\</span>
                 </div>
 

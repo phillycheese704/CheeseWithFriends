@@ -20,20 +20,6 @@ const ADMIN_LOGIN_USERNAME = "PhillyCheese#;";
 const ADMIN_DISPLAY_NAME = "PhillyCheese";
 const ADMIN_PASSWORD = "AdminAccount##;";
 
-function normaliseReservedName(text) {
-    return String(text || "")
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "");
-}
-
-function isPhillyCheeseShape(username) {
-    return normaliseReservedName(username).includes("phillycheese");
-}
-
-function isExactAdminCredentials(username, password) {
-    return username === ADMIN_LOGIN_USERNAME && password === ADMIN_PASSWORD;
-}
-
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -227,6 +213,168 @@ let visualNameOverride = "";
 let chaosLevel = 0;
 let scheduledEvents = [];
 let activePoll = null;
+let scheduledShutdown = null;
+
+
+function isProtectedOwnerTarget(username) {
+    const raw = String(username || "").trim().toLowerCase();
+    const normalized = raw.replace(/[^a-z0-9]/g, "");
+    return normalized === "phillycheese" || raw === ADMIN_DISPLAY_NAME.toLowerCase();
+}
+
+function isOwnerSession(session) {
+    return !!session && session.admin === true && session.username === ADMIN_DISPLAY_NAME;
+}
+
+function parseDurationToMsLoose(text) {
+    const raw = String(text || "").trim().toLowerCase();
+    const match = raw.match(/^(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours)$/);
+    if (!match) return null;
+
+    const amount = Number(match[1]);
+    const unit = match[2];
+
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+
+    if (unit.startsWith("s")) return amount * 1000;
+    if (unit.startsWith("m")) return amount * 60 * 1000;
+    if (unit.startsWith("h")) return amount * 60 * 60 * 1000;
+
+    return null;
+}
+
+function shutdownRemainingMs() {
+    if (!scheduledShutdown) return 0;
+    return Math.max(0, scheduledShutdown.endsAt - Date.now());
+}
+
+function isServerShutdownActive() {
+    const remaining = shutdownRemainingMs();
+
+    if (remaining <= 0) {
+        scheduledShutdown = null;
+        return false;
+    }
+
+    return true;
+}
+
+function startScheduledShutdown(durationText, reason) {
+    const ms = parseDurationToMsLoose(durationText);
+    if (!ms) {
+        return {
+            success: false,
+            message: "Use a duration like 10m, 1h, or 30s."
+        };
+    }
+
+    scheduledShutdown = {
+        startedAt: Date.now(),
+        endsAt: Date.now() + ms,
+        reason: reason || "Scheduled maintenance."
+    };
+
+    io.emit("server shutdown", {
+        active: true,
+        durationMs: ms,
+        endsAt: scheduledShutdown.endsAt,
+        reason: scheduledShutdown.reason
+    });
+
+    setTimeout(() => {
+        if (!scheduledShutdown) return;
+
+        const remaining = shutdownRemainingMs();
+        if (remaining <= 0) {
+            scheduledShutdown = null;
+            io.emit("server shutdown ended");
+        }
+    }, ms + 500);
+
+    return {
+        success: true,
+        message: `Server shutdown scheduled for ${durationText}.`
+    };
+}
+
+
+
+const tempAdmins = new Map();
+
+function normaliseProtectedName(name) {
+    return String(name || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9#;]/g, "");
+}
+
+function isOwnerName(name) {
+    const clean = normaliseProtectedName(name);
+    return (
+        clean === normaliseProtectedName(ADMIN_DISPLAY_NAME) ||
+        clean === normaliseProtectedName(ADMIN_LOGIN_USERNAME)
+    );
+}
+
+function isOwnerSession(session) {
+    return !!(
+        session &&
+        session.admin === true &&
+        session.limitedAdmin !== true &&
+        session.username === ADMIN_DISPLAY_NAME &&
+        session.realUsername === ADMIN_LOGIN_USERNAME
+    );
+}
+
+function clearExpiredTempAdmins() {
+    const now = Date.now();
+    for (const [key, expiresAt] of tempAdmins.entries()) {
+        if (expiresAt <= now) tempAdmins.delete(key);
+    }
+}
+
+function getTempAdminExpiry(username) {
+    clearExpiredTempAdmins();
+    return tempAdmins.get(getPlayerKey(username)) || 0;
+}
+
+function isLimitedAdminSession(session) {
+    if (!session || session.limitedAdmin !== true) return false;
+    const expiresAt = session.adminUntil || getTempAdminExpiry(session.username);
+    if (!expiresAt || expiresAt <= Date.now()) {
+        session.admin = false;
+        session.limitedAdmin = false;
+        session.adminUntil = 0;
+        return false;
+    }
+    return true;
+}
+
+function hasFullAdmin(session) {
+    return isOwnerSession(session);
+}
+
+function canRunEvents(session) {
+    return hasFullAdmin(session) || isLimitedAdminSession(session);
+}
+
+function canRunAnnouncements(session) {
+    return hasFullAdmin(session) || isLimitedAdminSession(session);
+}
+
+function canGiveInventory(session) {
+    return hasFullAdmin(session) || isLimitedAdminSession(session);
+}
+
+function isAdminSessionActive(session) {
+    return hasFullAdmin(session) || isLimitedAdminSession(session);
+}
+
+function denyLimitedAdmin(socket) {
+    socket.emit(
+        "admin reply",
+        "Limited admins can only run chaos events, announcements, +/GiveCrate, and +/Give."
+    );
+}
 
 /* =========================
    PLAYER DATA / COINS / PROFILE
@@ -265,177 +413,8 @@ function createDefaultPlayerProfile(username) {
             icon: ""
         },
 
-        arcade: createDefaultArcadeData(),
-
         achievementsText: "Coming soon 🧀🏆"
     };
-}
-
-
-/* =========================
-   CHEESE CLICKER / ARCADE
-========================= */
-
-const CHEESE_CLICKER_CLICK_UPGRADES = [
-    { id: "cheddar", name: "Cheddar", icon: "🧀", perClick: 1, baseCost: 20, description: "Mild, savoury, and reliable" },
-    { id: "matureCheddar", name: "Mature Cheddar", icon: "🧀", perClick: 2, baseCost: 80, description: "Rich, tangy, and sharp" },
-    { id: "brie", name: "Brie", icon: "🧀", perClick: 5, baseCost: 120, description: "Oozing, creamy, and sophisticated" },
-    { id: "gouda", name: "Gouda", icon: "🧀", perClick: 10, baseCost: 300, description: "Smooth and smoky" },
-    { id: "swiss", name: "Swiss", icon: "🧀", perClick: 20, baseCost: 850, description: "Full of holes; full of potential" },
-    { id: "blueCheese", name: "Blue Cheese", icon: "🧀", perClick: 50, baseCost: 2500, description: "Bold, mouldy, and extremely rich" },
-    { id: "feta", name: "Feta", icon: "🧀", perClick: 75, baseCost: 4500, description: "Watery, crumbly, and great for salads" },
-    { id: "mozzarella", name: "Mozzarella", icon: "⚪", perClick: 100, baseCost: 6000, description: "Mild, milky, and stretchy" },
-    { id: "parmesan", name: "Parmesan", icon: "🧀", perClick: 125, baseCost: 7500, description: "Hard and salty" }
-];
-
-const CHEESE_CLICKER_HELPER_UPGRADES = [
-    { id: "mouseHelper", name: "Mouse Helper", icon: "🐭", perSecond: 1, baseCost: 50, description: "A suspiciously helpful mouse" },
-    { id: "ratHelper", name: "Rat Helper", icon: "🐀", perSecond: 5, baseCost: 180, description: "Bigger, faster, and slightly concerning" },
-    { id: "hamsterHelper", name: "Hamster Helper", icon: "🐹", perSecond: 12, baseCost: 500, description: "Stores cheese in emergency cheeks" },
-    { id: "cheeseChef", name: "Cheese Chef", icon: "🧑‍🍳", perSecond: 30, baseCost: 1600, description: "Crafts premium cheese nonstop" },
-    { id: "mozzarellaStretcher", name: "Mozzarella Stretcher", icon: "⚪", perSecond: 80, baseCost: 4800, description: "Stretches cheese around the clock" },
-    { id: "cheeseGoblin", name: "Cheese Goblin", icon: "👹", perSecond: 250, baseCost: 15000, description: "Lives entirely off stolen cheese" },
-    { id: "cheeseDragon", name: "Cheese Dragon", icon: "🐉", perSecond: 1000, baseCost: 90000, description: "Sleeps on mountains of molten cheese" }
-];
-
-const CHEESEIFY_STEPS = [
-    { level: 1, cost: 1000, multiplier: 1.25 },
-    { level: 2, cost: 2000, multiplier: 1.5 },
-    { level: 3, cost: 4000, multiplier: 1.75 },
-    { level: 4, cost: 8000, multiplier: 2 },
-    { level: 5, cost: 20000, multiplier: 4 }
-];
-
-function createDefaultArcadeData() {
-    return {
-        cheeseClicker: {
-            cheese: 0,
-            highestCheese: 0,
-            totalCheeseMade: 0,
-            totalClicks: 0,
-            clickUpgrades: {},
-            helperUpgrades: {},
-            cheeseifyLevel: 0,
-            cheeseifyMultiplier: 1,
-            lastUpdatedAt: Date.now()
-        }
-    };
-}
-
-function ensureArcadeData(profile) {
-    if (!profile.arcade) profile.arcade = createDefaultArcadeData();
-    if (!profile.arcade.cheeseClicker) profile.arcade.cheeseClicker = createDefaultArcadeData().cheeseClicker;
-
-    const c = profile.arcade.cheeseClicker;
-    if (!c.clickUpgrades) c.clickUpgrades = {};
-    if (!c.helperUpgrades) c.helperUpgrades = {};
-    if (!Number.isFinite(c.cheese)) c.cheese = 0;
-    if (!Number.isFinite(c.highestCheese)) c.highestCheese = 0;
-    if (!Number.isFinite(c.totalCheeseMade)) c.totalCheeseMade = 0;
-    if (!Number.isFinite(c.totalClicks)) c.totalClicks = 0;
-    if (!Number.isFinite(c.cheeseifyLevel)) c.cheeseifyLevel = 0;
-    if (!Number.isFinite(c.cheeseifyMultiplier) || c.cheeseifyMultiplier < 1) c.cheeseifyMultiplier = calculateCheeseifyMultiplier(c.cheeseifyLevel);
-    if (!Number.isFinite(c.lastUpdatedAt)) c.lastUpdatedAt = Date.now();
-    return c;
-}
-
-function getUpgradeCost(baseCost, level) {
-    return Math.floor(baseCost * Math.pow(1.18, level));
-}
-
-function calculateCheeseifyMultiplier(level) {
-    let multiplier = 1;
-
-    for (let i = 1; i <= level; i++) {
-        const step = CHEESEIFY_STEPS[i - 1];
-        multiplier *= step ? step.multiplier : 4;
-    }
-
-    return Number(multiplier.toFixed(4));
-}
-
-function getCheeseifyCost(level) {
-    const nextLevel = level + 1;
-    const step = CHEESEIFY_STEPS[nextLevel - 1];
-    if (step) return step.cost;
-    return Math.floor(20000 * Math.pow(2.5, nextLevel - 5));
-}
-
-function getNextCheeseifyMultiplier(level) {
-    const step = CHEESEIFY_STEPS[level];
-    return step ? step.multiplier : 4;
-}
-
-function calculateClickPower(clicker) {
-    let power = 1;
-
-    for (const upgrade of CHEESE_CLICKER_CLICK_UPGRADES) {
-        const level = clicker.clickUpgrades[upgrade.id] || 0;
-        power += level * upgrade.perClick;
-    }
-
-    return power;
-}
-
-function calculateHelperPower(clicker) {
-    let power = 0;
-
-    for (const helper of CHEESE_CLICKER_HELPER_UPGRADES) {
-        const level = clicker.helperUpgrades[helper.id] || 0;
-        power += level * helper.perSecond;
-    }
-
-    return power;
-}
-
-function applyClickerOfflineProgress(profile) {
-    const clicker = ensureArcadeData(profile);
-    const now = Date.now();
-    const elapsedSeconds = Math.min(3600, Math.max(0, (now - clicker.lastUpdatedAt) / 1000));
-    const perSecond = calculateHelperPower(clicker) * clicker.cheeseifyMultiplier;
-    const earned = Math.floor(perSecond * elapsedSeconds);
-
-    if (earned > 0) {
-        clicker.cheese += earned;
-        clicker.totalCheeseMade += earned;
-        if (clicker.cheese > clicker.highestCheese) clicker.highestCheese = clicker.cheese;
-    }
-
-    clicker.lastUpdatedAt = now;
-    return clicker;
-}
-
-function getPublicClickerData(username) {
-    const profile = getPlayerProfile(username);
-    const clicker = applyClickerOfflineProgress(profile);
-    clicker.cheeseifyMultiplier = calculateCheeseifyMultiplier(clicker.cheeseifyLevel);
-    savePlayerProfile(profile);
-
-    const rawClickPower = calculateClickPower(clicker);
-    const rawHelperPower = calculateHelperPower(clicker);
-
-    return {
-        cheese: Math.floor(clicker.cheese),
-        highestCheese: Math.floor(clicker.highestCheese),
-        totalCheeseMade: Math.floor(clicker.totalCheeseMade),
-        totalClicks: clicker.totalClicks,
-        clickUpgrades: clicker.clickUpgrades,
-        helperUpgrades: clicker.helperUpgrades,
-        rawClickPower,
-        rawHelperPower,
-        cheeseifyLevel: clicker.cheeseifyLevel,
-        cheeseifyMultiplier: clicker.cheeseifyMultiplier,
-        cheesePerClick: Math.floor(rawClickPower * clicker.cheeseifyMultiplier),
-        cheesePerSecond: Math.floor(rawHelperPower * clicker.cheeseifyMultiplier),
-        nextCheeseifyCost: getCheeseifyCost(clicker.cheeseifyLevel),
-        nextCheeseifyMultiplier: getNextCheeseifyMultiplier(clicker.cheeseifyLevel),
-        clickUpgradeDefs: CHEESE_CLICKER_CLICK_UPGRADES,
-        helperUpgradeDefs: CHEESE_CLICKER_HELPER_UPGRADES
-    };
-}
-
-function emitCheeseClickerData(socket, username) {
-    socket.emit("cheese clicker data", getPublicClickerData(username));
 }
 
 function getPlayerProfile(username) {
@@ -447,7 +426,6 @@ function getPlayerProfile(username) {
         writePlayerDataFile(data);
     }
 
-    ensureArcadeData(data.players[key]);
     return data.players[key];
 }
 
@@ -1061,10 +1039,7 @@ function getPublicPlayerData(username) {
         cosmetics: COSMETICS,
         crates: CHAOS_CRATES,
         swissCrate: SWISS_CRATE,
-        duplicateCoins: DUPLICATE_COSMETIC_COINS,
-        arcade: {
-            cheeseClicker: getPublicClickerData(username)
-        }
+        duplicateCoins: DUPLICATE_COSMETIC_COINS
     };
 }
 
@@ -1420,6 +1395,94 @@ function runChaosCommand(rawCommand, usedBy = "Admin") {
     };
 }
 
+function findOnlineSocketByUsername(username) {
+    const key = getPlayerKey(username);
+    for (const [socketId, online] of onlineUsers.entries()) {
+        if (getPlayerKey(online.username) === key || getPlayerKey(online.realUsername) === key) {
+            return io.sockets.sockets.get(socketId) || null;
+        }
+    }
+    return null;
+}
+
+function emitPlayerDataByUsername(username) {
+    const targetSocket = findOnlineSocketByUsername(username);
+    if (targetSocket) emitPlayerData(targetSocket, username);
+}
+
+function resolveChaosEventId(raw) {
+    const wanted = normaliseChaosCommand(raw);
+    if (CHAOS_EVENTS[wanted]) return wanted;
+    return Object.keys(CHAOS_EVENTS).find(eventId => normaliseChaosCommand(CHAOS_EVENTS[eventId].name) === wanted) || null;
+}
+
+function resolveCrateId(raw) {
+    const wanted = normaliseChaosCommand(raw);
+    if (CHAOS_CRATES[wanted]) return wanted;
+    return Object.keys(CHAOS_CRATES).find(crateId => normaliseChaosCommand(CHAOS_CRATES[crateId].name) === wanted) || null;
+}
+
+function giveChaosEventToPlayer(playerName, eventId, amount = 1) {
+    const event = CHAOS_EVENTS[eventId];
+    const count = Math.max(1, Math.min(25, safeNumber(amount, 1)));
+    if (!event) return { success: false, message: "That chaos ability does not exist." };
+
+    const profile = getPlayerProfile(playerName);
+    profile.inventory[eventId] = (profile.inventory[eventId] || 0) + count;
+    profile.index.eventsWitnessed[eventId] = true;
+    savePlayerProfile(profile);
+    emitPlayerDataByUsername(playerName);
+    return { success: true, message: `${playerName} received ${count}x ${event.name} ${event.icon}.` };
+}
+
+function giveRolledCrateToPlayer(playerName, crateId, amount = 1) {
+    const crate = CHAOS_CRATES[crateId];
+    const count = Math.max(1, Math.min(10, safeNumber(amount, 1)));
+    if (!crate) return { success: false, message: "That crate does not exist." };
+
+    const rewards = [];
+    const profile = getPlayerProfile(playerName);
+    for (let i = 0; i < count; i++) {
+        const result = rollChaosCrate(crateId);
+        if (result && result.event) {
+            profile.inventory[result.event.id] = (profile.inventory[result.event.id] || 0) + 1;
+            profile.index.eventsWitnessed[result.event.id] = true;
+            profile.cratesOpened += 1;
+            rewards.push(`${result.event.icon} ${result.event.name}`);
+        }
+    }
+    savePlayerProfile(profile);
+    emitPlayerDataByUsername(playerName);
+    return { success: true, message: `${playerName} received ${count}x ${crate.name}. Rewards: ${rewards.join(", ") || "none"}.` };
+}
+
+function runCheeseRng(socket, session) {
+    const candidates = [...onlineUsers.values()].filter(user => !user.isAdmin || !adminAppearsOffline);
+    if (candidates.length === 0) {
+        socket.emit("admin reply", "No online players to pick from.");
+        return;
+    }
+
+    const chosen = pickRandom(candidates);
+    const playerName = chosen.username;
+    sendGlobalSystemMessage("🎲 THE CHEESE RNG HAS BEEN ACTIVATED...");
+
+    if (Math.random() < 0.20) {
+        const crateIds = Object.keys(CHAOS_CRATES);
+        const crateId = pickRandom(crateIds);
+        const result = giveRolledCrateToPlayer(playerName, crateId, 1);
+        sendGlobalSystemMessage(`🎲 Cheese RNG picked ${playerName}! Reward: 1x ${CHAOS_CRATES[crateId].name} 📦`);
+        socket.emit("admin reply", result.message);
+        return;
+    }
+
+    const amount = Math.floor(Math.random() * 100) + 1;
+    addCoins(playerName, amount);
+    emitPlayerDataByUsername(playerName);
+    sendGlobalSystemMessage(`🎲 Cheese RNG picked ${playerName}! Reward: +${amount} Cheese Coins 🧀`);
+    socket.emit("admin reply", `Cheese RNG gave ${playerName} ${amount} Cheese Coins.`);
+}
+
 /* =========================
    POLLS
 ========================= */
@@ -1602,7 +1665,7 @@ app.post("/signup", async (req, res) => {
         });
     }
 
-    if (isPhillyCheeseShape(username)) {
+    if (isOwnerName(username)) {
         return res.json({
             success: false,
             message: "You dare impersonate me?!"
@@ -1648,6 +1711,23 @@ app.post("/signup", async (req, res) => {
 });
 
 app.post("/login", async (req, res) => {
+
+    if (isServerShutdownActive()) {
+        const username = cleanUsername(req.body.username);
+        const password = String(req.body.password || "");
+
+        const isOwnerLogin =
+            username === ADMIN_LOGIN_USERNAME &&
+            password === ADMIN_PASSWORD;
+
+        if (!isOwnerLogin) {
+            return res.json({
+                success: false,
+                message: `Server is temporarily offline. Try again in ${Math.ceil(shutdownRemainingMs() / 60000)} minute(s).`
+            });
+        }
+    }
+
     const username = cleanUsername(req.body.username);
     const password = String(req.body.password || "");
 
@@ -1658,14 +1738,9 @@ app.post("/login", async (req, res) => {
         });
     }
 
-    const isAdminLogin = isExactAdminCredentials(username, password);
-
-    if (isPhillyCheeseShape(username) && !isAdminLogin) {
-        return res.json({
-            success: false,
-            message: "You dare impersonate me?!"
-        });
-    }
+    const isAdminLogin =
+        username === ADMIN_LOGIN_USERNAME &&
+        password === ADMIN_PASSWORD;
 
     if (isAdminLogin) {
         const token = makeToken();
@@ -1673,7 +1748,9 @@ app.post("/login", async (req, res) => {
         sessions.set(token, {
             username: ADMIN_DISPLAY_NAME,
             realUsername: ADMIN_LOGIN_USERNAME,
-            admin: true
+            admin: true,
+            limitedAdmin: false,
+            adminUntil: 0
         });
 
         getPlayerProfile(ADMIN_DISPLAY_NAME);
@@ -1682,7 +1759,15 @@ app.post("/login", async (req, res) => {
             success: true,
             username: ADMIN_DISPLAY_NAME,
             token,
-            admin: true
+            admin: true,
+            limitedAdmin: false
+        });
+    }
+
+    if (isOwnerName(username)) {
+        return res.json({
+            success: false,
+            message: "You dare impersonate me?!"
         });
     }
 
@@ -1718,11 +1803,15 @@ app.post("/login", async (req, res) => {
     }
 
     const token = makeToken();
+    const tempAdminUntil = getTempAdminExpiry(user.username);
+    const hasTempAdmin = tempAdminUntil > Date.now();
 
     sessions.set(token, {
         username: user.username,
         realUsername: user.username,
-        admin: false
+        admin: hasTempAdmin,
+        limitedAdmin: hasTempAdmin,
+        adminUntil: hasTempAdmin ? tempAdminUntil : 0
     });
 
     getPlayerProfile(user.username);
@@ -1731,7 +1820,9 @@ app.post("/login", async (req, res) => {
         success: true,
         username: user.username,
         token,
-        admin: false
+        admin: hasTempAdmin,
+        limitedAdmin: hasTempAdmin,
+        adminUntil: hasTempAdmin ? tempAdminUntil : 0
     });
 });
 
@@ -1748,7 +1839,17 @@ function handleAdminTextCommand(socket, session, command) {
     }
 
     if (raw.startsWith("+/")) {
-        if (handleSpecialChaosCommand(socket, raw)) {
+        if (!canRunEvents(session) && !canGiveInventory(session)) {
+            socket.emit("admin reply", "You are not an admin.");
+            return;
+        }
+
+        if (handleSpecialChaosCommand(socket, raw, session)) {
+            return;
+        }
+
+        if (!canRunEvents(session)) {
+            denyLimitedAdmin(socket);
             return;
         }
 
@@ -1775,6 +1876,58 @@ function handleAdminTextCommand(socket, session, command) {
             ? ""
             : withoutPrefix.slice(colonIndex + 1).trim();
 
+    if (!hasFullAdmin(session)) {
+        if (commandName === "announcement" && canRunAnnouncements(session)) {
+            // Allowed below.
+        } else {
+            denyLimitedAdmin(socket);
+            return;
+        }
+    }
+
+    if (commandName === "admin") {
+        const args = splitCommandArgs(commandBody);
+        const playerName = args[0];
+        const duration = args[1] || "10m";
+        const ms = parseDurationToMs(duration);
+
+        if (!playerName || !ms) {
+            socket.emit("admin reply", "Usage: ;/Admin: <Player>, <10m>");
+            return;
+        }
+
+        if (isOwnerName(playerName)) {
+            socket.emit("admin reply", "The owner is already protected admin.");
+            return;
+        }
+
+        const expiresAt = Date.now() + ms;
+        tempAdmins.set(getPlayerKey(playerName), expiresAt);
+
+        for (const storedSession of sessions.values()) {
+            if (getPlayerKey(storedSession.username) === getPlayerKey(playerName)) {
+                storedSession.admin = true;
+                storedSession.limitedAdmin = true;
+                storedSession.adminUntil = expiresAt;
+            }
+        }
+
+        for (const [socketId, online] of onlineUsers.entries()) {
+            if (getPlayerKey(online.username) === getPlayerKey(playerName)) {
+                online.isAdmin = true;
+                const targetSocket = io.sockets.sockets.get(socketId);
+                if (targetSocket) {
+                    targetSocket.emit("admin status", { admin: true, limitedAdmin: true, adminUntil: expiresAt });
+                    targetSocket.emit("admin reply", `You were given limited admin for ${duration}.`);
+                }
+            }
+        }
+
+        emitOnlineUsers();
+        socket.emit("admin reply", `${playerName} now has limited admin for ${duration}.`);
+        return;
+    }
+
     if (commandName === "warning") {
         const args = splitCommandArgs(commandBody);
         const playerName = args[0];
@@ -1782,6 +1935,11 @@ function handleAdminTextCommand(socket, session, command) {
 
         if (!playerName || !warningText) {
             socket.emit("admin reply", "Usage: ;/Warning: <Player>, <Text>");
+            return;
+        }
+
+        if (isOwnerName(playerName)) {
+            socket.emit("admin reply", "You cannot warn the owner.");
             return;
         }
 
@@ -1804,6 +1962,11 @@ function handleAdminTextCommand(socket, session, command) {
 
         if (!playerName) {
             socket.emit("admin reply", "Usage: ;/Ban: <Player>, <Reason>");
+            return;
+        }
+
+        if (isOwnerName(playerName)) {
+            socket.emit("admin reply", "You cannot ban the owner.");
             return;
         }
 
@@ -1836,6 +1999,11 @@ function handleAdminTextCommand(socket, session, command) {
             return;
         }
 
+        if (isOwnerName(playerName)) {
+            socket.emit("admin reply", "You cannot temp ban the owner.");
+            return;
+        }
+
         bannedUsers.set(playerName.toLowerCase(), Date.now() + ms);
 
         const target = getOnlineUserByName(playerName);
@@ -1861,6 +2029,11 @@ function handleAdminTextCommand(socket, session, command) {
 
         if (!playerName || !ms) {
             socket.emit("admin reply", "Usage: ;/Mute: <Player>, <10m>, <Reason>");
+            return;
+        }
+
+        if (isOwnerName(playerName)) {
+            socket.emit("admin reply", "You cannot mute the owner.");
             return;
         }
 
@@ -1975,59 +2148,8 @@ function handleAdminTextCommand(socket, session, command) {
     socket.emit("admin reply", `Unknown command: ${commandName}`);
 }
 
-
-function runCheeseRng(socket) {
-    const online = [...onlineUsers.entries()]
-        .map(([socketId, user]) => ({ socketId, user }))
-        .filter(entry => entry.user && entry.user.username);
-
-    if (online.length === 0) {
-        socket.emit("admin reply", "No players online for Cheese RNG.");
-        return true;
-    }
-
-    const chosen = online[Math.floor(Math.random() * online.length)];
-    const username = chosen.user.username;
-    const targetSocket = io.sockets.sockets.get(chosen.socketId);
-    const crateChance = Math.random() < 0.20;
-
-    sendGlobalSystemMessage("🎲 CHEESE RNG has been activated...");
-    sendGlobalSystemMessage(`👀 The cheese gods picked ${username}!`);
-
-    if (crateChance) {
-        const crateIds = Object.keys(CHAOS_CRATES);
-        const crateId = crateIds[Math.floor(Math.random() * crateIds.length)];
-        const result = rollChaosCrate(crateId);
-
-        if (result && result.event) {
-            addInventoryItem(username, result.event.id, 1);
-            markEventWitnessed(username, result.event.id);
-            sendGlobalSystemMessage(`🎁 ${username} won a ${result.crate.name} and pulled ${result.event.icon} ${result.event.name}!`);
-        } else {
-            const fallbackCoins = 100;
-            addCoins(username, fallbackCoins);
-            sendGlobalSystemMessage(`🎁 ${username} won ${fallbackCoins} Cheese Coins!`);
-        }
-    } else {
-        const coins = Math.floor(Math.random() * 100) + 1;
-        addCoins(username, coins);
-        sendGlobalSystemMessage(`🧀 ${username} won ${coins} Cheese Coins!`);
-    }
-
-    if (targetSocket) {
-        emitPlayerData(targetSocket, username);
-    }
-
-    socket.emit("admin reply", "Cheese RNG complete.");
-    return true;
-}
-
-function handleSpecialChaosCommand(socket, command) {
+function handleSpecialChaosCommand(socket, command, session) {
     const raw = String(command || "").trim();
-
-    if (/^\+\/CheeseRng\?$/i.test(raw) || /^\+\/CheeseRNG\?$/i.test(raw)) {
-        return runCheeseRng(socket);
-    }
 
     const filterMatch = raw.match(/^\+\/Filter:\s*([^,]+),\s*(On|Off)\\?$/i);
 
@@ -2148,12 +2270,14 @@ io.on("connection", socket => {
         onlineUsers.set(socket.id, {
             username: session.username,
             realUsername: session.realUsername,
-            isAdmin: session.admin,
+            isAdmin: isAdminSessionActive(session),
             room
         });
 
         socket.emit("admin status", {
-            admin: session.admin
+            admin: isAdminSessionActive(session),
+            limitedAdmin: isLimitedAdminSession(session),
+            adminUntil: session.adminUntil || 0
         });
 
         socket.emit("room data", {
@@ -2552,104 +2676,6 @@ io.on("connection", socket => {
         emitPlayerData(socket, session.username);
     });
 
-
-    socket.on("cheese clicker request", () => {
-        if (!session) return;
-        emitCheeseClickerData(socket, session.username);
-    });
-
-    socket.on("cheese clicker click", () => {
-        if (!session) return;
-        const profile = getPlayerProfile(session.username);
-        const clicker = applyClickerOfflineProgress(profile);
-        clicker.cheeseifyMultiplier = calculateCheeseifyMultiplier(clicker.cheeseifyLevel);
-        const gained = Math.max(1, Math.floor(calculateClickPower(clicker) * clicker.cheeseifyMultiplier));
-
-        clicker.cheese += gained;
-        clicker.totalCheeseMade += gained;
-        clicker.totalClicks += 1;
-        if (clicker.cheese > clicker.highestCheese) clicker.highestCheese = clicker.cheese;
-        clicker.lastUpdatedAt = Date.now();
-
-        savePlayerProfile(profile);
-        socket.emit("cheese clicker clicked", { gained });
-        emitCheeseClickerData(socket, session.username);
-    });
-
-    socket.on("cheese clicker buy upgrade", data => {
-        if (!session) return;
-        const type = data && data.type;
-        const id = data && data.id;
-        const profile = getPlayerProfile(session.username);
-        const clicker = applyClickerOfflineProgress(profile);
-        const list = type === "helper" ? CHEESE_CLICKER_HELPER_UPGRADES : CHEESE_CLICKER_CLICK_UPGRADES;
-        const upgrade = list.find(item => item.id === id);
-
-        if (!upgrade) {
-            socket.emit("shop reply", "That Cheese Clicker upgrade does not exist.");
-            return;
-        }
-
-        const bucket = type === "helper" ? clicker.helperUpgrades : clicker.clickUpgrades;
-        const level = bucket[id] || 0;
-        const cost = getUpgradeCost(upgrade.baseCost, level);
-
-        if (clicker.cheese < cost) {
-            socket.emit("shop reply", "Not enough cheese for that upgrade.");
-            emitCheeseClickerData(socket, session.username);
-            return;
-        }
-
-        clicker.cheese -= cost;
-        bucket[id] = level + 1;
-        clicker.lastUpdatedAt = Date.now();
-        savePlayerProfile(profile);
-        emitCheeseClickerData(socket, session.username);
-    });
-
-    socket.on("cheese clicker cheeseify", () => {
-        if (!session) return;
-        const profile = getPlayerProfile(session.username);
-        const clicker = applyClickerOfflineProgress(profile);
-        const cost = getCheeseifyCost(clicker.cheeseifyLevel);
-
-        if (clicker.cheese < cost) {
-            socket.emit("shop reply", "Not enough cheese to CHEESEIFY.");
-            emitCheeseClickerData(socket, session.username);
-            return;
-        }
-
-        clicker.cheese = 0;
-        clicker.clickUpgrades = {};
-        clicker.helperUpgrades = {};
-        clicker.cheeseifyLevel += 1;
-        clicker.cheeseifyMultiplier = calculateCheeseifyMultiplier(clicker.cheeseifyLevel);
-        clicker.lastUpdatedAt = Date.now();
-
-        savePlayerProfile(profile);
-        socket.emit("cheese clicker cheeseified", {
-            level: clicker.cheeseifyLevel,
-            multiplier: clicker.cheeseifyMultiplier
-        });
-        emitCheeseClickerData(socket, session.username);
-    });
-
-    socket.on("cheese clicker golden collect", () => {
-        if (!session) return;
-        const profile = getPlayerProfile(session.username);
-        const clicker = applyClickerOfflineProgress(profile);
-        const reward = Math.floor(Math.random() * 901) + 100;
-
-        clicker.cheese += reward;
-        clicker.totalCheeseMade += reward;
-        if (clicker.cheese > clicker.highestCheese) clicker.highestCheese = clicker.cheese;
-        clicker.lastUpdatedAt = Date.now();
-
-        savePlayerProfile(profile);
-        socket.emit("cheese clicker golden reward", { reward });
-        emitCheeseClickerData(socket, session.username);
-    });
-
     socket.on("vote poll", eventId => {
         if (!session) return;
 
@@ -2657,7 +2683,7 @@ io.on("connection", socket => {
     });
 
     socket.on("admin command", command => {
-        if (!session || !session.admin) {
+        if (!session || !isAdminSessionActive(session)) {
             socket.emit("admin reply", "You are not an admin.");
             return;
         }
@@ -2666,7 +2692,7 @@ io.on("connection", socket => {
     });
 
     socket.on("schedule event", data => {
-        if (!session || !session.admin) {
+        if (!session || !canRunEvents(session)) {
             socket.emit("admin reply", "You are not an admin.");
             return;
         }
@@ -2680,7 +2706,7 @@ io.on("connection", socket => {
     });
 
     socket.on("cancel scheduled event", id => {
-        if (!session || !session.admin) return;
+        if (!session || !hasFullAdmin(session)) return;
 
         scheduledEvents = scheduledEvents.filter(event => event.id !== id);
         emitScheduleState();
