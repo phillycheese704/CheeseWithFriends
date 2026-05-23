@@ -4462,3 +4462,339 @@ body[data-theme="grilled"] {
         transform: translateX(-50%) scale(1.025);
     }
 }
+
+
+/* =========================================================
+   ADMIN PANEL OVERHAUL + TEMP SERVERS BUGFIX UPDATE
+========================================================= */
+
+.admin-panel {
+    width: min(980px, 94vw);
+    top: 34px;
+    right: 34px;
+    border-radius: 32px;
+    border: 4px solid rgba(75, 43, 8, 0.72);
+    background:
+        radial-gradient(circle at 12% 8%, rgba(255,255,255,0.72), transparent 28%),
+        linear-gradient(135deg, rgba(255,241,168,0.97), rgba(255,183,3,0.94));
+    box-shadow:
+        0 0 40px rgba(255,183,3,0.28),
+        0 28px 90px rgba(0,0,0,0.32);
+}
+
+.admin-panel.chaos-mode {
+    border-color: rgba(111, 196, 179, 0.82);
+    background:
+        radial-gradient(circle at 18% 14%, rgba(111,196,179,0.34), transparent 30%),
+        linear-gradient(135deg, rgba(23,53,56,0.98), rgba(82,122,105,0.96));
+    color: #d9fff5;
+}
+
+.cheese-panel-body {
+    grid-template-columns: 170px minmax(0, 1fr) 280px;
+    align-items: start;
+}
+
+.admin-tabs {
+    display: grid;
+    gap: 10px;
+}
+
+.admin-tab {
+    width: 100%;
+    padding: 13px;
+    border-radius: 18px;
+    text-align: left;
+    font-weight: 1000;
+    color: #3a2600;
+    background: rgba(255,255,255,0.55);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.3);
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.admin-tab:hover,
+.admin-action-grid button:hover {
+    transform: translateY(-2px) scale(1.015);
+}
+
+.admin-tab.active {
+    background: linear-gradient(135deg, #ffd84d, #ff9800);
+    box-shadow: 0 0 20px rgba(255,183,3,0.54);
+}
+
+.admin-panel.chaos-mode .admin-tab {
+    color: #d9fff5;
+    background: rgba(216,255,242,0.12);
+}
+
+.admin-panel.chaos-mode .admin-tab.active {
+    color: #05292b;
+    background: linear-gradient(135deg, #b9fff1, #6fc4b3);
+    box-shadow: 0 0 24px rgba(111,196,179,0.62);
+}
+
+.admin-main-grid {
+    min-width: 0;
+}
+
+.admin-tab-panel {
+    display: none;
+    padding: 16px;
+    border-radius: 24px;
+    background: rgba(255,255,255,0.42);
+}
+
+.admin-tab-panel.active {
+    display: block;
+}
+
+.admin-tab-panel h3 {
+    margin: 0 0 12px;
+    font-size: 24px;
+}
+
+.admin-action-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(170px, 1fr));
+    gap: 10px;
+}
+
+.admin-action-grid button {
+    min-height: 92px;
+    padding: 14px;
+    border-radius: 20px;
+    display: grid;
+    gap: 5px;
+    text-align: left;
+    background:
+        radial-gradient(circle at 15% 10%, rgba(255,255,255,0.20), transparent 34%),
+        linear-gradient(135deg, rgba(75,43,8,0.86), rgba(105,62,15,0.82));
+    color: #fff1a8;
+    box-shadow: 0 0 18px rgba(255,183,3,0.28), 0 10px 22px rgba(75,43,8,0.16);
+}
+
+.admin-action-grid button strong {
+    font-size: 16px;
+}
+
+.admin-action-grid button span {
+    font-size: 12px;
+    opacity: 0.78;
+    font-weight: 800;
+}
+
+.chaos-grid button {
+    background:
+        radial-gradient(circle at 15% 10%, rgba(216,255,242,0.22), transparent 34%),
+        linear-gradient(135deg, rgba(23,53,56,0.92), rgba(60,139,130,0.82));
+    color: #d9fff5;
+    box-shadow: 0 0 20px rgba(111,196,179,0.38);
+}
+
+.cheese-panel-body .admin-command-box,
+.cheese-panel-body .event-scheduler {
+    max-height: calc(100vh - 130px);
+    overflow-y: auto;
+}
+
+.temp-server-create-card {
+    padding: 18px;
+    margin-bottom: 16px;
+    border-radius: 26px;
+    background: rgba(255,255,255,0.58);
+    border: 3px solid rgba(216,155,0,0.36);
+    box-shadow: 0 14px 30px rgba(75,52,0,0.12);
+}
+
+.temp-server-create-card h3 {
+    margin: 0 0 12px;
+}
+
+.temp-create-grid {
+    display: grid;
+    grid-template-columns: 1fr 90px 170px;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.temp-create-grid input,
+.temp-create-grid select {
+    min-width: 0;
+    padding: 12px;
+    border-radius: 16px;
+    border: 2px solid rgba(216,155,0,0.62);
+    background: rgba(255,249,220,0.92);
+}
+
+.temp-create-grid input:last-child {
+    grid-column: 1 / -1;
+}
+
+.temp-server-create-card button,
+.temp-server-card button {
+    padding: 12px 16px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #3a2600;
+    font-weight: 1000;
+}
+
+.temp-server-card {
+    padding: 16px;
+    border-radius: 24px;
+    background: rgba(255,255,255,0.62);
+    border: 3px solid rgba(216,155,0,0.28);
+    box-shadow: 0 12px 26px rgba(75,52,0,0.10);
+    display: grid;
+    gap: 10px;
+}
+
+.temp-server-top {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.temp-server-top > span {
+    font-size: 40px;
+}
+
+.temp-server-top h3 {
+    margin: 0;
+}
+
+.temp-server-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.temp-server-meta strong {
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: rgba(255,216,77,0.58);
+    font-size: 12px;
+}
+
+.temp-server-card.filter-blue {
+    background: linear-gradient(135deg, rgba(30,70,72,0.92), rgba(82,122,105,0.9));
+    color: #d9fff5;
+}
+
+.temp-server-card.filter-grilled {
+    background: linear-gradient(135deg, rgba(255,209,102,0.9), rgba(239,123,34,0.82));
+}
+
+.huge-cheese-bank {
+    width: min(520px, 94%);
+    margin: 22px auto;
+    padding: 24px;
+    border-radius: 34px;
+    display: grid;
+    place-items: center;
+    gap: 8px;
+    background:
+        radial-gradient(circle at 20% 18%, rgba(255,255,255,0.8), transparent 28%),
+        linear-gradient(135deg, #fff3b0, #ffb703);
+    border: 5px solid rgba(255,255,255,0.7);
+    color: #3a2600;
+    box-shadow:
+        0 0 52px rgba(255,183,3,0.82),
+        0 20px 45px rgba(75,52,0,0.18);
+    animation: hugeBankPulse 1s ease-in-out infinite alternate;
+}
+
+.huge-cheese-bank span {
+    font-size: clamp(90px, 18vw, 170px);
+    line-height: 1;
+}
+
+.huge-cheese-bank strong {
+    font-size: clamp(22px, 4vw, 38px);
+    font-weight: 1000;
+}
+
+.huge-cheese-bank small {
+    font-weight: 1000;
+    opacity: 0.72;
+}
+
+@keyframes hugeBankPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.025); }
+}
+
+@media (max-width: 980px) {
+    .cheese-panel-body {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-action-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .temp-create-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .temp-create-grid input:last-child {
+        grid-column: auto;
+    }
+}
+
+
+/* =========================================================
+   TOKEN USE + CLEAN SIDEBAR PATCH
+========================================================= */
+
+.room-button small {
+    display: none !important;
+}
+
+.room-button {
+    min-height: 58px;
+}
+
+.token-trade-btn {
+    margin-top: 8px;
+    width: 100%;
+    padding: 8px 10px !important;
+    border-radius: 14px !important;
+    font-size: 12px;
+    font-weight: 1000;
+    background: #4b3400 !important;
+    color: #fff1a8 !important;
+}
+
+.token-use-btn {
+    margin-top: -4px !important;
+    background: linear-gradient(135deg, #fff3b0, #ffcf40) !important;
+    border: 2px solid rgba(75,52,0,0.22) !important;
+}
+
+.index-item button {
+    margin-top: 4px;
+}
+
+.index-item.locked button {
+    filter: none;
+    opacity: 1;
+}
+
+
+/* =========================================================
+   CLAUDE BUGFIX PATCH
+========================================================= */
+
+.poll-box.fading {
+    opacity: 0.55;
+    filter: grayscale(0.4);
+    transition: opacity 0.25s ease, filter 0.25s ease;
+}
+
+.temp-server-join-disabled {
+    opacity: 0.62 !important;
+    cursor: not-allowed !important;
+    filter: grayscale(0.25);
+}

@@ -241,6 +241,7 @@ let scheduledEvents = [];
 let activePoll = null;
 let scheduledShutdown = null;
 let activeCheeseBank = null;
+let tempServers = [];
 
 
 function isProtectedOwnerTarget(username) {
@@ -517,6 +518,104 @@ function setCoins(username, amount) {
 
     savePlayerProfile(profile);
     return profile;
+}
+
+
+
+function spendTokens(username, amount = 1) {
+    const profile = getPlayerProfile(username);
+    const safeAmount = Math.max(1, safeNumber(amount, 1));
+
+    if (safeNumber(profile.cheeseTokens, 0) < safeAmount) {
+        return {
+            ok: false,
+            message: "Not enough Cheese Tokens."
+        };
+    }
+
+    profile.cheeseTokens = safeNumber(profile.cheeseTokens, 0) - safeAmount;
+    savePlayerProfile(profile);
+
+    return {
+        ok: true,
+        profile
+    };
+}
+
+function unlockAnyIndexEntryWithToken(username, entryType, entryId) {
+    const profile = getPlayerProfile(username);
+    const type = String(entryType || "").trim().toLowerCase();
+    const id = String(entryId || "").trim();
+
+    if (!id) {
+        return {
+            ok: false,
+            message: "Choose something to unlock."
+        };
+    }
+
+    if (type === "event") {
+        if (!CHAOS_EVENTS[id]) {
+            return {
+                ok: false,
+                message: "That event does not exist."
+            };
+        }
+
+        if (profile.index.eventsWitnessed[id] || profile.index.eventsUsed[id]) {
+            return {
+                ok: false,
+                message: "That event is already unlocked."
+            };
+        }
+
+        const spent = spendTokens(username, 1);
+
+        if (!spent.ok) return spent;
+
+        const updated = getPlayerProfile(username);
+        updated.index.eventsWitnessed[id] = true;
+        savePlayerProfile(updated);
+
+        return {
+            ok: true,
+            message: `${CHAOS_EVENTS[id].name} unlocked in the Cheese Index.`
+        };
+    }
+
+    if (type === "cosmetic") {
+        if (!COSMETICS[id]) {
+            return {
+                ok: false,
+                message: "That cosmetic does not exist."
+            };
+        }
+
+        if (profile.index.cosmeticsOwned[id]) {
+            return {
+                ok: false,
+                message: "That cosmetic is already unlocked."
+            };
+        }
+
+        const spent = spendTokens(username, 1);
+
+        if (!spent.ok) return spent;
+
+        const updated = getPlayerProfile(username);
+        updated.index.cosmeticsOwned[id] = true;
+        savePlayerProfile(updated);
+
+        return {
+            ok: true,
+            message: `${COSMETICS[id].name} unlocked in the Cheese Index.`
+        };
+    }
+
+    return {
+        ok: false,
+        message: "Unknown index type."
+    };
 }
 
 
@@ -1465,6 +1564,121 @@ function runChaosCommand(rawCommand, usedBy = "Admin") {
 }
 
 
+
+function getTempServerPublicData() {
+    return tempServers.map(item => ({
+        id: item.id,
+        name: item.name,
+        icon: item.icon,
+        description: item.description,
+        filterLevel: item.filterLevel,
+        owner: item.owner,
+        expiresAt: item.expiresAt
+    }));
+}
+
+function emitTempServers() {
+    io.emit("temp servers", getTempServerPublicData());
+}
+
+function createTempServer(session, data) {
+    const name = String(data && data.name || "").trim().slice(0, 28);
+    const icon = String(data && data.icon || "🧀").trim().slice(0, 4) || "🧀";
+    const description = String(data && data.description || "").trim().slice(0, 100);
+    const filterLevel = String(data && data.filterLevel || "cheese").trim().slice(0, 20);
+    const allowedFilters = ["cheese", "butter", "blue", "grilled"];
+
+    if (!name) {
+        return { ok: false, message: "Temp server needs a name." };
+    }
+
+    if (tempServers.some(item => item.name.toLowerCase() === name.toLowerCase())) {
+        return { ok: false, message: "A temp server with that name already exists." };
+    }
+
+    const tempServer = {
+        id: `temp-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name,
+        icon,
+        description,
+        filterLevel: allowedFilters.includes(filterLevel) ? filterLevel : "cheese",
+        owner: session.username,
+        ownerKey: session.username.toLowerCase(),
+        expiresAt: Date.now() + 60 * 60 * 1000
+    };
+
+    tempServers.push(tempServer);
+    emitTempServers();
+
+    return { ok: true, server: tempServer, message: `${icon} ${name} was created for 1 hour.` };
+}
+
+function findTempServerByIdOrName(value) {
+    const raw = String(value || "").trim().toLowerCase();
+
+    return tempServers.find(item =>
+        item.id.toLowerCase() === raw ||
+        item.name.toLowerCase() === raw
+    );
+}
+
+function addTempServerLifetime(name, durationText) {
+    const temp = findTempServerByIdOrName(name);
+
+    if (!temp) {
+        return { ok: false, message: "Temp server not found." };
+    }
+
+    const durationMs = parseDuration(durationText || "30m");
+
+    if (!durationMs) {
+        return { ok: false, message: "Use a duration like 10m, 1h, or 30s." };
+    }
+
+    temp.expiresAt += durationMs;
+    emitTempServers();
+
+    return { ok: true, message: `${temp.name} lifetime extended.` };
+}
+
+function removeTempServer(name) {
+    const temp = findTempServerByIdOrName(name);
+
+    if (!temp) {
+        return { ok: false, message: "Temp server not found." };
+    }
+
+    tempServers = tempServers.filter(item => item.id !== temp.id);
+    emitTempServers();
+    io.emit("system notice", `🧀 ${temp.name} has melted away...`);
+
+    return { ok: true, message: `${temp.name} removed.` };
+}
+
+function executeScheduledCommand(commandText, scheduledBy = "Scheduler") {
+    const fakeSocket = {
+        emit(event, payload) {
+            if (event === "admin reply") {
+                io.emit("system notice", `⏰ Scheduled event: ${payload}`);
+            }
+        }
+    };
+
+    const fakeSession = {
+        username: scheduledBy,
+        isAdmin: true,
+        isTempAdmin: false
+    };
+
+    if (handleSpecialChaosCommand(commandText, fakeSocket, fakeSession)) {
+        return true;
+    }
+
+    handleAdminCommand(fakeSocket, fakeSession, commandText);
+    return true;
+}
+
+
 function spawnCheeseBank(socket) {
     const bankRoomIds = ["cheeseLounge", "butter", "blueCheese", "grilledCheese"].filter(roomId => rooms[roomId]);
     const roomId = pickRandom(bankRoomIds);
@@ -2200,6 +2414,35 @@ function handleAdminTextCommand(socket, session, command) {
         }
 
         socket.emit("admin reply", `${playerName} was unmuted.`);
+        return;
+    }
+
+    if (commandName === "addserverlifetime") {
+        const args = splitCommandArgs(commandBody);
+        const tempServerName = args[0];
+        const duration = args[1] || "30m";
+
+        if (!tempServerName) {
+            socket.emit("admin reply", "Usage: ;/AddServerLifetime: <TempServer>, <Duration>");
+            return;
+        }
+
+        const result = addTempServerLifetime(tempServerName, duration);
+        socket.emit("admin reply", result.message);
+        return;
+    }
+
+    if (commandName === "removeserver") {
+        const args = splitCommandArgs(commandBody);
+        const tempServerName = args[0];
+
+        if (!tempServerName) {
+            socket.emit("admin reply", "Usage: ;/RemoveServer: <TempServer>");
+            return;
+        }
+
+        const result = removeTempServer(tempServerName);
+        socket.emit("admin reply", result.message);
         return;
     }
 
@@ -2986,16 +3229,36 @@ io.on("connection", socket => {
 
     socket.on("schedule event", data => {
         if (!session || !canRunEvents(session)) {
-            socket.emit("admin reply", "You are not an admin.");
+            denyLimitedAdmin(socket);
             return;
         }
 
-        scheduleEvent(
-            socket,
-            String(data.commandText || ""),
-            Number(data.delaySeconds || 10),
-            session.username
-        );
+        const commandText = String(data && data.commandText || "").trim();
+        const delaySeconds = Math.max(1, Math.min(3600, safeNumber(data && data.delaySeconds, 10)));
+
+        if (!commandText) {
+            socket.emit("admin reply", "Choose a command to schedule.");
+            return;
+        }
+
+        const event = {
+            id: makeId(),
+            commandText,
+            runAt: Date.now() + delaySeconds * 1000,
+            scheduledBy: session.username,
+            timeout: null
+        };
+
+        event.timeout = setTimeout(() => {
+            scheduledEvents = scheduledEvents.filter(item => item.id !== event.id);
+            executeScheduledCommand(commandText, session.username);
+            emitScheduleState();
+        }, delaySeconds * 1000);
+
+        scheduledEvents.push(event);
+        emitScheduleState();
+
+        socket.emit("admin reply", `${commandText} scheduled in ${delaySeconds}s.`);
     });
 
     socket.on("cancel scheduled event", id => {
@@ -3033,6 +3296,108 @@ io.on("connection", socket => {
         activeCheeseBank = null;
     });
 
+
+    socket.on("create temp server", data => {
+        if (!session) return;
+
+        const result = createTempServer(session, data);
+
+        if (!result.ok) {
+            socket.emit("message rejected", result.message);
+            return;
+        }
+
+        socket.emit("message rejected", result.message);
+        io.emit("system notice", `🟨 ${session.username} created temp server ${result.server.icon} ${result.server.name}.`);
+    });
+
+    socket.on("request temp servers", () => {
+        socket.emit("temp servers", getTempServerPublicData());
+    });
+
+
+    socket.on("trade cheese token", () => {
+        if (!session) return;
+
+        const spent = spendTokens(session.username, 1);
+
+        if (!spent.ok) {
+            socket.emit("shop reply", spent.message);
+            return;
+        }
+
+        addCoins(session.username, 1250);
+        emitPlayerData(socket, session.username);
+        socket.emit("shop reply", "Traded 1 Cheese Token for 1250 Cheese Coins.");
+    });
+
+    socket.on("open chaos crate with token", crateId => {
+        if (!session) return;
+
+        const crate = CHAOS_CRATES[crateId];
+
+        if (!crate) {
+            socket.emit("shop reply", "That crate does not exist.");
+            return;
+        }
+
+        const spent = spendTokens(session.username, 1);
+
+        if (!spent.ok) {
+            socket.emit("shop reply", spent.message);
+            return;
+        }
+
+        const data = readPlayerDataFile();
+        const profile = getOrCreatePlayerProfile(data, session.username);
+        const reward = rollCrateReward(crate);
+        addInventory(profile, reward.id, 1);
+        profile.cratesOpened += 1;
+        markEventWitnessed(profile, reward.id);
+        writePlayerDataFile(data);
+
+        socket.emit("crate opened", {
+            crate,
+            reward
+        });
+
+        emitPlayerData(socket, session.username);
+    });
+
+    socket.on("open swiss crate with token", () => {
+        if (!session) return;
+
+        const spent = spendTokens(session.username, 1);
+
+        if (!spent.ok) {
+            socket.emit("shop reply", spent.message);
+            return;
+        }
+
+        const choices = rollSwissChoices(session.username);
+        pendingCosmeticChoices.set(session.username.toLowerCase(), choices);
+
+        socket.emit("cosmetic choice", {
+            choices
+        });
+
+        emitPlayerData(socket, session.username);
+    });
+
+    socket.on("unlock index with token", data => {
+        if (!session) return;
+
+        const result = unlockAnyIndexEntryWithToken(session.username, data && data.type, data && data.id);
+
+        if (!result.ok) {
+            socket.emit("shop reply", result.message);
+            return;
+        }
+
+        emitPlayerData(socket, session.username);
+        socket.emit("shop reply", result.message);
+    });
+
     socket.on("disconnect", () => {
         const online = onlineUsers.get(socket.id);
 
@@ -3047,6 +3412,24 @@ io.on("connection", socket => {
         emitOnlineUsers();
     });
 });
+
+
+setInterval(() => {
+    const now = Date.now();
+    let changed = false;
+
+    for (let i = tempServers.length - 1; i >= 0; i--) {
+        if (tempServers[i].expiresAt <= now) {
+            io.emit("system notice", `🧀 ${tempServers[i].name} has melted away...`);
+            tempServers.splice(i, 1);
+            changed = true;
+        }
+    }
+
+    if (changed) {
+        emitTempServers();
+    }
+}, 15000);
 
 server.listen(PORT, () => {
     console.log(`CheeseWithFriends running on port ${PORT} 🧀`);

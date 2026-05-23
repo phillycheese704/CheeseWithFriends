@@ -111,7 +111,6 @@
                 <span class="room-icon">🧀</span>
                 <span>
                     <strong>Cheese Lounge</strong>
-                    <small>filtered main chat</small>
                 </span>
             </button>
 
@@ -123,7 +122,6 @@
                 <span class="room-icon">🧈</span>
                 <span>
                     <strong>Butter</strong>
-                    <small>mild filter room</small>
                 </span>
             </button>
 
@@ -135,7 +133,6 @@
                 <span class="room-icon blue">🧀</span>
                 <span>
                     <strong>Blue Cheese</strong>
-                    <small>no word filters</small>
                 </span>
             </button>
 
@@ -148,7 +145,6 @@
                 <span class="room-icon">🔥</span>
                 <span>
                     <strong>Grilled Cheese</strong>
-                    <small>admin hangout • chill goofy</small>
                 </span>
             </button>
 
@@ -160,7 +156,6 @@
                 <span class="room-icon">🟨</span>
                 <span>
                     <strong>Cheddar</strong>
-                    <small>temporary servers</small>
                 </span>
             </button>
 
@@ -172,7 +167,6 @@
                 <span class="room-icon">⚪</span>
                 <span>
                     <strong>Mozzarella</strong>
-                    <small>crate shop • no chat</small>
                 </span>
             </button>
 
@@ -243,6 +237,9 @@
                     <div class="mozzarella-coins">
                         <span>Cheese Coins</span>
                         <strong id="shopCoins">0 🧀</strong>
+                        <button class="token-trade-btn" onclick="tradeCheeseTokenForCoins()">
+                            Trade 1 🪙 → 1250 🧀
+                        </button>
                     </div>
 
                 </header>
@@ -320,8 +317,27 @@
             <section id="cheddarBrowser" class="cheddar-browser hidden">
                 <div class="cheddar-header">
                     <h2>🟨 Cheddar</h2>
-                    <p>Join temporary servers. They last 1 hour unless a real admin adds more time.</p>
+                    <p>Join or create temporary servers. They last 1 hour unless a real admin adds more time.</p>
                 </div>
+
+                <div class="temp-server-create-card">
+                    <h3>➕ Create Temporary Server</h3>
+
+                    <div class="temp-create-grid">
+                        <input id="tempServerNameInput" maxlength="28" placeholder="Server name">
+                        <input id="tempServerIconInput" maxlength="4" placeholder="Icon e.g. 🧀">
+                        <select id="tempServerFilterInput">
+                            <option value="cheese">Cheese filter</option>
+                            <option value="butter">Butter filter</option>
+                            <option value="blue">Blue Cheese filter</option>
+                            <option value="grilled">Grilled Cheese filter</option>
+                        </select>
+                        <input id="tempServerDescInput" maxlength="100" placeholder="Optional description">
+                    </div>
+
+                    <button onclick="createTempServer()">Create Server</button>
+                </div>
+
                 <div id="tempServerList" class="temp-server-list">
                     <div class="empty-state">No temporary servers yet. suspiciously quiet...</div>
                 </div>
@@ -530,7 +546,7 @@
             <div class="index-header">
                 <div>
                     <h2>📚 Cheese Index</h2>
-                    <p>The book inside your inventory.</p>
+                    <p>The book inside your inventory. Spend Cheese Tokens to unlock locked entries.</p>
                 </div>
 
                 <div class="completion-badge">
@@ -570,24 +586,80 @@
             </div>
         </div>
 
-        <div id="adminBody" class="admin-body">
+        <div id="adminBody" class="admin-body cheese-panel-body">
+
+            <div class="admin-tabs">
+                <button class="admin-tab active" data-admin-tab="moderation" onclick="switchAdminTab('moderation')">🛡️ Moderation</button>
+                <button class="admin-tab" data-admin-tab="rewards" onclick="switchAdminTab('rewards')">🎁 Rewards</button>
+                <button class="admin-tab" data-admin-tab="chaos" onclick="switchAdminTab('chaos')">🌪️ Chaos Events</button>
+                <button class="admin-tab" data-admin-tab="server" onclick="switchAdminTab('server')">📢 Server</button>
+            </div>
+
+            <div class="admin-main-grid">
+                <section class="admin-tab-panel active" id="adminTab-moderation">
+                    <h3>🛡️ Moderation</h3>
+                    <div class="admin-action-grid">
+                        <button onclick="quickAdmin('warning')"><strong>Warning</strong><span>Warn a player</span></button>
+                        <button onclick="quickAdmin('mute')"><strong>Mute</strong><span>Global mute</span></button>
+                        <button onclick="quickAdmin('unmute')"><strong>Unmute</strong><span>Remove global mute</span></button>
+                        <button onclick="quickAdmin('tempban')"><strong>Temp Ban</strong><span>Timed ban</span></button>
+                        <button onclick="quickAdmin('ban')"><strong>Ban</strong><span>Permanent ban</span></button>
+                        <button onclick="quickAdmin('clearchat')"><strong>Clear Chat</strong><span>Clear current chat</span></button>
+                    </div>
+                </section>
+
+                <section class="admin-tab-panel" id="adminTab-rewards">
+                    <h3>🎁 Rewards</h3>
+                    <div class="admin-action-grid">
+                        <button onclick="quickAdmin('givecoins')"><strong>Give Coins</strong><span>Add cheese coins</span></button>
+                        <button onclick="quickAdmin('setcoins')"><strong>Set Coins</strong><span>Set cheese coins</span></button>
+                        <button onclick="quickAdmin('givetokens')"><strong>Give Tokens</strong><span>Add Cheese Tokens</span></button>
+                        <button onclick="quickAdmin('settokens')"><strong>Set Tokens</strong><span>Set Cheese Tokens</span></button>
+                        <button onclick="quickAdmin('givecrate')"><strong>Give Crate</strong><span>Real admins only</span></button>
+                        <button onclick="quickAdmin('give')"><strong>Give Inventory Item</strong><span>Real admins only</span></button>
+                        <button onclick="quickAdmin('admin')"><strong>Temporary Admin</strong><span>Events + announcements only</span></button>
+                    </div>
+                </section>
+
+                <section class="admin-tab-panel" id="adminTab-chaos">
+                    <h3>🌪️ Chaos Events</h3>
+                    <div class="admin-action-grid chaos-grid">
+                        <button onclick="setAdminCommand('+/CheeseRain\\')"><strong>Cheese Rain</strong><span>Falling cheese</span></button>
+                        <button onclick="setAdminCommand('+/CheeseStorm\\')"><strong>Cheese Storm</strong><span>Storm chaos</span></button>
+                        <button onclick="setAdminCommand('+/ButterBomb\\')"><strong>Lactose Bomb</strong><span>Butter impact</span></button>
+                        <button onclick="setAdminCommand('+/ButterFlood\\')"><strong>Butter Flood</strong><span>Flood the UI</span></button>
+                        <button onclick="setAdminCommand('+/Cheesenado\\')"><strong>Cheesenado</strong><span>Spin the room</span></button>
+                        <button onclick="setAdminCommand('+/CheeseRNG\\')"><strong>CheeseRNG</strong><span>Random online reward</span></button>
+                        <button onclick="setAdminCommand('+/CheeseBank\\')"><strong>Cheese Bank</strong><span>Spawn clickable bank</span></button>
+                        <button onclick="setAdminCommand('+/Singularicheese\\')"><strong>Singularicheese</strong><span>Pull the UI in</span></button>
+                        <button onclick="setAdminCommand('+/CheeseMeteor\\')"><strong>Cheese Meteor</strong><span>Huge impact</span></button>
+                    </div>
+                </section>
+
+                <section class="admin-tab-panel" id="adminTab-server">
+                    <h3>📢 Server</h3>
+                    <div class="admin-action-grid">
+                        <button onclick="quickAdmin('announcement')"><strong>Announcement</strong><span>Broadcast message</span></button>
+                        <button onclick="quickAdmin('startpoll')"><strong>Poll</strong><span>Start chaos vote</span></button>
+                        <button onclick="quickAdmin('shutdown')"><strong>Shutdown</strong><span>Schedule downtime</span></button>
+                        <button onclick="quickAdmin('offline')"><strong>Offline</strong><span>Hide main admin</span></button>
+                        <button onclick="quickAdmin('online')"><strong>Online</strong><span>Show main admin</span></button>
+                        <button onclick="quickAdmin('addserverlifetime')"><strong>Add Server Lifetime</strong><span>Extend temp server</span></button>
+                        <button onclick="quickAdmin('removeserver')"><strong>Remove Server</strong><span>Melt temp server</span></button>
+                    </div>
+                </section>
+            </div>
 
             <div class="admin-command-box">
-
                 <h3>Command Box</h3>
 
-                <textarea
-                    id="adminCommandInput"
-                    placeholder=";/Warning: <PlayerName>, <WarningText>"
-                ></textarea>
+                <textarea id="adminCommandInput" placeholder=";/Warning: <PlayerName>, <WarningText>"></textarea>
 
-                <button onclick="sendAdminCommand()">
-                    Run Command
-                </button>
+                <button onclick="sendAdminCommand()">Run Command</button>
 
                 <p id="adminReply"></p>
 
-                <div class="admin-helper">
+                <div class="admin-helper compact-helper">
                     <h4>Quick Builder</h4>
 
                     <select id="adminCommandSelect" onchange="buildAdminCommand()">
@@ -596,94 +668,48 @@
                         <option value="ban">Ban</option>
                         <option value="tempban">Temp Ban</option>
                         <option value="mute">Mute</option>
+                        <option value="unmute">Unmute</option>
                         <option value="givecoins">Give Coins</option>
                         <option value="setcoins">Set Coins</option>
                         <option value="givetokens">Give Tokens</option>
                         <option value="settokens">Set Tokens</option>
-                        <option value="unmute">Unmute</option>
+                        <option value="givecrate">Give Crate</option>
+                        <option value="give">Give Inventory Item</option>
+                        <option value="admin">Temporary Admin</option>
                         <option value="cheeserng">Cheese RNG</option>
                         <option value="cheesebank">Cheese Bank</option>
                         <option value="clearchat">Clear Chat</option>
+                        <option value="shutdown">Shutdown</option>
                         <option value="offline">Appear Offline</option>
                         <option value="online">Appear Online</option>
                         <option value="announcement">Announcement</option>
                         <option value="startpoll">Start Poll</option>
+                        <option value="addserverlifetime">Add Server Lifetime</option>
+                        <option value="removeserver">Remove Server</option>
                     </select>
 
                     <select id="adminPlayerSelect" onchange="buildAdminCommand()">
                         <option value="">Select online player...</option>
                     </select>
 
-                    <input
-                        id="adminAmountInput"
-                        type="text"
-                        placeholder="Amount / duration / time..."
-                        oninput="buildAdminCommand()"
-                    >
-
-                    <input
-                        id="adminTextInput"
-                        type="text"
-                        placeholder="Text / reason / poll title..."
-                        oninput="buildAdminCommand()"
-                    >
-
-                    <input
-                        id="adminEventsInput"
-                        type="text"
-                        placeholder="Poll events: Cheese Rain|Cheesenado|Cheese Moon"
-                        oninput="buildAdminCommand()"
-                    >
+                    <input id="adminAmountInput" type="text" placeholder="Amount / duration / crate..." oninput="buildAdminCommand()">
+                    <input id="adminTextInput" type="text" placeholder="Text / reason / server name..." oninput="buildAdminCommand()">
+                    <input id="adminEventsInput" type="text" placeholder="Poll events: Cheese Rain|Cheesenado|Cheese Moon" oninput="buildAdminCommand()">
                 </div>
 
                 <div class="admin-help">
-                    <strong>Moderation</strong>
-                    <span>;/Warning: &lt;Player&gt;, &lt;Text&gt;</span>
-                    <span>;/Ban: &lt;Player&gt;, &lt;Reason&gt;</span>
-                    <span>;/TempBan: &lt;Player&gt;, &lt;10m&gt;, &lt;Reason&gt;</span>
-                    <span>;/Mute: &lt;Player&gt;, &lt;10m&gt;, &lt;Reason&gt;</span>
-                    <span>;/Offline</span>
-                    <span>;/Online</span>
-                    <span>;/Announcement: &lt;Message&gt;</span>
-                    <span>;/GiveCoins: &lt;Player&gt;, &lt;Amount&gt;</span>
-                    <span>;/SetCoins: &lt;Player&gt;, &lt;Amount&gt;</span>
-                    <span>;/ClearChat:</span>
-                    <span>;/StartPoll: &lt;Time&gt;, &lt;Title&gt;, &lt;Event1|Event2&gt;</span>
-                    <span>;/Shutdown: &lt;10m&gt;, &lt;Reason&gt;</span>
-
-                    <strong>Chaos</strong>
-                    <span>+/CheeseRain\</span>
-                    <span>+/CheeseStorm\</span>
-                    <span>+/Singularicheese\</span>
-                    <span>+/MouseRun\</span>
-                    <span>+/MeltUI\</span>
-                    <span>+/ButterFlood\</span>
-                    <span>+/ButterBomb\</span>
-                    <span>+/Cheesequake\</span>
-                    <span>+/CheesePortal\</span>
-                    <span>+/MouldTakeover\</span>
-                    <span>+/CheeseMoon\</span>
-                    <span>+/GiantMouseTrap\</span>
-                    <span>+/CheeseMeteor\</span>
-                    <span>+/Cheesenado\</span>
-                    <span>+/Filter: &lt;Room&gt;, &lt;On/Off&gt;\</span>
-                    <span>+/SetName: &lt;Name&gt;\</span>
-                    <span>+/ClearName\</span>
-                    <span>;/Admin: &lt;Player&gt;, &lt;10m&gt;</span>
+                    <strong>Useful Commands</strong>
+                    <span>;/GiveTokens: &lt;Player&gt;, &lt;Amount&gt;</span>
+                    <span>;/SetTokens: &lt;Player&gt;, &lt;Amount&gt;</span>
+                    <span>;/Unmute: &lt;Player&gt;</span>
+                    <span>;/AddServerLifetime: &lt;TempServer&gt;, &lt;Duration&gt;</span>
+                    <span>;/RemoveServer: &lt;TempServer&gt;</span>
                     <span>+/CheeseRNG\</span>
-                    <span>+/GiveCrate: &lt;Player&gt;, &lt;Crate&gt;, &lt;Amount&gt;\</span>
-                    <span>+/Give: &lt;Player&gt;, &lt;Ability&gt;, &lt;Amount&gt;\</span>
-                    <span>+/ClearVisuals\</span>
-                                    <span>;/GiveTokens: &lt;Player&gt;, &lt;Amount&gt;</span>
-                                    <span>;/SetTokens: &lt;Player&gt;, &lt;Amount&gt;</span>
-                                    <span>;/Unmute: &lt;Player&gt;</span>
-                                    <span>+/CheeseBank\</span>
+                    <span>+/CheeseBank\</span>
                 </div>
-
             </div>
 
             <div class="event-scheduler">
-
                 <h3>Event Scheduling</h3>
 
                 <select id="scheduleCommand">
@@ -705,20 +731,11 @@
                     <option value="+/CheeseBank\">Cheese Bank</option>
                 </select>
 
-                <input
-                    id="scheduleDelay"
-                    type="number"
-                    min="1"
-                    max="3600"
-                    value="10"
-                >
+                <input id="scheduleDelay" type="number" min="1" max="3600" value="10">
 
-                <button onclick="scheduleAdminEvent()">
-                    Schedule
-                </button>
+                <button onclick="scheduleAdminEvent()">Schedule</button>
 
                 <div id="scheduledEvents" class="scheduled-events"></div>
-
             </div>
 
         </div>

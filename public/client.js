@@ -241,6 +241,10 @@ function switchRoom(roomId) {
 
     socket.emit("switch room", roomId);
     socket.emit("request player data");
+
+    if (roomId === "cheddar") {
+        socket.emit("request temp servers");
+    }
     renderSchedulePopup();
 }
 
@@ -417,12 +421,12 @@ function addMessage(data) {
     if (room !== currentRoom) return;
 
     removeEmptyState();
-    renderMessageNode(data);
+    renderMessageNode(data, true);
     safeScrollToBottom();
 }
 
 
-function renderMentionedText(container, rawText) {
+function renderMentionedText(container, rawText, shouldNotify = false) {
     const text = String(rawText || "");
     const parts = text.split(/(@[a-zA-Z0-9_#;-]+)/g);
 
@@ -436,9 +440,15 @@ function renderMentionedText(container, rawText) {
             container.appendChild(span);
 
             const mentionedName = part.slice(1).toLowerCase();
-            if (currentUser && mentionedName === String(currentUser).toLowerCase()) {
+
+            if (
+                shouldNotify &&
+                currentUser &&
+                mentionedName === String(currentUser).toLowerCase()
+            ) {
                 showChatNotice(`🧀 You were tagged: ${part}`);
             }
+
             return;
         }
 
@@ -446,7 +456,7 @@ function renderMentionedText(container, rawText) {
     });
 }
 
-function renderMessageNode(data) {
+function renderMessageNode(data, shouldNotifyMention = false) {
     const div = document.createElement("div");
     div.className = "message";
     div.dataset.messageId = data.id;
@@ -475,7 +485,7 @@ function renderMessageNode(data) {
     meta.appendChild(time);
 
     const text = document.createElement("p");
-    renderMentionedText(text, data.text || "");
+    renderMentionedText(text, data.text || "", shouldNotifyMention);
 
     const actions = document.createElement("div");
     actions.className = "message-actions";
@@ -736,6 +746,10 @@ function renderShop() {
             <button onclick="buyChaosCrate('${crate.id}')">
                 Open ${crate.name}
             </button>
+
+            <button class="token-use-btn" onclick="openChaosCrateWithToken('${crate.id}')">
+                Use 1 🪙 Token
+            </button>
         `;
 
         chaosCrateList.appendChild(card);
@@ -771,9 +785,62 @@ function renderShop() {
             <button onclick="openSwissCrate()">
                 Open Swiss Crate
             </button>
+
+            <button class="token-use-btn" onclick="openSwissCrateWithToken()">
+                Use 1 🪙 Token
+            </button>
         </div>
     `;
 }
+
+
+function tradeCheeseTokenForCoins() {
+    if (!latestPlayerData || (latestPlayerData.cheeseTokens || 0) < 1) {
+        showShopReply("You need 1 Cheese Token.");
+        return;
+    }
+
+    socket.emit("trade cheese token");
+}
+
+function openChaosCrateWithToken(crateId) {
+    if (isOpeningCrate) return;
+
+    if (!latestPlayerData || (latestPlayerData.cheeseTokens || 0) < 1) {
+        showShopReply("You need 1 Cheese Token.");
+        return;
+    }
+
+    isOpeningCrate = true;
+    showCrateOpeningAnimation("Token Crate", "Spending 1 Cheese Token...", "chaos");
+    socket.emit("open chaos crate with token", crateId);
+}
+
+function openSwissCrateWithToken() {
+    if (isOpeningCrate) return;
+
+    if (!latestPlayerData || (latestPlayerData.cheeseTokens || 0) < 1) {
+        showShopReply("You need 1 Cheese Token.");
+        return;
+    }
+
+    isOpeningCrate = true;
+    showCrateOpeningAnimation("Token Swiss Crate", "Spending 1 Cheese Token...", "cosmetic");
+    socket.emit("open swiss crate with token");
+}
+
+function unlockIndexWithToken(type, id) {
+    if (!latestPlayerData || (latestPlayerData.cheeseTokens || 0) < 1) {
+        showChatNotice("You need 1 Cheese Token.");
+        return;
+    }
+
+    socket.emit("unlock index with token", {
+        type,
+        id
+    });
+}
+
 
 function buyChaosCrate(crateId) {
     if (isOpeningCrate) return;
@@ -893,6 +960,11 @@ function runSelectedChaosAbility() {
     if (!selectedChaosAbility) {
         showShopReply("Select a chaos ability first.");
         return;
+    }
+
+    if (latestPlayerData) {
+        latestPlayerData.lastChaosUsedAt = Date.now();
+        updateCooldownText();
     }
 
     socket.emit("use chaos ability", selectedChaosAbility);
@@ -1154,7 +1226,7 @@ function renderEventIndex() {
             ${
                 discovered
                     ? `<button onclick="setFavouriteEvent('${event.id}')">Set Favourite</button>`
-                    : ""
+                    : `<button onclick="unlockIndexWithToken('event', '${event.id}')">Unlock with 1 🪙</button>`
             }
         `;
 
@@ -1205,7 +1277,9 @@ function renderCosmeticIndex() {
                     ${
                         hasItem && !isEquipped
                             ? `<button onclick="equipCosmetic('${cosmetic.id}')">Equip</button>`
-                            : ""
+                            : !hasItem
+                                ? `<button onclick="unlockIndexWithToken('cosmetic', '${cosmetic.id}')">Unlock with 1 🪙</button>`
+                                : ""
                     }
                 `;
 
@@ -1378,6 +1452,10 @@ function updatePollTimer() {
     );
 
     timer.textContent = `${remaining}s`;
+
+    if (pollBox) {
+        pollBox.classList.toggle("fading", remaining <= 0);
+    }
 }
 
 /* =========================
@@ -1457,9 +1535,9 @@ function renderSchedulePopup() {
 
 function cleanCommandName(command) {
     return String(command || "")
-        .replace("+/", "")
-        .replace("\\", "")
-        .replace(";/", "")
+        .replaceAll("+/", "")
+        .replaceAll(";/", "")
+        .replaceAll("\\", "")
         .trim();
 }
 
@@ -1513,58 +1591,36 @@ function scheduleAdminEvent() {
 
 function buildAdminCommand() {
     const command = adminCommandSelect.value;
-    const player = adminPlayerSelect.value;
+    const player = adminPlayerSelect.value || "<Player>";
     const amount = adminAmountInput.value.trim();
     const text = adminTextInput.value.trim();
     const events = adminEventsInput.value.trim();
 
     const commandInput = document.getElementById("adminCommandInput");
-
     if (!commandInput) return;
 
-    if (command === "warning") {
-        commandInput.value = `;/Warning: ${player}, ${text}`;
-    }
-
-    if (command === "ban") {
-        commandInput.value = `;/Ban: ${player}, ${text}`;
-    }
-
-    if (command === "tempban") {
-        commandInput.value = `;/TempBan: ${player}, ${amount || "10m"}, ${text}`;
-    }
-
-    if (command === "mute") {
-        commandInput.value = `;/Mute: ${player}, ${amount || "10m"}, ${text}`;
-    }
-
-    if (command === "givecoins") {
-        commandInput.value = `;/GiveCoins: ${player}, ${amount}`;
-    }
-
-    if (command === "setcoins") {
-        commandInput.value = `;/SetCoins: ${player}, ${amount}`;
-    }
-
-    if (command === "clearchat") {
-        commandInput.value = ";/ClearChat:";
-    }
-
-    if (command === "offline") {
-        commandInput.value = ";/Offline";
-    }
-
-    if (command === "online") {
-        commandInput.value = ";/Online";
-    }
-
-    if (command === "announcement") {
-        commandInput.value = `;/Announcement: ${text}`;
-    }
-
-    if (command === "startpoll") {
-        commandInput.value = `;/StartPoll: ${amount || "30"}, ${text || "Which chaos should happen?"}, ${events}`;
-    }
+    if (command === "warning") commandInput.value = `;/Warning: ${player}, ${text || "Reason"}`;
+    if (command === "ban") commandInput.value = `;/Ban: ${player}, ${text || "Reason"}`;
+    if (command === "tempban") commandInput.value = `;/TempBan: ${player}, ${amount || "10m"}, ${text || "Reason"}`;
+    if (command === "mute") commandInput.value = `;/Mute: ${player}, ${amount || "10m"}, ${text || "Reason"}`;
+    if (command === "unmute") commandInput.value = `;/Unmute: ${player}`;
+    if (command === "givecoins") commandInput.value = `;/GiveCoins: ${player}, ${amount || "100"}`;
+    if (command === "setcoins") commandInput.value = `;/SetCoins: ${player}, ${amount || "0"}`;
+    if (command === "givetokens") commandInput.value = `;/GiveTokens: ${player}, ${amount || "1"}`;
+    if (command === "settokens") commandInput.value = `;/SetTokens: ${player}, ${amount || "0"}`;
+    if (command === "givecrate") commandInput.value = `+/GiveCrate: ${player}, ${amount || "chaos"}, 1\\`;
+    if (command === "give") commandInput.value = `+/Give: ${player}, ${amount || "CheeseRain"}, 1\\`;
+    if (command === "admin") commandInput.value = `;/Admin: ${player}, ${amount || "10m"}`;
+    if (command === "cheeserng") commandInput.value = "+/CheeseRNG\\";
+    if (command === "cheesebank") commandInput.value = "+/CheeseBank\\";
+    if (command === "clearchat") commandInput.value = ";/ClearChat:";
+    if (command === "shutdown") commandInput.value = `;/Shutdown: ${amount || "10m"}, ${text || "Maintenance"}`;
+    if (command === "offline") commandInput.value = ";/Offline";
+    if (command === "online") commandInput.value = ";/Online";
+    if (command === "announcement") commandInput.value = `;/Announcement: ${text || "Announcement"}`;
+    if (command === "startpoll") commandInput.value = `;/StartPoll: ${amount || "30"}, ${text || "Which chaos should happen?"}, ${events || "Cheese Rain|Cheesenado|Cheese Moon"}`;
+    if (command === "addserverlifetime") commandInput.value = `;/AddServerLifetime: ${text || "<TempServer>"}, ${amount || "30m"}`;
+    if (command === "removeserver") commandInput.value = `;/RemoveServer: ${text || "<TempServer>"}`;
 }
 
 function renderScheduledEvents(events) {
@@ -2326,10 +2382,6 @@ socket.on("chaos level", level => {
     chaosText.textContent = `${level}% chaotic`;
 });
 
-socket.on("chaos event", data => {
-    runChaosEvent(data.type);
-});
-
 socket.on("poll started", data => {
     latestPoll = data;
     latestPollVotes = {};
@@ -2631,13 +2683,25 @@ function resetCheeseClickerSave() {
 }
 
 setInterval(() => {
+    const game = document.getElementById("cheeseClickerGame");
+    const isClosed = !game || game.classList.contains("hidden");
+
     const save = loadCheeseClickerSave();
     const gain = getPerSecond(save);
+
     if (gain <= 0) return;
+
     save.cheese += gain;
+
     if (save.cheese > save.highScore) save.highScore = save.cheese;
+
     saveCheeseClickerSave(save);
-    renderCheeseClicker();
+
+    if (!isClosed) {
+        renderCheeseClicker();
+    } else {
+        updateCheeseClickerCard();
+    }
 }, 1000);
 
 
@@ -2878,30 +2942,6 @@ socket.on("server shutdown ended", () => {
 });
 
 
-/* Cohesion update quick command builder override */
-const originalBuildAdminCommand = typeof buildAdminCommand === "function" ? buildAdminCommand : null;
-function buildAdminCommand() {
-    const command = adminCommandSelect.value;
-    const player = adminPlayerSelect.value || "<Player>";
-    const amount = adminAmountInput.value.trim();
-    const text = adminTextInput.value.trim();
-    const events = adminEventsInput.value.trim();
-
-    let output = "";
-
-    if (originalBuildAdminCommand && !["givetokens","settokens","unmute","cheeserng","cheesebank"].includes(command)) {
-        originalBuildAdminCommand();
-        return;
-    }
-
-    if (command === "givetokens") output = `;/GiveTokens: ${player}, ${amount || "1"}`;
-    if (command === "settokens") output = `;/SetTokens: ${player}, ${amount || "1"}`;
-    if (command === "unmute") output = `;/Unmute: ${player}`;
-    if (command === "cheeserng") output = "+/CheeseRNG\\";
-    if (command === "cheesebank") output = "+/CheeseBank\\";
-
-    if (output) adminCommandInput.value = output;
-}
 
 
 
@@ -2948,19 +2988,32 @@ socket.on("cheese rng animation", data => {
 
 
 socket.on("cheese bank spawned", data => {
-    const notice = document.createElement("button");
-    notice.className = "cheese-bank-card";
-    notice.innerHTML = `💰 A bank has been built in ${data.roomName}!<br><strong>ROB IT 🧀💰</strong>`;
+    if (data.room !== currentRoom) {
+        showChatNotice(`💰 A bank has been built in ${data.roomName}! ROB IT 🧀💰`);
+        return;
+    }
 
-    notice.onclick = () => {
+    removeEmptyState();
+
+    const bank = document.createElement("button");
+    bank.className = "huge-cheese-bank";
+    bank.dataset.bankId = data.id;
+    bank.innerHTML = `
+        <span>🏦</span>
+        <strong>ROB THE CHEESE BANK</strong>
+        <small>First click gets ${data.reward || 50} 🧀</small>
+    `;
+
+    bank.onclick = () => {
         socket.emit("claim cheese bank", data);
-        notice.remove();
+        bank.remove();
     };
 
-    document.body.appendChild(notice);
+    messages.appendChild(bank);
+    safeScrollToBottom();
 
     setTimeout(() => {
-        if (notice.parentElement) notice.remove();
+        if (bank.parentNode) bank.remove();
     }, 45000);
 });
 
@@ -2974,3 +3027,118 @@ socket.on("system notice", text => {
     showChatNotice(text);
 });
 
+
+
+/* =========================
+   ADMIN PANEL OVERHAUL HELPERS
+========================= */
+
+function switchAdminTab(tab) {
+    document.querySelectorAll(".admin-tab").forEach(button => {
+        button.classList.toggle("active", button.dataset.adminTab === tab);
+    });
+
+    document.querySelectorAll(".admin-tab-panel").forEach(panel => {
+        panel.classList.toggle("active", panel.id === `adminTab-${tab}`);
+    });
+
+    if (adminPanel) {
+        adminPanel.classList.toggle("chaos-mode", tab === "chaos");
+    }
+}
+
+function setAdminCommand(command) {
+    const commandInput = document.getElementById("adminCommandInput");
+    if (commandInput) commandInput.value = command;
+}
+
+function quickAdmin(command) {
+    if (adminCommandSelect) adminCommandSelect.value = command;
+    buildAdminCommand();
+}
+
+
+/* =========================
+   CHEDDAR TEMP SERVERS
+========================= */
+
+function createTempServer() {
+    const nameInput = document.getElementById("tempServerNameInput");
+    const iconInput = document.getElementById("tempServerIconInput");
+    const filterInput = document.getElementById("tempServerFilterInput");
+    const descInput = document.getElementById("tempServerDescInput");
+
+    const name = nameInput ? nameInput.value.trim() : "";
+    const icon = iconInput ? iconInput.value.trim() : "🧀";
+    const filterLevel = filterInput ? filterInput.value : "cheese";
+    const description = descInput ? descInput.value.trim() : "";
+
+    if (!name) {
+        showChatNotice("Temp server needs a name.");
+        return;
+    }
+
+    socket.emit("create temp server", { name, icon, filterLevel, description });
+
+    if (nameInput) nameInput.value = "";
+    if (iconInput) iconInput.value = "";
+    if (descInput) descInput.value = "";
+}
+
+function formatTimeLeft(ms) {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    if (minutes >= 60) {
+        const hours = Math.floor(minutes / 60);
+        return `${hours}h ${minutes % 60}m`;
+    }
+
+    return `${minutes}m ${seconds}s`;
+}
+
+function renderTempServers(servers) {
+    if (!tempServerList) return;
+
+    if (!servers || servers.length === 0) {
+        tempServerList.innerHTML = `<div class="empty-state">No temporary servers yet. suspiciously quiet...</div>`;
+        return;
+    }
+
+    tempServerList.innerHTML = "";
+
+    servers.forEach(server => {
+        const card = document.createElement("div");
+        card.className = `temp-server-card filter-${server.filterLevel || "cheese"}`;
+
+        card.innerHTML = `
+            <div class="temp-server-top">
+                <span>${server.icon || "🧀"}</span>
+                <div>
+                    <h3>${server.name}</h3>
+                    <small>by ${server.owner || "unknown"}</small>
+                </div>
+            </div>
+            <p>${server.description || "No description. mysterious cheese energy."}</p>
+            <div class="temp-server-meta">
+                <strong>Filter: ${server.filterLevel || "cheese"}</strong>
+                <strong data-expires="${server.expiresAt}">${formatTimeLeft(server.expiresAt - Date.now())}</strong>
+            </div>
+            <button class="temp-server-join-disabled" disabled title="Full temp server joining is coming soon">Join coming soon</button>
+        `;
+
+        tempServerList.appendChild(card);
+    });
+}
+
+socket.on("temp servers", servers => {
+    renderTempServers(servers || []);
+});
+
+setInterval(() => {
+    document.querySelectorAll("[data-expires]").forEach(element => {
+        const expires = Number(element.dataset.expires || 0);
+        element.textContent = formatTimeLeft(expires - Date.now());
+    });
+}, 1000);
