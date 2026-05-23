@@ -17,6 +17,7 @@ let currentIndexTab = "events";
 let latestPoll = null;
 let latestPollVotes = {};
 let isOpeningCrate = false;
+let latestTempServers = [];
 
 const roomMessageCache = {
     cheeseLounge: [],
@@ -232,6 +233,10 @@ function switchRoom(roomId) {
     replyingTo = null;
     replyPreview.classList.add("hidden");
 
+    if (!roomMessageCache[roomId]) {
+        roomMessageCache[roomId] = [];
+    }
+
     clearMessages();
 
     const loading = document.createElement("div");
@@ -245,6 +250,8 @@ function switchRoom(roomId) {
     if (roomId === "cheddar") {
         socket.emit("request temp servers");
     }
+
+    socket.emit("request active cheese bank", roomId);
     renderSchedulePopup();
 }
 
@@ -294,6 +301,11 @@ function updateRoomUI(roomId, roomInfo) {
     if (roomId === "mozzarella") {
         roomSubtitle.textContent = "No-chat crate shop • inventory • Cheese Index";
         messageInput.placeholder = "Mozzarella is no-chat.";
+    }
+
+    if (room.isTempServer) {
+        roomSubtitle.textContent = `${room.owner || "Someone"}'s temporary server • melts away soon`;
+        messageInput.placeholder = `Message ${room.name || "temp server"}...`;
     }
 
     if (mozzarellaShop) {
@@ -401,6 +413,7 @@ function getEmptyStateText(room) {
     if (room === "blueCheese") return "The mould is quiet... for now.";
     if (room === "grilledCheese") return "The toast is warm. Admins may appear.";
     if (room === "cheddar") return "Cheddar is where temporary servers will appear.";
+    if (String(room).startsWith("temp-")) return "This temp server is fresh. Say something before it melts.";
     if (room === "mozzarella") return "Mozzarella is a no-chat shop.";
     return "Nobody is talking yet. Suspiciously cheesy.";
 }
@@ -1546,6 +1559,10 @@ function cleanCommandName(command) {
 ========================= */
 
 function openAdminPanel() {
+    socket.emit("request admin status", {
+        token: loginToken
+    });
+
     adminPanel.classList.remove("hidden");
     adminPanel.classList.remove("collapsed");
     adminBody.classList.remove("hidden");
@@ -1574,7 +1591,10 @@ function sendAdminCommand() {
 
     if (!command) return;
 
-    socket.emit("admin command", command);
+    socket.emit("admin command", {
+        command,
+        token: loginToken
+    });
 
     input.value = "";
 }
@@ -1585,7 +1605,8 @@ function scheduleAdminEvent() {
 
     socket.emit("schedule event", {
         commandText,
-        delaySeconds
+        delaySeconds,
+        token: loginToken
     });
 }
 
@@ -2298,7 +2319,9 @@ socket.on("online users", users => {
                             ? "Cheddar"
                             : user.room === "mozzarella"
                                 ? "Mozzarella"
-                                : "Cheese Lounge";
+                                : String(user.room || "").startsWith("temp-")
+                                    ? "Temp Server"
+                                    : "Cheese Lounge";
 
         div.appendChild(dot);
         div.appendChild(name);
@@ -2988,8 +3011,12 @@ socket.on("cheese rng animation", data => {
 
 
 socket.on("cheese bank spawned", data => {
+    if (!data || !data.id) return;
+
+    document.querySelectorAll(`.huge-cheese-bank[data-bank-id="${data.id}"]`).forEach(card => card.remove());
+
     if (data.room !== currentRoom) {
-        showChatNotice(`💰 A bank has been built in ${data.roomName}! ROB IT 🧀💰`);
+        showChatNotice(`💰 A bank has been built in ${data.roomName}! Go there to rob it 🧀💰`);
         return;
     }
 
@@ -3014,7 +3041,7 @@ socket.on("cheese bank spawned", data => {
 
     setTimeout(() => {
         if (bank.parentNode) bank.remove();
-    }, 45000);
+    }, Math.max(1000, (data.expiresAt || Date.now() + 45000) - Date.now()));
 });
 
 
@@ -3085,6 +3112,12 @@ function createTempServer() {
     if (descInput) descInput.value = "";
 }
 
+function joinTempServer(serverId) {
+    if (!serverId) return;
+
+    switchRoom(serverId);
+}
+
 function formatTimeLeft(ms) {
     const totalSeconds = Math.max(0, Math.floor(ms / 1000));
     const minutes = Math.floor(totalSeconds / 60);
@@ -3125,7 +3158,7 @@ function renderTempServers(servers) {
                 <strong>Filter: ${server.filterLevel || "cheese"}</strong>
                 <strong data-expires="${server.expiresAt}">${formatTimeLeft(server.expiresAt - Date.now())}</strong>
             </div>
-            <button class="temp-server-join-disabled" disabled title="Full temp server joining is coming soon">Join coming soon</button>
+            <button onclick="joinTempServer(\`${server.id}\`)">Join</button>
         `;
 
         tempServerList.appendChild(card);
@@ -3133,7 +3166,8 @@ function renderTempServers(servers) {
 }
 
 socket.on("temp servers", servers => {
-    renderTempServers(servers || []);
+    latestTempServers = servers || [];
+    renderTempServers(latestTempServers);
 });
 
 setInterval(() => {

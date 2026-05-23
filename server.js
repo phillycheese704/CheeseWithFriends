@@ -378,8 +378,14 @@ function isLimitedAdminSession(session) {
 }
 
 function hasFullAdmin(session) {
-    return isOwnerSession(session);
+    return session && session.scheduledSystem ? true : isOwnerSession(session);
 }
+
+
+function canUseAdminPanel(session) {
+    return !!session && (hasFullAdmin(session) || isLimitedAdminSession(session) || session.isAdmin || session.isTempAdmin);
+}
+
 
 function canRunEvents(session) {
     return hasFullAdmin(session) || isLimitedAdminSession(session);
@@ -1565,6 +1571,99 @@ function runChaosCommand(rawCommand, usedBy = "Admin") {
 
 
 
+
+
+function getSessionFromSocketOrPayload(socket, payload) {
+    const liveSession = sessions.get(socket.id);
+
+    if (liveSession) return liveSession;
+
+    const token =
+        typeof payload === "object" && payload !== null
+            ? payload.token
+            : null;
+
+    if (!token) return null;
+
+    const user = database.findUserByToken(token);
+
+    if (!user) return null;
+
+    return {
+        username: user.username,
+        token,
+        room: "cheeseLounge",
+        isAdmin: isRealAdmin(user.username),
+        isTempAdmin: temporaryAdmins.has(user.username.toLowerCase())
+    };
+}
+
+function normalizeAdminCommandPayload(payload) {
+    if (typeof payload === "string") {
+        return payload;
+    }
+
+    if (payload && typeof payload.command === "string") {
+        return payload.command;
+    }
+
+    return "";
+}
+
+
+function getRoomInfoById(roomId) {
+    if (rooms[roomId]) return rooms[roomId];
+
+    const temp = tempServers.find(item => item.id === roomId);
+
+    if (!temp) return null;
+
+    const themeMap = {
+        cheese: "cheese",
+        butter: "butter",
+        blue: "blue",
+        grilled: "grilled"
+    };
+
+    const filterMap = {
+        cheese: "strict",
+        butter: "mild",
+        blue: "none",
+        grilled: "grilled"
+    };
+
+    return {
+        id: temp.id,
+        name: temp.name,
+        icon: temp.icon || "🧀",
+        theme: themeMap[temp.filterLevel] || "cheese",
+        readOnly: false,
+        noChat: false,
+        filterLevel: filterMap[temp.filterLevel] || "strict",
+        allowLinks: temp.filterLevel === "blue" || temp.filterLevel === "grilled",
+        isTempServer: true,
+        owner: temp.owner,
+        expiresAt: temp.expiresAt
+    };
+}
+
+function getRoomMessagesById(roomId) {
+    if (roomMessages[roomId]) return roomMessages[roomId];
+
+    const temp = tempServers.find(item => item.id === roomId);
+
+    if (!temp) return null;
+
+    if (!temp.messages) temp.messages = [];
+
+    return temp.messages;
+}
+
+function isRoomAvailable(roomId) {
+    return !!getRoomInfoById(roomId);
+}
+
+
 function getTempServerPublicData() {
     return tempServers.map(item => ({
         id: item.id,
@@ -1604,7 +1703,9 @@ function createTempServer(session, data) {
         filterLevel: allowedFilters.includes(filterLevel) ? filterLevel : "cheese",
         owner: session.username,
         ownerKey: session.username.toLowerCase(),
-        expiresAt: Date.now() + 60 * 60 * 1000
+        expiresAt: Date.now() + 60 * 60 * 1000,
+        messages: [],
+        muted: {}
     };
 
     tempServers.push(tempServer);
@@ -1667,7 +1768,8 @@ function executeScheduledCommand(commandText, scheduledBy = "Scheduler") {
     const fakeSession = {
         username: scheduledBy,
         isAdmin: true,
-        isTempAdmin: false
+        isTempAdmin: false,
+        scheduledSystem: true
     };
 
     if (handleSpecialChaosCommand(commandText, fakeSocket, fakeSession)) {
@@ -2773,7 +2875,7 @@ io.on("connection", socket => {
             return;
         }
 
-        const room = rooms[data.room] ? data.room : "cheeseLounge";
+        const room = isRoomAvailable(data.room) ? data.room : "cheeseLounge";
 
         socket.join(room);
 
@@ -2792,8 +2894,8 @@ io.on("connection", socket => {
 
         socket.emit("room data", {
             room,
-            roomInfo: rooms[room],
-            messages: roomMessages[room] || []
+            roomInfo: getRoomInfoById(room),
+            messages: getRoomMessagesById(room) || [] || []
         });
 
         socket.emit("chaos level", chaosLevel);
@@ -2824,26 +2926,31 @@ io.on("connection", socket => {
 
     socket.on("switch room", roomId => {
         if (!session) return;
-        if (!rooms[roomId]) return;
 
-        const currentOnline = onlineUsers.get(socket.id);
-
-        if (currentOnline) {
-            socket.leave(currentOnline.room);
-            currentOnline.room = roomId;
-            onlineUsers.set(socket.id, currentOnline);
+        if (!isRoomAvailable(roomId)) {
+            socket.emit("message rejected", "That room does not exist anymore.");
+            socket.emit("temp servers", getTempServerPublicData());
+            return;
         }
 
+        socket.leave(session.room);
+        session.room = roomId;
         socket.join(roomId);
+
+        const roomInfo = getRoomInfoById(roomId);
+        const messages = getRoomMessagesById(roomId) || [];
 
         socket.emit("room data", {
             room: roomId,
-            roomInfo: rooms[roomId],
-            messages: roomMessages[roomId] || []
+            roomInfo,
+            messages
         });
 
-        emitPlayerData(socket, session.username);
         emitOnlineUsers();
+
+        if (activeCheeseBank && activeCheeseBank.room === roomId && !activeCheeseBank.claimed) {
+            socket.emit("cheese bank spawned", activeCheeseBank);
+        }
     });
 
     socket.on("chat message", data => {
@@ -3218,18 +3325,37 @@ io.on("connection", socket => {
         voteInPoll(socket, eventId);
     });
 
-    socket.on("admin command", command => {
-        if (!session || !isAdminSessionActive(session)) {
+
+    socket.on("request admin status", payload => {
+        const adminSession = getSessionFromSocketOrPayload(socket, payload);
+
+        socket.emit("admin status", {
+            admin: !!adminSession && canUseAdminPanel(adminSession)
+        });
+    });
+
+    socket.on("admin command", payload => {
+        const adminSession = getSessionFromSocketOrPayload(socket, payload);
+        const command = normalizeAdminCommandPayload(payload).trim();
+
+        if (!adminSession || !canUseAdminPanel(adminSession)) {
             socket.emit("admin reply", "You are not an admin.");
             return;
         }
 
-        handleAdminTextCommand(socket, session, command);
+        if (!command) {
+            socket.emit("admin reply", "Enter a command first.");
+            return;
+        }
+
+        handleAdminCommand(socket, adminSession, command);
     });
 
     socket.on("schedule event", data => {
-        if (!session || !canRunEvents(session)) {
-            denyLimitedAdmin(socket);
+        const adminSession = getSessionFromSocketOrPayload(socket, data);
+
+        if (!adminSession || !canRunEvents(adminSession)) {
+            socket.emit("admin reply", "You are not an admin.");
             return;
         }
 
@@ -3245,13 +3371,13 @@ io.on("connection", socket => {
             id: makeId(),
             commandText,
             runAt: Date.now() + delaySeconds * 1000,
-            scheduledBy: session.username,
+            scheduledBy: adminSession.username,
             timeout: null
         };
 
         event.timeout = setTimeout(() => {
             scheduledEvents = scheduledEvents.filter(item => item.id !== event.id);
-            executeScheduledCommand(commandText, session.username);
+            executeScheduledCommand(commandText, adminSession.username);
             emitScheduleState();
         }, delaySeconds * 1000);
 
@@ -3396,6 +3522,15 @@ io.on("connection", socket => {
 
         emitPlayerData(socket, session.username);
         socket.emit("shop reply", result.message);
+    });
+
+
+    socket.on("request active cheese bank", roomId => {
+        if (!session) return;
+
+        if (activeCheeseBank && !activeCheeseBank.claimed && activeCheeseBank.room === roomId) {
+            socket.emit("cheese bank spawned", activeCheeseBank);
+        }
     });
 
     socket.on("disconnect", () => {

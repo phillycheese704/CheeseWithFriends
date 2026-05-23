@@ -4798,3 +4798,16 @@ body[data-theme="grilled"] {
     cursor: not-allowed !important;
     filter: grayscale(0.25);
 }
+
+
+/* =========================================================
+   TEMP JOIN + BANK FIX PATCH
+========================================================= */
+
+.temp-server-card button:not(:disabled) {
+    box-shadow: 0 0 18px rgba(255, 183, 3, 0.25);
+}
+
+body:not(:has(#room-mozzarella.active)) .huge-cheese-bank {
+    display: grid;
+}
