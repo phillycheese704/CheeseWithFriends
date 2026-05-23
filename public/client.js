@@ -1,3 +1,5 @@
+const cheddarBrowser = document.getElementById("cheddarBrowser");
+const tempServerList = document.getElementById("tempServerList");
 const socket = io();
 
 let currentUser = null;
@@ -20,6 +22,8 @@ const roomMessageCache = {
     cheeseLounge: [],
     butter: [],
     blueCheese: [],
+    grilledCheese: [],
+    cheddar: [],
     mozzarella: []
 };
 
@@ -279,6 +283,9 @@ function updateRoomUI(roomId, roomInfo) {
 
     if (mozzarellaShop) {
         mozzarellaShop.classList.toggle("hidden", !isMozzarella);
+    if (cheddarBrowser) {
+        cheddarBrowser.classList.toggle("hidden", roomId !== "cheddar");
+    }
     }
 
     if (messages) {
@@ -2821,3 +2828,101 @@ socket.on("server shutdown", data => {
 socket.on("server shutdown ended", () => {
     showChatNotice("🧀 Server shutdown ended.");
 });
+
+
+/* Cohesion update quick command builder override */
+const originalBuildAdminCommand = typeof buildAdminCommand === "function" ? buildAdminCommand : null;
+function buildAdminCommand() {
+    const command = adminCommandSelect.value;
+    const player = adminPlayerSelect.value || "<Player>";
+    const amount = adminAmountInput.value.trim();
+    const text = adminTextInput.value.trim();
+    const events = adminEventsInput.value.trim();
+
+    let output = "";
+
+    if (originalBuildAdminCommand && !["givetokens","settokens","unmute","cheeserng","cheesebank"].includes(command)) {
+        originalBuildAdminCommand();
+        return;
+    }
+
+    if (command === "givetokens") output = `;/GiveTokens: ${player}, ${amount || "1"}`;
+    if (command === "settokens") output = `;/SetTokens: ${player}, ${amount || "1"}`;
+    if (command === "unmute") output = `;/Unmute: ${player}`;
+    if (command === "cheeserng") output = "+/CheeseRNG\\";
+    if (command === "cheesebank") output = "+/CheeseBank\\";
+
+    if (output) adminCommandInput.value = output;
+}
+
+
+
+socket.on("cheese rng animation", data => {
+    const overlay = document.createElement("div");
+    overlay.className = "cheese-rng-overlay";
+    overlay.innerHTML = `
+        <div class="cheese-rng-card">
+            <div class="cheese-rng-title">🎲 CHEESE RNG 🎲</div>
+            <div class="cheese-rng-name">...</div>
+            <div class="cheese-rng-reward"></div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const nameBox = overlay.querySelector(".cheese-rng-name");
+    const rewardBox = overlay.querySelector(".cheese-rng-reward");
+    const users = data.users && data.users.length ? data.users : ["Nobody"];
+
+    let i = 0;
+    let delay = 45;
+    let count = 0;
+
+    function spin() {
+        nameBox.textContent = users[i % users.length];
+        i++;
+        count++;
+        delay += 4;
+
+        if (count < 36) {
+            setTimeout(spin, delay);
+        } else {
+            nameBox.textContent = data.winner;
+            rewardBox.textContent = data.reward?.text || data.reward || "";
+            overlay.classList.add("winner");
+
+            setTimeout(() => overlay.remove(), 5200);
+        }
+    }
+
+    spin();
+});
+
+
+
+socket.on("cheese bank spawned", data => {
+    const notice = document.createElement("button");
+    notice.className = "cheese-bank-card";
+    notice.innerHTML = `💰 A bank has been built in ${data.roomName}!<br><strong>ROB IT 🧀💰</strong>`;
+
+    notice.onclick = () => {
+        socket.emit("claim cheese bank", data);
+        notice.remove();
+    };
+
+    document.body.appendChild(notice);
+
+    setTimeout(() => {
+        if (notice.parentElement) notice.remove();
+    }, 45000);
+});
+
+
+
+socket.on("whisper", data => {
+    showChatNotice(`🧀 Whisper from ${data.from}: ${data.text}`);
+});
+
+socket.on("system notice", text => {
+    showChatNotice(text);
+});
+

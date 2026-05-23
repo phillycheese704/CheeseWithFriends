@@ -173,6 +173,28 @@ const rooms = {
         allowLinks: true
     },
 
+    grilledCheese: {
+        id: "grilledCheese",
+        name: "Grilled Cheese",
+        icon: "🔥",
+        theme: "grilled",
+        readOnly: false,
+        noChat: false,
+        filterLevel: "grilled",
+        allowLinks: true
+    },
+
+    cheddar: {
+        id: "cheddar",
+        name: "Cheddar",
+        icon: "🟨",
+        theme: "cheese",
+        readOnly: true,
+        noChat: true,
+        filterLevel: "strict",
+        allowLinks: false
+    },
+
     mozzarella: {
         id: "mozzarella",
         name: "Mozzarella",
@@ -189,6 +211,8 @@ const roomMessages = {
     cheeseLounge: [],
     butter: [],
     blueCheese: [],
+    grilledCheese: [],
+    cheddar: [],
     mozzarella: []
 };
 
@@ -196,6 +220,8 @@ const filterEnabled = {
     cheeseLounge: true,
     butter: true,
     blueCheese: false,
+    grilledCheese: true,
+    cheddar: true,
     mozzarella: true
 };
 
@@ -362,7 +388,7 @@ function canRunAnnouncements(session) {
 }
 
 function canGiveInventory(session) {
-    return hasFullAdmin(session) || isLimitedAdminSession(session);
+    return hasFullAdmin(session);
 }
 
 function isAdminSessionActive(session) {
@@ -372,7 +398,7 @@ function isAdminSessionActive(session) {
 function denyLimitedAdmin(socket) {
     socket.emit(
         "admin reply",
-        "Limited admins can only run chaos events, announcements, +/GiveCrate, and +/Give."
+        "Limited admins can only run chaos events and announcements."
     );
 }
 
@@ -390,6 +416,7 @@ function createDefaultPlayerProfile(username) {
     return {
         username,
         coins: 0,
+        cheeseTokens: 0,
         highestCoins: 0,
         totalCoinsEarned: 0,
         messagesSent: 0,
@@ -481,6 +508,27 @@ function setCoins(username, amount) {
     if (profile.coins > profile.highestCoins) {
         profile.highestCoins = profile.coins;
     }
+
+    savePlayerProfile(profile);
+    return profile;
+}
+
+
+function addTokens(username, amount) {
+    const profile = getPlayerProfile(username);
+    const safeAmount = Math.max(0, safeNumber(amount));
+
+    profile.cheeseTokens = safeNumber(profile.cheeseTokens, 0) + safeAmount;
+
+    savePlayerProfile(profile);
+    return profile;
+}
+
+function setTokens(username, amount) {
+    const profile = getPlayerProfile(username);
+    const safeAmount = Math.max(0, safeNumber(amount));
+
+    profile.cheeseTokens = safeAmount;
 
     savePlayerProfile(profile);
     return profile;
@@ -2096,6 +2144,36 @@ function handleAdminTextCommand(socket, session, command) {
         return;
     }
 
+    if (commandName === "givetokens") {
+        const args = splitCommandArgs(commandBody);
+        const playerName = args[0];
+        const amount = Number(args[1]);
+
+        if (!playerName || !Number.isFinite(amount)) {
+            socket.emit("admin reply", "Usage: ;/GiveTokens: <Player>, <Amount>");
+            return;
+        }
+
+        addTokens(playerName, amount);
+        socket.emit("admin reply", `${amount} Cheese Tokens given to ${playerName}.`);
+        return;
+    }
+
+    if (commandName === "settokens") {
+        const args = splitCommandArgs(commandBody);
+        const playerName = args[0];
+        const amount = Number(args[1]);
+
+        if (!playerName || !Number.isFinite(amount)) {
+            socket.emit("admin reply", "Usage: ;/SetTokens: <Player>, <Amount>");
+            return;
+        }
+
+        setTokens(playerName, amount);
+        socket.emit("admin reply", `${playerName}'s Cheese Tokens set to ${amount}.`);
+        return;
+    }
+
     if (commandName === "clearchat") {
         const room = getRoomOfSocket(socket.id);
 
@@ -2712,6 +2790,16 @@ io.on("connection", socket => {
         emitScheduleState();
 
         socket.emit("admin reply", "Scheduled event cancelled.");
+    });
+
+
+    socket.on("claim cheese bank", data => {
+        const session = sessions.get(socket.id);
+        if (!session) return;
+
+        const reward = 50;
+        addCoins(session.username, reward);
+        io.emit("system notice", `💰 ${session.username} robbed the Cheese Bank and got ${reward} Cheese Coins!`);
     });
 
     socket.on("disconnect", () => {

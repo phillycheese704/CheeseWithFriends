@@ -291,6 +291,16 @@
 
             </section>
 
+            <section id="cheddarBrowser" class="cheddar-browser hidden">
+                <div class="cheddar-header">
+                    <h2>🟨 Cheddar</h2>
+                    <p>Join temporary servers. They last 1 hour unless a real admin adds more time.</p>
+                </div>
+                <div id="tempServerList" class="temp-server-list">
+                    <div class="empty-state">No temporary servers yet. suspiciously quiet...</div>
+                </div>
+            </section>
+
             <div id="messages" class="messages">
 
                 <div class="empty-state">
@@ -562,6 +572,11 @@
                         <option value="mute">Mute</option>
                         <option value="givecoins">Give Coins</option>
                         <option value="setcoins">Set Coins</option>
+                        <option value="givetokens">Give Tokens</option>
+                        <option value="settokens">Set Tokens</option>
+                        <option value="unmute">Unmute</option>
+                        <option value="cheeserng">Cheese RNG</option>
+                        <option value="cheesebank">Cheese Bank</option>
                         <option value="clearchat">Clear Chat</option>
                         <option value="offline">Appear Offline</option>
                         <option value="online">Appear Online</option>
@@ -633,6 +648,10 @@
                     <span>+/GiveCrate: &lt;Player&gt;, &lt;Crate&gt;, &lt;Amount&gt;\</span>
                     <span>+/Give: &lt;Player&gt;, &lt;Ability&gt;, &lt;Amount&gt;\</span>
                     <span>+/ClearVisuals\</span>
+                                    <span>;/GiveTokens: &lt;Player&gt;, &lt;Amount&gt;</span>
+                                    <span>;/SetTokens: &lt;Player&gt;, &lt;Amount&gt;</span>
+                                    <span>;/Unmute: &lt;Player&gt;</span>
+                                    <span>+/CheeseBank\</span>
                 </div>
 
             </div>
