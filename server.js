@@ -195,6 +195,18 @@ const rooms = {
         allowLinks: false
     },
 
+    feta: {
+        id: "feta",
+        name: "Feta",
+        icon: "🫙",
+        theme: "feta",
+        readOnly: false,
+        noChat: false,
+        filterLevel: "strict",
+        allowLinks: false,
+        isBotRoom: true
+    },
+
     mozzarella: {
         id: "mozzarella",
         name: "Mozzarella",
@@ -213,6 +225,7 @@ const roomMessages = {
     blueCheese: [],
     grilledCheese: [],
     cheddar: [],
+    feta: [],
     mozzarella: []
 };
 
@@ -242,6 +255,11 @@ let activePoll = null;
 let scheduledShutdown = null;
 let activeCheeseBank = null;
 let tempServers = [];
+const adminLog = [];
+let currentSeason = null;
+let seasonEndsAt = null;
+let seasonTimeout = null;
+const recentChaosEvents = [];
 
 
 function isProtectedOwnerTarget(username) {
@@ -250,9 +268,7 @@ function isProtectedOwnerTarget(username) {
     return normalized === "phillycheese" || raw === ADMIN_DISPLAY_NAME.toLowerCase();
 }
 
-function isOwnerSession(session) {
-    return !!session && session.admin === true && session.username === ADMIN_DISPLAY_NAME;
-}
+
 
 function parseDurationToMsLoose(text) {
     const raw = String(text || "").trim().toLowerCase();
@@ -378,7 +394,7 @@ function isLimitedAdminSession(session) {
 }
 
 function hasFullAdmin(session) {
-    return session && session.scheduledSystem ? true : isOwnerSession(session);
+    return isOwnerSession(session);
 }
 
 
@@ -388,7 +404,7 @@ function canUseAdminPanel(session) {
 
 
 function canRunEvents(session) {
-    return hasFullAdmin(session) || isLimitedAdminSession(session);
+    return session && session.scheduledSystem ? true : hasFullAdmin(session) || isLimitedAdminSession(session);
 }
 
 function canRunAnnouncements(session) {
@@ -466,7 +482,7 @@ function getPlayerProfile(username) {
         writePlayerDataFile(data);
     }
 
-    return data.players[key];
+    return migrateWave2Profile(data.players[key]);
 }
 
 function savePlayerProfile(profile) {
@@ -493,6 +509,9 @@ function addCoins(username, amount) {
 }
 
 function removeCoins(username, amount) {
+    if (isPhillyCheese(username)) {
+        return { ok: true, profile: getPlayerProfile(username) };
+    }
     const profile = getPlayerProfile(username);
     const safeAmount = Math.max(0, safeNumber(amount));
 
@@ -529,6 +548,9 @@ function setCoins(username, amount) {
 
 
 function spendTokens(username, amount = 1) {
+    if (isPhillyCheese(username)) {
+        return { ok: true, profile: getPlayerProfile(username) };
+    }
     const profile = getPlayerProfile(username);
     const safeAmount = Math.max(1, safeNumber(amount, 1));
 
@@ -1181,8 +1203,8 @@ function getPublicPlayerData(username) {
 
     return {
         username: profile.username,
-        coins: profile.coins,
-        cheeseTokens: safeNumber(profile.cheeseTokens, 0),
+        coins: isPhillyCheese(profile.username) ? 999999 : profile.coins,
+        cheeseTokens: isPhillyCheese(profile.username) ? 999999 : safeNumber(profile.cheeseTokens, 0),
         highestCoins: profile.highestCoins,
         totalCoinsEarned: profile.totalCoinsEarned,
         messagesSent: profile.messagesSent,
@@ -1193,6 +1215,9 @@ function getPublicPlayerData(username) {
         inventory: profile.inventory,
         index: profile.index,
         equippedCosmetics: profile.equippedCosmetics,
+        friendCount: Array.isArray(profile.friends) ? profile.friends.length : 0,
+        achievementCount: profile.achievements ? Object.keys(profile.achievements).length : 0,
+        achievements: profile.achievements || {},
         bookCompletion: getBookCompletionPercent(profile),
         achievementsText: "Coming soon 🧀🏆",
         chaosEvents: CHAOS_EVENTS,
@@ -1531,15 +1556,16 @@ function emitChaosEvent(eventType, usedBy = "The cheese gods") {
     const cleanType = normaliseChaosCommand(eventType);
     const event = CHAOS_EVENTS[cleanType];
 
-    io.emit("chaos event", {
-        type: cleanType,
+    registerChaosCombo(cleanType);
+
+    io.emit("chaos event", {        type: cleanType,
         usedBy,
         eventName: event ? event.name : cleanType,
         icon: event ? event.icon : "🧀"
     });
 
     if (cleanType !== "clearvisuals") {
-        increaseChaos(18);
+        increaseChaos(getChaosIncreaseForEvent(cleanType));
     }
 
     if (event) {
@@ -1573,29 +1599,317 @@ function runChaosCommand(rawCommand, usedBy = "Admin") {
 
 
 
+
+function isPhillyCheese(username) {
+    return String(username || "").trim().toLowerCase() === String(ADMIN_DISPLAY_NAME || "").trim().toLowerCase();
+}
+
+
+
+function getSessionBySocketId(socketId) {
+    for (const session of sessions.values()) {
+        if (session && session.socketId === socketId) {
+            return session;
+        }
+    }
+
+    return null;
+}
+
+
+/* =========================
+   CLAUDE FEATURE WAVE HELPERS
+========================= */
+
+function safeTodayKey() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function minutesAgo(timestamp) {
+    if (!timestamp) return "unknown";
+    const mins = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+    if (mins < 1) return "just now";
+    if (mins === 1) return "1 min ago";
+    if (mins < 60) return `${mins} min ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours === 1) return "1 hour ago";
+    return `${hours} hours ago`;
+}
+
+function getSocketByUsername(username) {
+    const target = String(username || "").trim().toLowerCase();
+    for (const socket of io.sockets.sockets.values()) {
+        const session = getSessionBySocketId(socket.id);
+        if (session && String(session.username || "").toLowerCase() === target) {
+            return socket;
+        }
+    }
+    return null;
+}
+
+function emitPlayerDataByName(username) {
+    const socket = getSocketByUsername(username);
+    if (socket) {
+        emitPlayerData(socket, username);
+    }
+}
+
+function addAdminLog(admin, action, target = "", details = "") {
+    const entry = {
+        timestamp: Date.now(),
+        admin: admin || "System",
+        action,
+        target,
+        details
+    };
+
+    adminLog.push(entry);
+
+    while (adminLog.length > 500) {
+        adminLog.shift();
+    }
+
+    try {
+        const line = `${new Date(entry.timestamp).toISOString()} | ${entry.admin} | ${entry.action} | ${entry.target} | ${entry.details}\n`;
+        require("fs").appendFileSync("admin-log.txt", line);
+    } catch (error) {
+        console.error("Could not write admin log:", error);
+    }
+
+    for (const sess of sessions.values()) {
+        if (!hasFullAdmin(sess)) continue;
+
+        const targetSocket = getSocketByUsername(sess.username);
+
+        if (targetSocket) {
+            targetSocket.emit("admin log updated", adminLog.slice(-100));
+        }
+    }
+}
+
+
+function setSeason(name, durationText, adminName = "System") {
+    const season = String(name || "").trim().toLowerCase();
+    const allowed = ["halloween", "christmas", "summer", "spring", "none"];
+
+    if (!allowed.includes(season)) {
+        return { ok: false, message: "Season must be halloween, christmas, summer, spring, or none." };
+    }
+
+    if (seasonTimeout) {
+        clearTimeout(seasonTimeout);
+        seasonTimeout = null;
+    }
+
+    if (season === "none") {
+        currentSeason = null;
+        seasonEndsAt = null;
+        io.emit("season changed", { season: null, endsAt: null });
+        addAdminLog(adminName, "season", "none", "Season cleared");
+        return { ok: true, message: "Season cleared." };
+    }
+
+    const ms = parseDurationToMs(String(durationText || "10m").trim());
+
+    if (!ms || ms < 60 * 1000 || ms > 60 * 60 * 1000) {
+        return { ok: false, message: "Season duration must be between 1m and 60m." };
+    }
+
+    currentSeason = season;
+    seasonEndsAt = Date.now() + ms;
+
+    io.emit("season changed", {
+        season: currentSeason,
+        endsAt: seasonEndsAt
+    });
+
+    addAdminLog(adminName, "season", season, `Ends in ${durationText}`);
+
+    seasonTimeout = setTimeout(() => {
+        currentSeason = null;
+        seasonEndsAt = null;
+        seasonTimeout = null;
+        io.emit("season changed", { season: null, endsAt: null });
+    }, ms);
+
+    return { ok: true, message: `${season} season set for ${durationText}.` };
+}
+
+
+const ACHIEVEMENTS = {
+    first_message: { name: "First Squeak", coins: 25, icon: "💬" },
+    messages_10: { name: "Talkative Cheese", coins: 50, icon: "🗣️" },
+    messages_100: { name: "Cheese Chatterbox", coins: 150, icon: "📣" },
+    messages_500: { name: "Lounge Legend", coins: 500, icon: "🏆" },
+    messages_1000: { name: "Mythic Yapper", coins: 1000, icon: "🌟" },
+    crates_1: { name: "Crate Curious", coins: 50, icon: "📦" },
+    crates_10: { name: "Crate Collector", coins: 200, icon: "📦" },
+    crates_50: { name: "Crate Goblin", coins: 800, icon: "📦" },
+    chaos_first: { name: "Chaos Starter", coins: 75, icon: "🌪️" },
+    chaos_10: { name: "Chaos Enjoyer", coins: 300, icon: "🌀" },
+    poll_winner: { name: "Democracy Cheese", coins: 100, icon: "🗳️" },
+    survived_singularicheese: { name: "Singularity Survivor", coins: 250, icon: "🕳️" },
+    night_owl: { name: "Night Owl", coins: 150, icon: "🦉" },
+    cheese_hoarder: { name: "Cheese Hoarder", coins: 500, icon: "🧀" },
+    token_collector: { name: "Token Collector", coins: 500, icon: "🪙" },
+    early_bird: { name: "???", realName: "Early Bird", coins: 150, icon: "🌅", secret: true },
+    lucky: { name: "???", realName: "Lucky First Pull", coins: 1000, icon: "🍀", secret: true }
+};
+
+function unlockAchievement(profile, id, unlocked = []) {
+    if (!ACHIEVEMENTS[id]) return;
+    if (!profile.achievements) profile.achievements = {};
+    if (profile.achievements[id]) return;
+
+    profile.achievements[id] = {
+        unlockedAt: Date.now(),
+        seen: false
+    };
+
+    const achievement = ACHIEVEMENTS[id];
+    profile.coins = safeNumber(profile.coins, 0) + safeNumber(achievement.coins, 0);
+    profile.totalCoinsEarned = safeNumber(profile.totalCoinsEarned, 0) + safeNumber(achievement.coins, 0);
+
+    unlocked.push({
+        id,
+        name: achievement.secret ? achievement.realName : achievement.name,
+        icon: achievement.icon,
+        coins: achievement.coins
+    });
+}
+
+function checkAchievements(username, context = {}) {
+    const profile = getPlayerProfile(username);
+    if (!profile.achievements) profile.achievements = {};
+
+    const unlocked = [];
+    const messages = safeNumber(profile.messagesSent, 0);
+    const crates = safeNumber(profile.cratesOpened, 0);
+    const chaos = safeNumber(profile.chaosUsed, 0);
+    const hour = new Date().getHours();
+
+    if (messages >= 1) unlockAchievement(profile, "first_message", unlocked);
+    if (messages >= 10) unlockAchievement(profile, "messages_10", unlocked);
+    if (messages >= 100) unlockAchievement(profile, "messages_100", unlocked);
+    if (messages >= 500) unlockAchievement(profile, "messages_500", unlocked);
+    if (messages >= 1000) unlockAchievement(profile, "messages_1000", unlocked);
+    if (crates >= 1) unlockAchievement(profile, "crates_1", unlocked);
+    if (crates >= 10) unlockAchievement(profile, "crates_10", unlocked);
+    if (crates >= 50) unlockAchievement(profile, "crates_50", unlocked);
+    if (chaos >= 1) unlockAchievement(profile, "chaos_first", unlocked);
+    if (chaos >= 10) unlockAchievement(profile, "chaos_10", unlocked);
+    if (hour >= 2 && hour < 4) unlockAchievement(profile, "night_owl", unlocked);
+    if (hour < 6) unlockAchievement(profile, "early_bird", unlocked);
+    if (safeNumber(profile.coins, 0) >= 10000) unlockAchievement(profile, "cheese_hoarder", unlocked);
+    if (safeNumber(profile.cheeseTokens, 0) >= 5) unlockAchievement(profile, "token_collector", unlocked);
+    if (context.pollWinner) unlockAchievement(profile, "poll_winner", unlocked);
+    if (context.survivedSingularity) unlockAchievement(profile, "survived_singularicheese", unlocked);
+    if (context.legendaryFirstCrate) unlockAchievement(profile, "lucky", unlocked);
+
+    savePlayerProfile(profile);
+
+    if (unlocked.length) {
+        const socket = getSocketByUsername(username);
+        if (socket) {
+            socket.emit("achievement unlocked", unlocked);
+            emitPlayerData(socket, username);
+        }
+    }
+
+    return unlocked;
+}
+
+
+function migrateWave2Profile(profile) {
+    if (!profile) return profile;
+
+    if (!profile.achievements) profile.achievements = {};
+    if (!Array.isArray(profile.friends)) profile.friends = [];
+    if (!Array.isArray(profile.friendRequests)) profile.friendRequests = [];
+    if (typeof profile.lastSeenAt !== "number") profile.lastSeenAt = Date.now();
+    if (typeof profile.totalCoinsEarned !== "number") profile.totalCoinsEarned = safeNumber(profile.highestCoins || profile.coins || 0);
+    if (typeof profile.messagesSent !== "number") profile.messagesSent = 0;
+    if (typeof profile.chaosUsed !== "number") profile.chaosUsed = 0;
+    if (typeof profile.dailyGiftedCoins !== "number") profile.dailyGiftedCoins = 0;
+    if (!profile.lastGiftResetDate) profile.lastGiftResetDate = safeTodayKey();
+    if (typeof profile.cheeseTokens !== "number") profile.cheeseTokens = 0;
+
+    return profile;
+}
+
+
+
+function getLeaderboard(currentUsername) {
+    const data = readPlayerDataFile();
+    const players = Object.values(data.players || {})
+        .map(migrateWave2Profile)
+        .filter(profile => !isPhillyCheese(profile.username));
+
+    const categories = {
+        totalCoinsEarned: "Total Earned",
+        chaosUsed: "Chaos Used",
+        cratesOpened: "Crates Opened",
+        messagesSent: "Messages",
+        coins: "Current Coins"
+    };
+
+    const result = {};
+
+    Object.keys(categories).forEach(key => {
+        result[key] = {
+            label: categories[key],
+            rows: players
+                .slice()
+                .sort((a, b) => safeNumber(b[key], 0) - safeNumber(a[key], 0))
+                .slice(0, 10)
+                .map((profile, index) => ({
+                    rank: index + 1,
+                    username: profile.username,
+                    value: safeNumber(profile[key], 0),
+                    isCurrentUser: String(profile.username).toLowerCase() === String(currentUsername).toLowerCase()
+                }))
+        };
+    });
+
+    return result;
+}
+
+const triviaQuestions = [
+    { q: "Which cheese is traditionally used on pizza?", a: "Mozzarella", options: ["Brie", "Mozzarella", "Feta", "Blue Cheese"] },
+    { q: "Which cheese is famous for holes?", a: "Swiss", options: ["Swiss", "Cheddar", "Parmesan", "Gouda"] },
+    { q: "Which cheese is salty and crumbly?", a: "Feta", options: ["Feta", "Brie", "Mozzarella", "Gouda"] },
+    { q: "Which cheese is often aged and grated over pasta?", a: "Parmesan", options: ["Parmesan", "Brie", "Swiss", "Feta"] }
+];
+let activeTrivia = null;
+let triviaCooldownUntil = 0;
+
+function sendFetaBotMessage(botName, text) {
+    const message = {
+        id: makeId(),
+        username: botName,
+        text,
+        room: "feta",
+        createdAt: Date.now(),
+        bot: true
+    };
+
+    roomMessages.feta.push(message);
+    if (roomMessages.feta.length > 120) roomMessages.feta.shift();
+
+    io.to("feta").emit("chat message", message);
+}
+
 function getSessionFromSocketOrPayload(socket, payload) {
-    const liveSession = sessions.get(socket.id);
-
-    if (liveSession) return liveSession;
-
     const token =
         typeof payload === "object" && payload !== null
             ? payload.token
             : null;
 
-    if (!token) return null;
+    if (token && sessions.has(token)) {
+        return sessions.get(token);
+    }
 
-    const user = database.findUserByToken(token);
-
-    if (!user) return null;
-
-    return {
-        username: user.username,
-        token,
-        room: "cheeseLounge",
-        isAdmin: isRealAdmin(user.username),
-        isTempAdmin: temporaryAdmins.has(user.username.toLowerCase())
-    };
+    return null;
 }
 
 function normalizeAdminCommandPayload(payload) {
@@ -1608,6 +1922,15 @@ function normalizeAdminCommandPayload(payload) {
     }
 
     return "";
+}
+
+
+
+function stripHtmlForServer(value, maxLength = 100) {
+    return String(value || "")
+        .replace(/[<>]/g, "")
+        .trim()
+        .slice(0, maxLength);
 }
 
 
@@ -1664,26 +1987,47 @@ function isRoomAvailable(roomId) {
 }
 
 
-function getTempServerPublicData() {
-    return tempServers.map(item => ({
-        id: item.id,
-        name: item.name,
-        icon: item.icon,
-        description: item.description,
-        filterLevel: item.filterLevel,
-        owner: item.owner,
-        expiresAt: item.expiresAt
-    }));
+function getTempServerPublicData(viewerUsername = "", viewerIsAdmin = false) {
+    return tempServers.map(item => {
+        const isOwner =
+            String(item.owner || "").toLowerCase() === String(viewerUsername || "").toLowerCase();
+
+        return {
+            id: item.id,
+            name: item.name,
+            icon: item.icon,
+            description: item.private ? "" : item.description,
+            filterLevel: item.filterLevel,
+            owner: item.owner,
+            expiresAt: item.expiresAt,
+            pinnedMessage: item.pinnedMessage || null,
+            topic: item.topic || "",
+            private: !!item.private,
+            accessCode: isOwner || viewerIsAdmin ? item.accessCode || "" : ""
+        };
+    });
 }
 
 function emitTempServers() {
-    io.emit("temp servers", getTempServerPublicData());
+    for (const connectedSocket of io.sockets.sockets.values()) {
+        const sessionForSocket = getSessionBySocketId(connectedSocket.id);
+        const viewerUsername = sessionForSocket ? sessionForSocket.username : "";
+        const viewerIsAdmin = sessionForSocket ? hasFullAdmin(sessionForSocket) : false;
+
+        connectedSocket.emit(
+            "temp servers",
+            getTempServerPublicData(viewerUsername, viewerIsAdmin)
+        );
+    }
 }
 
 function createTempServer(session, data) {
-    const name = String(data && data.name || "").trim().slice(0, 28);
-    const icon = String(data && data.icon || "🧀").trim().slice(0, 4) || "🧀";
-    const description = String(data && data.description || "").trim().slice(0, 100);
+    const name = stripHtmlForServer(data && data.name, 28);
+    const icon = stripHtmlForServer(data && data.icon || "🧀", 4) || "🧀";
+    const description = stripHtmlForServer(data && data.description, 100);
+    const isPrivate = !!(data && data.private);
+    const providedCode = String(data && data.accessCode || "").trim().slice(0, 6);
+    const accessCode = isPrivate ? (providedCode || Math.random().toString(36).slice(2, 8).toUpperCase()).slice(0, 6) : "";
     const filterLevel = String(data && data.filterLevel || "cheese").trim().slice(0, 20);
     const allowedFilters = ["cheese", "butter", "blue", "grilled"];
 
@@ -1705,7 +2049,9 @@ function createTempServer(session, data) {
         ownerKey: session.username.toLowerCase(),
         expiresAt: Date.now() + 60 * 60 * 1000,
         messages: [],
-        muted: {}
+        muted: {},
+        private: isPrivate,
+        accessCode
     };
 
     tempServers.push(tempServer);
@@ -1730,7 +2076,7 @@ function addTempServerLifetime(name, durationText) {
         return { ok: false, message: "Temp server not found." };
     }
 
-    const durationMs = parseDuration(durationText || "30m");
+    const durationMs = parseDurationToMs(String(durationText || "30m").trim());
 
     if (!durationMs) {
         return { ok: false, message: "Use a duration like 10m, 1h, or 30s." };
@@ -1756,6 +2102,21 @@ function removeTempServer(name) {
     return { ok: true, message: `${temp.name} removed.` };
 }
 
+
+function isSafeScheduledCommand(commandText) {
+    const raw = String(commandText || "").trim();
+    const lower = raw.toLowerCase();
+
+    if (lower.startsWith("+/")) return true;
+
+    return (
+        lower.startsWith(";/announcement") ||
+        lower.startsWith(";/startpoll") ||
+        lower.startsWith(";/setseason")
+    );
+}
+
+
 function executeScheduledCommand(commandText, scheduledBy = "Scheduler") {
     const fakeSocket = {
         emit(event, payload) {
@@ -1767,17 +2128,28 @@ function executeScheduledCommand(commandText, scheduledBy = "Scheduler") {
 
     const fakeSession = {
         username: scheduledBy,
-        isAdmin: true,
+        isAdmin: false,
         isTempAdmin: false,
         scheduledSystem: true
     };
 
-    if (handleSpecialChaosCommand(commandText, fakeSocket, fakeSession)) {
-        return true;
+    if (!isSafeScheduledCommand(commandText)) {
+        io.emit("system notice", "⚠️ Scheduled command blocked: unsafe admin command.");
+        return false;
     }
 
-    handleAdminCommand(fakeSocket, fakeSession, commandText);
-    return true;
+    try {
+        if (handleSpecialChaosCommand(fakeSocket, commandText, fakeSession)) {
+            return true;
+        }
+
+        handleAdminTextCommand(fakeSocket, fakeSession, commandText);
+        return true;
+    } catch (error) {
+        console.error("Scheduled command failed:", error);
+        io.emit("system notice", `⚠️ Scheduled command failed: ${String(error.message || error)}`);
+        return false;
+    }
 }
 
 
@@ -1869,6 +2241,7 @@ function giveRolledCrateToPlayer(playerName, crateId, amount = 1) {
         }
     }
     savePlayerProfile(profile);
+    checkAchievements(playerName);
     emitPlayerDataByUsername(playerName);
     return { success: true, message: `${playerName} received ${count}x ${crate.name}. Rewards: ${rewards.join(", ") || "none"}.` };
 }
@@ -2323,9 +2696,12 @@ function handleAdminTextCommand(socket, session, command) {
             : withoutPrefix.slice(colonIndex + 1).trim();
 
     if (!hasFullAdmin(session)) {
-        if (commandName === "announcement" && canRunAnnouncements(session)) {
-            // Allowed below.
-        } else {
+        const safeLimitedCommand =
+            (commandName === "announcement" && canRunAnnouncements(session)) ||
+            (commandName === "startpoll" && canRunEvents(session)) ||
+            (commandName === "setseason" && canRunEvents(session));
+
+        if (!safeLimitedCommand) {
             denyLimitedAdmin(socket);
             return;
         }
@@ -2519,6 +2895,15 @@ function handleAdminTextCommand(socket, session, command) {
         return;
     }
 
+    if (commandName === "setseason") {
+        const args = splitCommandArgs(commandBody);
+        const season = args[0];
+        const duration = args[1] || "10m";
+        const result = setSeason(season, duration, session.username);
+        socket.emit("admin reply", result.message);
+        return;
+    }
+
     if (commandName === "addserverlifetime") {
         const args = splitCommandArgs(commandBody);
         const tempServerName = args[0];
@@ -2646,12 +3031,13 @@ function handleAdminTextCommand(socket, session, command) {
 
         io.to(room).emit("room data", {
             room,
+            socketId: socket.id,
             roomInfo: rooms[room],
             messages: roomMessages[room]
         });
 
         sendSystemMessage(`🧹 Chat cleared by ${session.username}.`, room);
-        socket.emit("admin reply", `Cleared ${rooms[room].name}.`);
+        socket.emit("admin reply", `Cleared ${(getRoomInfoById(room)?.name || room)}.`);
         return;
     }
 
@@ -2691,11 +3077,133 @@ function handleAdminTextCommand(socket, session, command) {
     socket.emit("admin reply", `Unknown command: ${commandName}`);
 }
 
+
+
+function registerChaosCombo(type) {
+    const now = Date.now();
+    recentChaosEvents.push({ type, at: now });
+
+    while (recentChaosEvents.length && now - recentChaosEvents[0].at > 60000) {
+        recentChaosEvents.shift();
+    }
+
+    const in20 = recentChaosEvents.filter(item => now - item.at <= 20000).length;
+    const in30 = recentChaosEvents.filter(item => now - item.at <= 30000).length;
+    const in60 = recentChaosEvents.length;
+
+    if (in60 >= 5) {
+        io.emit("chaos combo", { text: "CHAOS OVERLOAD", count: in60 });
+        return;
+    }
+
+    if (in30 >= 3) {
+        io.emit("chaos combo", { text: "CHAOS CHAIN", count: in30 });
+        return;
+    }
+
+    if (in20 >= 2) {
+        io.emit("chaos combo", { text: "COMBO x2", count: in20 });
+    }
+}
+
+function normalizeChaosEventType(value) {
+    const clean = String(value || "")
+        .toLowerCase()
+        .replace("+/", "")
+        .replace(";/", "")
+        .replace(/\\/g, "")
+        .replace(/[^a-z0-9]/g, "");
+
+    const aliases = {
+        cheeserain: "cheeseRain",
+        cheesestorm: "cheeseStorm",
+        singularicheese: "singularicheese",
+        mouserun: "mouseRun",
+        meltui: "meltUI",
+        butterflood: "butterFlood",
+        butterbomb: "butterBomb",
+        lactosebomb: "lactoseBomb",
+        cheesequake: "cheeseQuake",
+        cheeseportal: "cheesePortal",
+        mouldtakeover: "mouldTakeover",
+        moldtakeover: "mouldTakeover",
+        cheesemoon: "cheeseMoon",
+        giantmousetrap: "giantMouseTrap",
+        cheesemeteor: "cheeseMeteor",
+        cheesenado: "cheesenado",
+        clearvisuals: "clearVisuals"
+    };
+
+    return aliases[clean] || clean;
+}
+
+
+function getChaosIncreaseForEvent(eventId) {
+    const normalized = normalizeChaosEventType(eventId);
+
+    if (normalized === "clearVisuals") return 0;
+
+    const event =
+        CHAOS_EVENTS[normalized] ||
+        Object.values(CHAOS_EVENTS).find(item => normalizeChaosEventType(item.id || item.name) === normalized);
+
+    const rarity = event && event.rarity ? event.rarity : "common";
+
+    const scale = {
+        common: 10,
+        uncommon: 15,
+        rare: 22,
+        epic: 30,
+        legendary: 45
+    };
+
+    return scale[rarity] || 10;
+}
+
+
+function prettyChaosEventName(type) {
+    const names = {
+        cheeseRain: "Cheese Rain",
+        cheeseStorm: "Cheese Storm",
+        singularicheese: "Singularicheese",
+        mouseRun: "Mouse Run",
+        meltUI: "Melt UI",
+        butterFlood: "Butter Flood",
+        butterBomb: "Butter Bomb",
+        lactoseBomb: "Lactose Bomb",
+        cheeseQuake: "Cheesequake",
+        cheesePortal: "Cheese Portal",
+        mouldTakeover: "Mould Takeover",
+        cheeseMoon: "Cheese Moon",
+        giantMouseTrap: "Giant Mouse Trap",
+        cheeseMeteor: "Cheese Meteor",
+        cheesenado: "Cheesenado",
+        clearVisuals: "Clear Visuals"
+    };
+
+    return names[type] || "Chaos Event";
+}
+
+
 function handleSpecialChaosCommand(socket, command, session) {
     const raw = String(command || "").trim();
 
 
-    const cheeseRngMatch = raw.match(/^\+\/CheeseRNG\\?$/i);
+    
+    const setSeasonMatch = raw.match(/^\+\/SetSeason:\s*([^,]+),\s*([^\\]+)\\?$/i);
+
+    if (setSeasonMatch) {
+        if (!hasFullAdmin(session)) {
+            denyLimitedAdmin(socket);
+            return true;
+        }
+
+        const result = setSeason(setSeasonMatch[1], setSeasonMatch[2], session.username);
+        socket.emit("admin reply", result.message);
+        return true;
+    }
+
+const cheeseRngMatch = raw.match(/^\+\/CheeseRNG\\?$/i);
 
     if (cheeseRngMatch) {
         if (!canRunEvents(session)) {
@@ -2782,7 +3290,7 @@ function handleSpecialChaosCommand(socket, command, session) {
 
         socket.emit(
             "admin reply",
-            `${rooms[roomId].name} filter is now ${setting}.`
+            `${(getRoomInfoById(roomId)?.name || roomId)} filter is now ${setting}.`
         );
 
         return true;
@@ -2877,6 +3385,8 @@ io.on("connection", socket => {
 
         const room = isRoomAvailable(data.room) ? data.room : "cheeseLounge";
 
+        session.socketId = socket.id;
+        session.room = room;
         socket.join(room);
 
         onlineUsers.set(socket.id, {
@@ -2895,7 +3405,7 @@ io.on("connection", socket => {
         socket.emit("room data", {
             room,
             roomInfo: getRoomInfoById(room),
-            messages: getRoomMessagesById(room) || [] || []
+            messages: getRoomMessagesById(room) || []
         });
 
         socket.emit("chaos level", chaosLevel);
@@ -2920,17 +3430,31 @@ io.on("connection", socket => {
         emitOnlineUsers();
 
         if (!rooms[room].noChat) {
-            sendSystemMessage(`${session.username} joined ${rooms[room].name}.`, room);
+            sendSystemMessage(`${session.username} joined ${(getRoomInfoById(room)?.name || room)}.`, room);
         }
     });
 
     socket.on("switch room", roomId => {
         if (!session) return;
 
+        const requestedRoomId = typeof roomId === "object" && roomId !== null ? roomId.roomId : roomId;
+        const accessCode = typeof roomId === "object" && roomId !== null ? String(roomId.accessCode || "").trim() : "";
+        roomId = requestedRoomId;
+
         if (!isRoomAvailable(roomId)) {
             socket.emit("message rejected", "That room does not exist anymore.");
-            socket.emit("temp servers", getTempServerPublicData());
+            socket.emit("temp servers", getTempServerPublicData(session.username, hasFullAdmin(session)));
+        socket.emit("season changed", { season: currentSeason, endsAt: seasonEndsAt });
             return;
+        }
+
+        const tempTarget = tempServers.find(item => item.id === roomId);
+
+        if (tempTarget && tempTarget.private && !hasFullAdmin(session) && String(tempTarget.owner || "").toLowerCase() !== String(session.username || "").toLowerCase()) {
+            if (String(tempTarget.accessCode || "").toLowerCase() !== accessCode.toLowerCase()) {
+                socket.emit("message rejected", "Wrong private server code.");
+                return;
+            }
         }
 
         socket.leave(session.room);
@@ -2956,11 +3480,20 @@ io.on("connection", socket => {
     socket.on("chat message", data => {
         if (!session) return;
 
-        const roomId = rooms[data.room] ? data.room : "cheeseLounge";
+        const roomId = isRoomAvailable(data.room) ? data.room : "cheeseLounge";
         const room = rooms[roomId];
         const text = String(data.text || "").trim();
 
         if (!text) return;
+
+        const diceMatch = text.match(/^\/d([0-9]{1,3})$/i);
+
+        if (diceMatch) {
+            const sides = Math.max(2, Math.min(100, Number(diceMatch[1])));
+            const result = Math.floor(Math.random() * sides) + 1;
+            sendSystemMessage(`🎲 ${session.username} rolled d${sides}: ${result}`, session.room);
+            return;
+        }
 
         if (text.toLowerCase().startsWith("/w ")) {
             const whisperMatch = text.match(/^\/w\s+([^\s]+)\s+"(.+)"$/i);
@@ -3052,7 +3585,7 @@ io.on("connection", socket => {
     socket.on("react message", data => {
         if (!session) return;
 
-        const roomId = rooms[data.room] ? data.room : "cheeseLounge";
+        const roomId = isRoomAvailable(data.room) ? data.room : "cheeseLounge";
         const messageId = data.messageId;
         const emoji = String(data.emoji || "").slice(0, 4);
 
@@ -3080,7 +3613,7 @@ io.on("connection", socket => {
     socket.on("typing", data => {
         if (!session) return;
 
-        const roomId = rooms[data.room] ? data.room : "cheeseLounge";
+        const roomId = isRoomAvailable(data.room) ? data.room : "cheeseLounge";
 
         socket.to(roomId).emit("typing", {
             room: roomId,
@@ -3091,7 +3624,7 @@ io.on("connection", socket => {
     socket.on("stop typing", data => {
         if (!session) return;
 
-        const roomId = rooms[data.room] ? data.room : "cheeseLounge";
+        const roomId = isRoomAvailable(data.room) ? data.room : "cheeseLounge";
 
         socket.to(roomId).emit("stop typing", {
             room: roomId
@@ -3135,9 +3668,8 @@ io.on("connection", socket => {
         }
 
         let profile = addInventoryItem(session.username, result.event.id, 1);
-
+        markEventWitnessed(session.username, result.event.id);
         profile.cratesOpened += 1;
-
         savePlayerProfile(profile);
 
         socket.emit("crate opened", {
@@ -3348,7 +3880,8 @@ io.on("connection", socket => {
             return;
         }
 
-        handleAdminCommand(socket, adminSession, command);
+        addAdminLog(adminSession.username, "command", "", command);
+        handleAdminTextCommand(socket, adminSession, command);
     });
 
     socket.on("schedule event", data => {
@@ -3433,12 +3966,13 @@ io.on("connection", socket => {
             return;
         }
 
-        socket.emit("message rejected", result.message);
+        socket.emit("system notice", result.message);
         io.emit("system notice", `🟨 ${session.username} created temp server ${result.server.icon} ${result.server.name}.`);
     });
 
     socket.on("request temp servers", () => {
-        socket.emit("temp servers", getTempServerPublicData());
+        if (!session) return;
+        socket.emit("temp servers", getTempServerPublicData(session.username, hasFullAdmin(session)));
     });
 
 
@@ -3474,17 +4008,20 @@ io.on("connection", socket => {
             return;
         }
 
-        const data = readPlayerDataFile();
-        const profile = getOrCreatePlayerProfile(data, session.username);
-        const reward = rollCrateReward(crate);
-        addInventory(profile, reward.id, 1);
-        profile.cratesOpened += 1;
-        markEventWitnessed(profile, reward.id);
-        writePlayerDataFile(data);
+        const result = rollChaosCrate(crateId);
+        const profile = getPlayerProfile(session.username);
+
+        profile.inventory[result.event.id] = safeNumber(profile.inventory[result.event.id], 0) + 1;
+        profile.index.eventsWitnessed[result.event.id] = true;
+        profile.cratesOpened = safeNumber(profile.cratesOpened, 0) + 1;
+
+        savePlayerProfile(profile);
+        checkAchievements(session.username);
 
         socket.emit("crate opened", {
             crate,
-            reward
+            reward: result.event,
+            result
         });
 
         emitPlayerData(socket, session.username);
@@ -3500,8 +4037,7 @@ io.on("connection", socket => {
             return;
         }
 
-        const choices = rollSwissChoices(session.username);
-        pendingCosmeticChoices.set(session.username.toLowerCase(), choices);
+        const choices = rollCosmeticChoice(session.username);
 
         socket.emit("cosmetic choice", {
             choices
@@ -3531,6 +4067,326 @@ io.on("connection", socket => {
         if (activeCheeseBank && !activeCheeseBank.claimed && activeCheeseBank.room === roomId) {
             socket.emit("cheese bank spawned", activeCheeseBank);
         }
+    });
+
+
+    socket.on("kick from temp server", data => {
+        const adminSession = getSessionFromSocketOrPayload(socket, data) || session;
+        if (!adminSession) return;
+
+        const serverId = data && data.serverId;
+        const targetUsername = String(data && data.targetUsername || "").trim();
+        const temp = tempServers.find(item => item.id === serverId);
+
+        if (!temp) {
+            socket.emit("message rejected", "Temp server not found.");
+            return;
+        }
+
+        if (String(temp.owner || "").toLowerCase() !== String(adminSession.username || "").toLowerCase()) {
+            socket.emit("message rejected", "Only the temp server owner can do that.");
+            return;
+        }
+
+        const target = getOnlineUserByName(targetUsername);
+
+        if (!target) {
+            socket.emit("message rejected", "That player is not online.");
+            return;
+        }
+
+        const targetSocket = io.sockets.sockets.get(target.socketId);
+
+        if (targetSocket) {
+            targetSocket.leave(temp.id);
+            targetSocket.join("cheeseLounge");
+
+            const targetSession = getSessionBySocketId(target.socketId);
+
+            if (targetSession) {
+                targetSession.room = "cheeseLounge";
+            }
+
+            targetSocket.emit("room data", {
+                room: "cheeseLounge",
+                roomInfo: getRoomInfoById("cheeseLounge"),
+                messages: getRoomMessagesById("cheeseLounge") || []
+            });
+
+            targetSocket.emit("message rejected", `You were removed from ${temp.name}.`);
+        }
+
+        emitOnlineUsers();
+        socket.emit("message rejected", `${targetUsername} was removed from ${temp.name}.`);
+    });
+
+    socket.on("set temp server topic", data => {
+        const adminSession = getSessionFromSocketOrPayload(socket, data) || session;
+        if (!adminSession) return;
+
+        const serverId = data && data.serverId;
+        const topic = String(data && data.topic || "").trim().slice(0, 80);
+        const temp = tempServers.find(item => item.id === serverId);
+
+        if (!temp) {
+            socket.emit("message rejected", "Temp server not found.");
+            return;
+        }
+
+        if (String(temp.owner || "").toLowerCase() !== String(adminSession.username || "").toLowerCase()) {
+            socket.emit("message rejected", "Only the temp server owner can do that.");
+            return;
+        }
+
+        temp.topic = topic;
+        emitTempServers();
+        io.to(temp.id).emit("system message", {
+            room: temp.id,
+            text: topic ? `📌 Topic: ${topic}` : "📌 Topic cleared."
+        });
+    });
+
+
+
+    socket.on("send friend request", data => {
+        if (!session) return;
+
+        const targetUsername = String(data && data.targetUsername || "").trim();
+
+        if (!targetUsername || targetUsername.toLowerCase() === session.username.toLowerCase()) {
+            socket.emit("message rejected", "Choose another player.");
+            return;
+        }
+
+        const sender = getPlayerProfile(session.username);
+        const target = getPlayerProfile(targetUsername);
+
+        if (sender.friends.includes(target.username)) {
+            socket.emit("message rejected", "You are already friends.");
+            return;
+        }
+
+        if (!target.friendRequests.includes(sender.username)) {
+            target.friendRequests.push(sender.username);
+            savePlayerProfile(target);
+        }
+
+        const targetSocket = getSocketByUsername(target.username);
+
+        if (targetSocket) {
+            targetSocket.emit("friend request", {
+                from: sender.username
+            });
+        }
+
+        socket.emit("message rejected", `Friend request sent to ${target.username}.`);
+    });
+
+    socket.on("accept friend", data => {
+        if (!session) return;
+
+        const fromUsername = String(data && data.from || "").trim();
+        const me = getPlayerProfile(session.username);
+        const other = getPlayerProfile(fromUsername);
+
+        const hasRequest = me.friendRequests
+            .map(name => String(name).toLowerCase())
+            .includes(String(other.username).toLowerCase());
+
+        if (!hasRequest) {
+            socket.emit("message rejected", "No friend request from that player.");
+            return;
+        }
+
+
+        if (!me.friends.includes(other.username)) me.friends.push(other.username);
+        if (!other.friends.includes(me.username)) other.friends.push(me.username);
+
+        me.friendRequests = me.friendRequests.filter(name => name.toLowerCase() !== other.username.toLowerCase());
+
+        savePlayerProfile(me);
+        savePlayerProfile(other);
+
+        emitPlayerData(socket, me.username);
+        emitPlayerDataByName(other.username);
+
+        const otherSocket = getSocketByUsername(other.username);
+
+        if (otherSocket) {
+            otherSocket.emit("message rejected", `${me.username} accepted your friend request.`);
+        }
+
+        socket.emit("message rejected", `You are now friends with ${other.username}.`);
+        emitOnlineUsers();
+    });
+
+    socket.on("decline friend", data => {
+        if (!session) return;
+
+        const fromUsername = String(data && data.from || "").trim();
+        const me = getPlayerProfile(session.username);
+
+        me.friendRequests = me.friendRequests.filter(name => name.toLowerCase() !== fromUsername.toLowerCase());
+        savePlayerProfile(me);
+
+        emitPlayerData(socket, me.username);
+        socket.emit("message rejected", "Friend request declined.");
+    });
+
+    socket.on("gift coins", data => {
+        if (!session) return;
+
+        const targetUsername = String(data && data.targetUsername || "").trim();
+        const amount = Math.floor(Number(data && data.amount));
+
+        if (!targetUsername || targetUsername.toLowerCase() === session.username.toLowerCase()) {
+            socket.emit("message rejected", "You cannot gift yourself.");
+            return;
+        }
+
+        if (!Number.isFinite(amount) || amount < 1 || amount > 500) {
+            socket.emit("message rejected", "Gift amount must be 1–500 coins.");
+            return;
+        }
+
+        const targetSocket = getSocketByUsername(targetUsername);
+
+        if (!targetSocket) {
+            socket.emit("message rejected", "That player must be online to receive a gift.");
+            return;
+        }
+
+        const sender = getPlayerProfile(session.username);
+        const target = getPlayerProfile(targetUsername);
+
+        if (sender.lastGiftResetDate !== safeTodayKey()) {
+            sender.dailyGiftedCoins = 0;
+            sender.lastGiftResetDate = safeTodayKey();
+        }
+
+        if (!isPhillyCheese(session.username) && safeNumber(sender.dailyGiftedCoins, 0) + amount > 500) {
+            socket.emit("message rejected", "Daily gift cap reached.");
+            return;
+        }
+
+        if (!isPhillyCheese(session.username) && safeNumber(sender.coins, 0) < amount) {
+            socket.emit("message rejected", "Not enough coins.");
+            return;
+        }
+
+        if (!isPhillyCheese(session.username)) {
+            sender.coins -= amount;
+            sender.dailyGiftedCoins = safeNumber(sender.dailyGiftedCoins, 0) + amount;
+            savePlayerProfile(sender);
+        }
+
+        addCoins(target.username, amount);
+
+        emitPlayerData(socket, session.username);
+        emitPlayerDataByName(target.username);
+
+        socket.emit("message rejected", `Gifted ${amount} Cheese Coins to ${target.username}.`);
+        targetSocket.emit("message rejected", `${session.username} gifted you ${amount} Cheese Coins 🎁`);
+    });
+
+    socket.on("request leaderboard", () => {
+        if (!session) return;
+
+        socket.emit("leaderboard data", getLeaderboard(session.username));
+    });
+
+
+    socket.on("request admin log", data => {
+        const adminSession = getSessionFromSocketOrPayload(socket, data) || session;
+        if (!adminSession || !hasFullAdmin(adminSession)) {
+            socket.emit("admin reply", "Full admin only.");
+            return;
+        }
+
+        socket.emit("admin log data", adminLog.slice(-100));
+    });
+
+    socket.on("request tutorial", data => {
+        if (!session) return;
+        if (session.room !== "feta") {
+            socket.emit("message rejected", "That bot only works in Feta.");
+            return;
+        }
+        const topic = String(data && data.topic || "basics").slice(0, 30);
+        const lines = [
+            `Welcome to CheeseWithFriends tutorial: ${topic}.`,
+            "Use rooms on the left, earn cheese coins, and watch for chaos.",
+            "Mozzarella is the shop. Cheddar is for temp servers. Feta is for bots."
+        ];
+        lines.forEach((line, index) => setTimeout(() => sendFetaBotMessage("Tutorial Bot", line), 1200 * index));
+    });
+
+    socket.on("roll dice", data => {
+        if (!session) return;
+        if (session.room !== "feta") {
+            socket.emit("message rejected", "That bot only works in Feta.");
+            return;
+        }
+        const sides = Math.max(2, Math.min(100, Math.floor(Number(data && data.sides) || 6)));
+        const result = Math.floor(Math.random() * sides) + 1;
+        sendFetaBotMessage("Roller Bot", `${session.username} rolled d${sides}: ${result}`);
+    });
+
+    socket.on("ask trivia", () => {
+        if (!session) return;
+        if (session.room !== "feta") {
+            socket.emit("message rejected", "That bot only works in Feta.");
+            return;
+        }
+        if (Date.now() < triviaCooldownUntil) {
+            socket.emit("message rejected", "Trivia is cooling down.");
+            return;
+        }
+        triviaCooldownUntil = Date.now() + 30000;
+        activeTrivia = triviaQuestions[Math.floor(Math.random() * triviaQuestions.length)];
+        sendFetaBotMessage("Trivia Bot", `${activeTrivia.q} Options: ${activeTrivia.options.join(" / ")}`);
+    });
+
+    socket.on("answer trivia", data => {
+        if (!session) return;
+
+        if (session.room !== "feta") {
+            socket.emit("message rejected", "That bot only works in Feta.");
+            return;
+        }
+
+        if (!activeTrivia) return;
+        const answer = String(data && data.answer || "").trim().toLowerCase();
+        if (answer === activeTrivia.a.toLowerCase()) {
+            addCoins(session.username, 25);
+            emitPlayerData(socket, session.username);
+            sendFetaBotMessage("Trivia Bot", `${session.username} got it right! +25 🧀`);
+            activeTrivia = null;
+        }
+    });
+
+    socket.on("coin flip", data => {
+        if (!session) return;
+        if (session.room !== "feta") {
+            socket.emit("message rejected", "That bot only works in Feta.");
+            return;
+        }
+        const wager = Math.max(0, Math.min(500, Math.floor(Number(data && data.wager) || 0)));
+        const win = Math.random() >= 0.5;
+        if (wager > 0) {
+            const profile = getPlayerProfile(session.username);
+            if (!isPhillyCheese(session.username) && profile.coins < wager) {
+                socket.emit("message rejected", "Not enough coins.");
+                return;
+            }
+            if (!isPhillyCheese(session.username)) {
+                profile.coins -= wager;
+                savePlayerProfile(profile);
+            }
+            if (win) addCoins(session.username, wager * 2);
+            emitPlayerData(socket, session.username);
+        }
+        sendFetaBotMessage("Coin Flip Bot", `${session.username} flipped ${win ? "HEADS" : "TAILS"}${wager ? win ? ` and won ${wager} 🧀` : ` and lost ${wager} 🧀` : ""}`);
     });
 
     socket.on("disconnect", () => {

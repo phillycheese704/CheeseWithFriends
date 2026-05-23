@@ -1,3 +1,14 @@
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
 const cheddarBrowser = document.getElementById("cheddarBrowser");
 const tempServerList = document.getElementById("tempServerList");
 const socket = io();
@@ -12,12 +23,20 @@ let replyingTo = null;
 let adminCollapsed = false;
 let latestScheduledEvents = [];
 let latestPlayerData = null;
+let latestLeaderboard = null;
+let currentLeaderboardTab = 'totalCoinsEarned';
 let selectedChaosAbility = "";
 let currentIndexTab = "events";
 let latestPoll = null;
 let latestPollVotes = {};
 let isOpeningCrate = false;
 let latestTempServers = [];
+let scrollLockCount = 0;
+let activeChaosCount = 0;
+let lastKnownCoins = null;
+const roomTypingUsers = {};
+
+const unreadCounts = {};
 
 const roomMessageCache = {
     cheeseLounge: [],
@@ -25,8 +44,13 @@ const roomMessageCache = {
     blueCheese: [],
     grilledCheese: [],
     cheddar: [],
+    feta: [],
     mozzarella: []
 };
+
+Object.keys(roomMessageCache).forEach(room => {
+    unreadCounts[room] = 0;
+});
 
 const authScreen = document.getElementById("authScreen");
 const app = document.getElementById("app");
@@ -36,6 +60,7 @@ const passwordInput = document.getElementById("password");
 const authMessage = document.getElementById("authMessage");
 
 const messages = document.getElementById("messages");
+const scrollLockBtn = document.getElementById("scrollLockBtn");
 const messageInput = document.getElementById("messageInput");
 const charCounter = document.getElementById("charCounter");
 const typingIndicator = document.getElementById("typingIndicator");
@@ -68,6 +93,7 @@ const schedulePopup = document.getElementById("schedulePopup");
 const pollBox = document.getElementById("pollBox");
 
 const mozzarellaShop = document.getElementById("mozzarellaShop");
+const fetaBotMenu = document.getElementById("fetaBotMenu");
 const shopCoins = document.getElementById("shopCoins");
 const chaosCrateList = document.getElementById("chaosCrateList");
 const swissCrateBox = document.getElementById("swissCrateBox");
@@ -194,6 +220,71 @@ async function login() {
    ROOM / CHAT
 ========================= */
 
+
+function renderUnreadBadges() {
+    document.querySelectorAll(".room-button").forEach(button => {
+        const roomId = button.id ? button.id.replace("room-", "") : "";
+        let badge = button.querySelector(".unread-badge");
+
+        if (!badge) {
+            badge = document.createElement("span");
+            badge.className = "unread-badge hidden";
+            badge.dataset.unreadFor = roomId;
+            button.appendChild(badge);
+        }
+
+        const count = unreadCounts[roomId] || 0;
+
+        if (count <= 0) {
+            badge.classList.add("hidden");
+            badge.textContent = "0";
+            return;
+        }
+
+        badge.classList.remove("hidden");
+        badge.textContent = count > 99 ? "99+" : String(count);
+    });
+}
+
+
+
+function getTypingSet(room) {
+    if (!roomTypingUsers[room]) {
+        roomTypingUsers[room] = new Set();
+    }
+
+    return roomTypingUsers[room];
+}
+
+function updateTypingIndicatorForRoom(room) {
+    if (room !== currentRoom || !typingIndicator) return;
+
+    const names = [...getTypingSet(room)].filter(name => name && name !== currentUser);
+
+    if (names.length === 0) {
+        typingIndicator.textContent = "";
+        return;
+    }
+
+    if (names.length === 1) {
+        typingIndicator.textContent = `${names[0]} is typing...`;
+        return;
+    }
+
+    if (names.length === 2) {
+        typingIndicator.textContent = `${names[0]} and ${names[1]} are typing...`;
+        return;
+    }
+
+    if (names.length === 3) {
+        typingIndicator.textContent = `${names[0]}, ${names[1]} and ${names[2]} are typing...`;
+        return;
+    }
+
+    typingIndicator.textContent = "Several people are typing...";
+}
+
+
 function goBackToCheeseLounge() {
     switchRoom("cheeseLounge");
 }
@@ -228,6 +319,10 @@ function switchRoom(roomId) {
     if (roomId === currentRoom) return;
 
     currentRoom = roomId;
+    unreadCounts[roomId] = 0;
+    renderUnreadBadges();
+    scrollLockCount = 0;
+    updateScrollLockButton();
 
     typingIndicator.textContent = "";
     replyingTo = null;
@@ -252,6 +347,10 @@ function switchRoom(roomId) {
     }
 
     socket.emit("request active cheese bank", roomId);
+
+    if (window.innerWidth <= 768) {
+        document.body.classList.remove("sidebar-open");
+    }
     renderSchedulePopup();
 }
 
@@ -268,6 +367,7 @@ function updateRoomUI(roomId, roomInfo) {
 
     const room = roomInfo || {};
     const isMozzarella = roomId === "mozzarella";
+    const isFeta = roomId === "feta";
 
     document.body.dataset.theme = room.theme || "cheese";
 
@@ -314,6 +414,10 @@ function updateRoomUI(roomId, roomInfo) {
 
     if (cheddarBrowser) {
         cheddarBrowser.classList.toggle("hidden", roomId !== "cheddar");
+    }
+
+    if (fetaBotMenu) {
+        fetaBotMenu.classList.toggle("hidden", !isFeta);
     }
 
     if (messages) {
@@ -431,7 +535,11 @@ function addMessage(data) {
         data
     });
 
-    if (room !== currentRoom) return;
+    if (room !== currentRoom) {
+        unreadCounts[room] = (unreadCounts[room] || 0) + 1;
+        renderUnreadBadges();
+        return;
+    }
 
     removeEmptyState();
     renderMessageNode(data, true);
@@ -637,7 +745,31 @@ function safeScrollToBottom() {
 
     if (distanceFromBottom < 140) {
         messages.scrollTop = messages.scrollHeight;
+        scrollLockCount = 0;
+        updateScrollLockButton();
+    } else {
+        scrollLockCount += 1;
+        updateScrollLockButton();
     }
+}
+
+function updateScrollLockButton() {
+    if (!scrollLockBtn) return;
+
+    if (scrollLockCount <= 0) {
+        scrollLockBtn.classList.add("hidden");
+        scrollLockBtn.textContent = "↓ new messages";
+        return;
+    }
+
+    scrollLockBtn.classList.remove("hidden");
+    scrollLockBtn.textContent = `↓ ${scrollLockCount} new message${scrollLockCount === 1 ? "" : "s"}`;
+}
+
+function scrollToBottomFromButton() {
+    scrollToBottom();
+    scrollLockCount = 0;
+    updateScrollLockButton();
 }
 
 function cancelReply() {
@@ -649,8 +781,36 @@ function cancelReply() {
    PLAYER DATA / SHOP / INVENTORY
 ========================= */
 
+
+function animateCoinGain(amount) {
+    if (!coinPill || amount <= 0) return;
+
+    coinPill.classList.remove("coin-pill-pop");
+    void coinPill.offsetWidth;
+    coinPill.classList.add("coin-pill-pop");
+
+    const float = document.createElement("span");
+    float.className = "coin-float";
+    float.textContent = `+${amount.toLocaleString()} 🧀`;
+
+    coinPill.appendChild(float);
+
+    setTimeout(() => {
+        float.remove();
+        coinPill.classList.remove("coin-pill-pop");
+    }, 1100);
+}
+
+
 function updatePlayerData(data) {
+    const previousCoins = lastKnownCoins;
     latestPlayerData = data;
+
+    if (previousCoins !== null && data.coins > previousCoins) {
+        animateCoinGain(data.coins - previousCoins);
+    }
+
+    lastKnownCoins = data.coins;
 
     if (coinPill) {
         coinPill.textContent = `🧀 ${data.coins}`;
@@ -666,7 +826,7 @@ function updatePlayerData(data) {
 
     if (miniProfileStats) {
         miniProfileStats.textContent =
-            `${data.coins} coins • ${data.cheeseTokens || 0} tokens • ${data.bookCompletion}% book`;
+            `${data.coins} coins • ${data.cheeseTokens || 0} tokens • ${data.friendCount || 0} friends • ${data.bookCompletion}% book`;
     }
 
     renderShop();
@@ -1539,8 +1699,16 @@ function renderSchedulePopup() {
 
         const scheduledBy = event.scheduledBy || "Unknown";
 
-        row.textContent =
-            `${cleanCommandName(event.commandText)} in ${secondsLeft}s by ${scheduledBy}`;
+        const main = document.createElement("span");
+        main.className = "schedule-main-line";
+        main.textContent = `${cleanCommandName(event.commandText)} in ${secondsLeft}s`;
+
+        const by = document.createElement("small");
+        by.className = "schedule-by-line";
+        by.textContent = `by ${scheduledBy}`;
+
+        row.appendChild(main);
+        row.appendChild(by);
 
         schedulePopup.appendChild(row);
     });
@@ -1642,6 +1810,7 @@ function buildAdminCommand() {
     if (command === "startpoll") commandInput.value = `;/StartPoll: ${amount || "30"}, ${text || "Which chaos should happen?"}, ${events || "Cheese Rain|Cheesenado|Cheese Moon"}`;
     if (command === "addserverlifetime") commandInput.value = `;/AddServerLifetime: ${text || "<TempServer>"}, ${amount || "30m"}`;
     if (command === "removeserver") commandInput.value = `;/RemoveServer: ${text || "<TempServer>"}`;
+    if (command === "setseason") commandInput.value = `;/SetSeason: ${text || "halloween"}, ${amount || "10m"}`;
 }
 
 function renderScheduledEvents(events) {
@@ -1765,7 +1934,7 @@ function makeImpactText(text) {
 }
 
 function cheeseRain(count = 70) {
-    clearEffects();
+    /* stacked chaos: no global clear */
     makeImpactText("CHEESE RAIN");
 
     for (let i = 0; i < count; i++) {
@@ -1786,7 +1955,7 @@ function cheeseRain(count = 70) {
 }
 
 function cheeseStorm() {
-    clearEffects();
+    /* stacked chaos: no global clear */
     makeImpactText("CHEESE STORM");
 
     const clouds = document.createElement("div");
@@ -1810,7 +1979,7 @@ function cheeseStorm() {
 }
 
 function mouseRun() {
-    clearEffects();
+    /* stacked chaos: no global clear */
     makeImpactText("MOUSE RUN");
 
     for (let i = 0; i < 34; i++) {
@@ -1833,8 +2002,41 @@ function mouseRun() {
     }
 }
 
+
+function lactoseBomb() {
+    /* stacked chaos: no global clear */
+    makeImpactText("LACTOSE BOMB");
+
+    const flash = document.createElement("div");
+    flash.className = "lactose-bomb-flash";
+    effectLayer.appendChild(flash);
+
+    const blast = document.createElement("div");
+    blast.className = "lactose-bomb-blast";
+    blast.textContent = "🥛💥";
+    effectLayer.appendChild(blast);
+
+    for (let i = 0; i < 70; i++) {
+        const drop = document.createElement("div");
+        drop.className = "lactose-drop";
+        drop.textContent = Math.random() > 0.45 ? "🥛" : "💥";
+        drop.style.left = "50vw";
+        drop.style.top = "45vh";
+        drop.style.setProperty("--lx", `${-420 + Math.random() * 840}px`);
+        drop.style.setProperty("--ly", `${-260 + Math.random() * 520}px`);
+        drop.style.animationDelay = `${Math.random() * 0.4}s`;
+        effectLayer.appendChild(drop);
+    }
+
+    setTimeout(() => {
+        effectLayer.innerHTML = "";
+        hardResetVisuals();
+    }, 5200);
+}
+
+
 function butterBomb() {
-    clearEffects();
+    /* stacked chaos: no global clear */
     makeImpactText("BUTTER BOMB");
 
     const x = 12 + Math.random() * 74;
@@ -1866,7 +2068,7 @@ function butterBomb() {
 }
 
 function butterFlood() {
-    clearEffects();
+    /* stacked chaos: no global clear */
     makeImpactText("BUTTER FLOOD");
 
     const wave = document.createElement("div");
@@ -1893,7 +2095,7 @@ function butterFlood() {
 }
 
 function meltUI() {
-    clearEffects();
+    /* stacked chaos: no global clear */
     makeImpactText("MELT UI");
 
     const heat = document.createElement("div");
@@ -1920,7 +2122,7 @@ function meltUI() {
 }
 
 function cheeseQuake() {
-    clearEffects();
+    /* stacked chaos: no global clear */
     makeImpactText("CHEESEQUAKE");
 
     const quakeOverlay = document.createElement("div");
@@ -1946,7 +2148,7 @@ function cheeseQuake() {
 }
 
 function cheesePortal() {
-    clearEffects();
+    /* stacked chaos: no global clear */
     makeImpactText("CHEESE PORTAL");
 
     const portal = document.createElement("div");
@@ -1969,7 +2171,7 @@ function cheesePortal() {
 }
 
 function mouldTakeover() {
-    clearEffects();
+    /* stacked chaos: no global clear */
     makeImpactText("MOULD TAKEOVER");
 
     const mould = document.createElement("div");
@@ -1994,7 +2196,7 @@ function mouldTakeover() {
 }
 
 function cheeseMoon() {
-    clearEffects();
+    /* stacked chaos: no global clear */
     makeImpactText("THE CHEESE MOON RISES");
 
     const moon = document.createElement("div");
@@ -2023,7 +2225,7 @@ function cheeseMoon() {
 }
 
 function giantMouseTrap() {
-    clearEffects();
+    /* stacked chaos: no global clear */
     makeImpactText("SNAP");
 
     const trap = document.createElement("div");
@@ -2042,7 +2244,7 @@ function giantMouseTrap() {
 }
 
 function cheeseMeteor() {
-    clearEffects();
+    /* stacked chaos: no global clear */
     makeImpactText("CHEESE METEOR");
 
     const meteor = document.createElement("div");
@@ -2074,7 +2276,7 @@ function cheeseMeteor() {
 }
 
 function cheesenado() {
-    clearEffects();
+    /* stacked chaos: no global clear */
     makeImpactText("CHEESENADO");
 
     const tornado = document.createElement("div");
@@ -2103,7 +2305,7 @@ function cheesenado() {
 }
 
 function singularicheese() {
-    clearEffects();
+    /* stacked chaos: no global clear */
     makeImpactText("SINGULARICHEESE");
 
     const targets = [
@@ -2193,10 +2395,11 @@ function runChaosEvent(type) {
         .replace(/-/g, "")
         .replace(/_/g, "");
 
-    if (cleanType === "clearvisuals") clearEffects();
+    if (cleanType === "clearvisuals") /* stacked chaos: no global clear */
     if (cleanType === "cheeserain") cheeseRain();
     if (cleanType === "cheesestorm") cheeseStorm();
     if (cleanType === "mouserun") mouseRun();
+    if (cleanType === "lactosebomb") lactoseBomb();
     if (cleanType === "butterbomb") butterBomb();
     if (cleanType === "singularicheese") singularicheese();
     if (cleanType === "meltui") meltUI();
@@ -2266,6 +2469,8 @@ socket.on("room data", data => {
     currentRoomInfo = data.roomInfo;
 
     updateRoomUI(data.room, data.roomInfo);
+    unreadCounts[data.room] = 0;
+    renderUnreadBadges();
     renderRoomMessages(data.messages);
 });
 
@@ -2344,6 +2549,13 @@ socket.on("message rejected", message => {
 
 socket.on("coin notice", message => {
     showChatNotice(message);
+
+    const match = String(message || "").match(/\+?([0-9][0-9,]*)\s*Cheese Coins|\+?([0-9][0-9,]*)\s*🧀/i);
+    const amount = Number(String((match && (match[1] || match[2])) || "").replace(/,/g, ""));
+
+    if (amount > 0) {
+        animateCoinGain(amount);
+    }
 });
 
 socket.on("shop reply", message => {
@@ -2373,15 +2585,15 @@ socket.on("profile data", data => {
 });
 
 socket.on("typing", data => {
-    if (data.room !== currentRoom) return;
-
-    typingIndicator.textContent = `${data.username} is typing...`;
+    const set = getTypingSet(data.room);
+    set.add(data.username);
+    updateTypingIndicatorForRoom(data.room);
 });
 
 socket.on("stop typing", data => {
-    if (data.room !== currentRoom) return;
-
-    typingIndicator.textContent = "";
+    const set = getTypingSet(data.room);
+    set.delete(data.username);
+    updateTypingIndicatorForRoom(data.room);
 });
 
 socket.on("admin warning", message => {
@@ -2934,6 +3146,21 @@ const upgradedChaosEffects = {
 };
 
 function runUpgradedChaosEffect(data) {
+    const rawChaosType = data && data.type ? data.type : data;
+    const chaosName = data && data.name ? data.name : "Chaos Event";
+    const normalizedChaosType = String(rawChaosType || "")
+        .toLowerCase()
+        .replace(/\s+/g, "")
+        .replace(/-/g, "")
+        .replace(/_/g, "");
+
+    showChatNotice(`🌪️ ${chaosName}`);
+
+    if (normalizedChaosType === "lactosebomb") {
+        lactoseBomb();
+        return;
+    }
+
     const event = data.event || data;
     const id = String(event.id || event.command || event.name || "").toLowerCase().replace(/[^a-z]/g, "");
     const fn = upgradedChaosEffects[id];
@@ -2947,7 +3174,6 @@ function runUpgradedChaosEffect(data) {
 }
 
 
-socket.on("chaos event", runUpgradedChaosEffect);
 
 
 socket.on("server shutdown", data => {
@@ -3089,6 +3315,36 @@ function quickAdmin(command) {
    CHEDDAR TEMP SERVERS
 ========================= */
 
+
+function isCurrentTempOwner(server) {
+    return server && currentUser && String(server.owner || "").toLowerCase() === String(currentUser).toLowerCase();
+}
+
+function setTempServerTopic(serverId) {
+    const topic = prompt("Set temp server topic, max 80 chars:");
+
+    if (topic === null) return;
+
+    socket.emit("set temp server topic", {
+        token: loginToken,
+        serverId,
+        topic
+    });
+}
+
+function kickFromTempServer(serverId) {
+    const targetUsername = prompt("Who should be removed from this temp server?");
+
+    if (!targetUsername) return;
+
+    socket.emit("kick from temp server", {
+        token: loginToken,
+        serverId,
+        targetUsername
+    });
+}
+
+
 function createTempServer() {
     const nameInput = document.getElementById("tempServerNameInput");
     const iconInput = document.getElementById("tempServerIconInput");
@@ -3099,23 +3355,39 @@ function createTempServer() {
     const icon = iconInput ? iconInput.value.trim() : "🧀";
     const filterLevel = filterInput ? filterInput.value : "cheese";
     const description = descInput ? descInput.value.trim() : "";
+    const privateInput = document.getElementById("tempServerPrivateInput");
+    const codeInput = document.getElementById("tempServerCodeInput");
+    const isPrivate = privateInput ? privateInput.checked : false;
+    const accessCode = codeInput ? codeInput.value.trim() : "";
 
     if (!name) {
         showChatNotice("Temp server needs a name.");
         return;
     }
 
-    socket.emit("create temp server", { name, icon, filterLevel, description });
+    socket.emit("create temp server", { name, icon, filterLevel, description, private: isPrivate, accessCode });
 
     if (nameInput) nameInput.value = "";
     if (iconInput) iconInput.value = "";
     if (descInput) descInput.value = "";
+    if (codeInput) codeInput.value = "";
+    if (privateInput) privateInput.checked = false;
 }
 
 function joinTempServer(serverId) {
     if (!serverId) return;
 
-    switchRoom(serverId);
+    const temp = latestTempServers.find(item => item.id === serverId);
+    let accessCode = "";
+
+    if (temp && temp.private && !isCurrentTempOwner(temp)) {
+        accessCode = prompt("Private server code:") || "";
+    }
+
+    socket.emit("switch room", {
+        roomId: serverId,
+        accessCode
+    });
 }
 
 function formatTimeLeft(ms) {
@@ -3142,20 +3414,29 @@ function renderTempServers(servers) {
     tempServerList.innerHTML = "";
 
     servers.forEach(server => {
+        const safeName = escapeHtml(server.name);
+        const safeOwner = escapeHtml(server.owner || "unknown");
+        const safeIcon = escapeHtml(server.icon || "🧀");
+        const safeDescription = escapeHtml(server.description || "No description. mysterious cheese energy.");
+        const safeTopic = escapeHtml(server.topic || "");
+        const safeFilter = escapeHtml(server.filterLevel || "cheese");
+        const safeAccessCode = escapeHtml(server.accessCode || "");
         const card = document.createElement("div");
-        card.className = `temp-server-card filter-${server.filterLevel || "cheese"}`;
+        card.className = `temp-server-card filter-${safeFilter}`;
 
         card.innerHTML = `
             <div class="temp-server-top">
-                <span>${server.icon || "🧀"}</span>
+                <span>${safeIcon}</span>
                 <div>
-                    <h3>${server.name}</h3>
-                    <small>by ${server.owner || "unknown"}</small>
+                    <h3>${safeName}</h3>
+                    <small>by ${safeOwner}</small>
                 </div>
             </div>
-            <p>${server.description || "No description. mysterious cheese energy."}</p>
+            <p>${server.private ? "🔒 Private" : safeDescription}</p>
+            ${server.private && isCurrentTempOwner(server) ? `<div class="temp-topic">🔑 Code: ${safeAccessCode}</div>` : ""}
+            ${server.topic ? `<div class="temp-topic">📌 ${safeTopic}</div>` : ""}
             <div class="temp-server-meta">
-                <strong>Filter: ${server.filterLevel || "cheese"}</strong>
+                <strong>Filter: ${safeFilter}</strong>
                 <strong data-expires="${server.expiresAt}">${formatTimeLeft(server.expiresAt - Date.now())}</strong>
             </div>
             <button onclick="joinTempServer(\`${server.id}\`)">Join</button>
@@ -3176,3 +3457,275 @@ setInterval(() => {
         element.textContent = formatTimeLeft(expires - Date.now());
     });
 }, 1000);
+
+socket.on("chaos event", data => {
+    activeChaosCount += 1;
+    updateActiveChaosCounter();
+    runUpgradedChaosEffect(data);
+    setTimeout(() => {
+        activeChaosCount = Math.max(0, activeChaosCount - 1);
+        updateActiveChaosCounter();
+    }, 6500);
+});
+
+function updateActiveChaosCounter() {
+    let badge = document.getElementById("activeChaosCounter");
+    const chaosText = document.getElementById("chaosText");
+
+    if (!chaosText) return;
+
+    if (!badge) {
+        badge = document.createElement("span");
+        badge.id = "activeChaosCounter";
+        badge.className = "active-chaos-counter";
+        chaosText.parentElement.appendChild(badge);
+    }
+
+    badge.textContent = activeChaosCount > 0 ? `🌪️ x${activeChaosCount}` : "";
+}
+
+function toggleMobileSidebar() {
+    document.body.classList.toggle("sidebar-open");
+}
+
+document.addEventListener("click", event => {
+    if (window.innerWidth > 768) return;
+
+    const sidebar = document.querySelector(".rooms-sidebar");
+    const toggle = document.getElementById("sidebarToggle");
+
+    if (!document.body.classList.contains("sidebar-open")) return;
+    if (sidebar && sidebar.contains(event.target)) return;
+    if (toggle && toggle.contains(event.target)) return;
+
+    document.body.classList.remove("sidebar-open");
+});
+
+
+
+/* =========================
+   WAVE 2: ACHIEVEMENTS / SEASONS / ADMIN LOG
+========================= */
+
+let currentSeasonState = null;
+
+socket.on("season changed", data => {
+    currentSeasonState = data || { season: null, endsAt: null };
+    document.body.dataset.season = currentSeasonState.season || "";
+
+    if (currentSeasonState.season) {
+        showChatNotice(`🎉 ${currentSeasonState.season} season is active!`);
+    } else {
+        showChatNotice("Season cleared.");
+    }
+
+    updateSeasonCountdown();
+});
+
+function updateSeasonCountdown() {
+    const chaosText = document.getElementById("chaosText");
+    if (!chaosText) return;
+
+    let seasonBadge = document.getElementById("seasonCountdown");
+
+    if (!currentSeasonState || !currentSeasonState.season) {
+        if (seasonBadge) seasonBadge.remove();
+        return;
+    }
+
+    if (!seasonBadge) {
+        seasonBadge = document.createElement("span");
+        seasonBadge.id = "seasonCountdown";
+        seasonBadge.className = "season-countdown";
+        chaosText.parentElement.appendChild(seasonBadge);
+    }
+
+    const seconds = Math.max(0, Math.ceil((currentSeasonState.endsAt - Date.now()) / 1000));
+    seasonBadge.textContent = `🎨 ${currentSeasonState.season}: ${seconds}s`;
+}
+
+setInterval(updateSeasonCountdown, 1000);
+
+socket.on("achievement unlocked", achievements => {
+    (achievements || []).forEach(achievement => {
+        showChatNotice(`${achievement.icon || "🏆"} Achievement unlocked: ${achievement.name} +${achievement.coins} 🧀`);
+    });
+});
+
+function requestAdminLog() {
+    socket.emit("request admin log", {
+        token: loginToken
+    });
+}
+
+socket.on("admin log data", entries => {
+    const table = document.getElementById("adminLogTable");
+    if (!table) return;
+
+    table.innerHTML = (entries || []).slice().reverse().map(entry => {
+        const actionClass =
+            /ban|mute/i.test(entry.action) ? "danger" :
+            /coin|token/i.test(entry.action) ? "success" :
+            /chaos/i.test(entry.action) ? "chaos" :
+            /season/i.test(entry.action) ? "season" :
+            "";
+
+        return `
+            <div class="admin-log-row ${actionClass}">
+                <span>${new Date(entry.timestamp).toLocaleTimeString()}</span>
+                <strong>${entry.admin}</strong>
+                <span>${entry.action}</span>
+                <span>${entry.target || "-"}</span>
+                <small>${entry.details || ""}</small>
+            </div>
+        `;
+    }).join("");
+});
+
+
+
+function renderAchievementsIndex() {
+    const box = document.getElementById("indexContent");
+    if (!box || !latestPlayerData) return;
+
+    const achievements = latestPlayerData.achievements || {};
+    const entries = Object.keys(achievements);
+
+    if (!entries.length) {
+        box.innerHTML = `<div class="empty-state">No achievements yet. Go do something cheesy.</div>`;
+        return;
+    }
+
+    box.innerHTML = entries.map(id => `
+        <div class="index-item">
+            <strong>🏆 ${id.replaceAll("_", " ")}</strong>
+            <small>Unlocked ${new Date(achievements[id].unlockedAt).toLocaleString()}</small>
+        </div>
+    `).join("");
+}
+
+
+
+/* ==================
+
+MERGED WAVE 1: FRIENDS, GIFTS, LEADERBOARD
+========================= */
+
+function sendFriendRequest(username) {
+    socket.emit("send friend request", {
+        targetUsername: username
+    });
+}
+
+function giftCoinsTo(username) {
+    const amount = Number(prompt(`Gift how many coins to ${username}? 1-500`));
+
+    if (!Number.isFinite(amount)) return;
+
+    socket.emit("gift coins", {
+        targetUsername: username,
+        amount
+    });
+}
+
+socket.on("friend request", data => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "friend-request-toast";
+    wrapper.innerHTML = `
+        <strong>🧀 Friend request from ${data.from}</strong>
+        <div>
+            <button>Accept</button>
+            <button>Decline</button>
+        </div>
+    `;
+
+    const [accept, decline] = wrapper.querySelectorAll("button");
+
+    accept.onclick = () => {
+        socket.emit("accept friend", { from: data.from });
+        wrapper.remove();
+    };
+
+    decline.onclick = () => {
+        socket.emit("decline friend", { from: data.from });
+        wrapper.remove();
+    };
+
+    document.body.appendChild(wrapper);
+    setTimeout(() => wrapper.remove(), 15000);
+});
+
+function openLeaderboard() {
+    const modal = document.getElementById("leaderboardModal");
+
+    if (modal) {
+        modal.classList.remove("hidden");
+    }
+
+    socket.emit("request leaderboard");
+}
+
+function closeLeaderboard() {
+    const modal = document.getElementById("leaderboardModal");
+
+    if (modal) {
+        modal.classList.add("hidden");
+    }
+}
+
+function switchLeaderboardTab(tab) {
+    currentLeaderboardTab = tab;
+    renderLeaderboard();
+}
+
+socket.on("leaderboard data", data => {
+    latestLeaderboard = data;
+    renderLeaderboard();
+});
+
+function renderLeaderboard() {
+    const box = document.getElementById("leaderboardContent");
+
+    if (!box || !latestLeaderboard) return;
+
+    const category = latestLeaderboard[currentLeaderboardTab];
+
+    if (!category) {
+        box.innerHTML = "<p>No leaderboard data yet.</p>";
+        return;
+    }
+
+    box.innerHTML = `
+        <h3>${category.label}</h3>
+        <div class="leaderboard-table">
+            ${category.rows.map(row => `
+                <div class="leaderboard-row ${row.isCurrentUser ? "current-user" : ""}">
+                    <span>#${row.rank}</span>
+                    <strong>${row.username}</strong>
+                    <span>${Number(row.value || 0).toLocaleString()}</span>
+                </div>
+            `).join("")}
+        </div>
+    `;
+}
+
+/* =========================
+   WAVE 3: PRIVATE TEMP SERVERS / FETA BOTS / CHAOS STACKING
+========================= */
+
+function rollDicePrompt() {
+    const sides = Number(prompt("Dice sides? 2-100", "20"));
+    if (!Number.isFinite(sides)) return;
+    socket.emit("roll dice", { sides });
+}
+
+function coinFlipPrompt() {
+    const wager = Number(prompt("Optional wager? 0-500", "0"));
+    if (!Number.isFinite(wager)) return;
+    socket.emit("coin flip", { wager });
+}
+
+socket.on("chaos combo", data => {
+    showChatNotice(`🌪️ ${data.text}`);
+});
+

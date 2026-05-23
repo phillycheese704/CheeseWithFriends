@@ -15,6 +15,10 @@
 
 <body data-theme="cheese">
 
+    <button id="sidebarToggle" class="sidebar-toggle" onclick="toggleMobileSidebar()">
+        ☰
+    </button>
+
     <div class="background-cheese">
         <span>🧀</span>
         <span>🫕</span>
@@ -108,6 +112,7 @@
                 id="room-cheeseLounge"
                 onclick="switchRoom('cheeseLounge')"
             >
+                <span class="unread-badge hidden" data-unread-for="cheeseLounge">0</span>
                 <span class="room-icon">🧀</span>
                 <span>
                     <strong>Cheese Lounge</strong>
@@ -119,6 +124,7 @@
                 id="room-butter"
                 onclick="switchRoom('butter')"
             >
+                <span class="unread-badge hidden" data-unread-for="butter">0</span>
                 <span class="room-icon">🧈</span>
                 <span>
                     <strong>Butter</strong>
@@ -130,6 +136,7 @@
                 id="room-blueCheese"
                 onclick="switchRoom('blueCheese')"
             >
+                <span class="unread-badge hidden" data-unread-for="blueCheese">0</span>
                 <span class="room-icon blue">🧀</span>
                 <span>
                     <strong>Blue Cheese</strong>
@@ -142,6 +149,7 @@
                 id="room-grilledCheese"
                 onclick="switchRoom('grilledCheese')"
             >
+                <span class="unread-badge hidden" data-unread-for="grilledCheese">0</span>
                 <span class="room-icon">🔥</span>
                 <span>
                     <strong>Grilled Cheese</strong>
@@ -153,6 +161,7 @@
                 id="room-cheddar"
                 onclick="switchRoom('cheddar')"
             >
+                <span class="unread-badge hidden" data-unread-for="cheddar">0</span>
                 <span class="room-icon">🟨</span>
                 <span>
                     <strong>Cheddar</strong>
@@ -161,9 +170,22 @@
 
             <button
                 class="room-button"
+                id="room-feta"
+                onclick="switchRoom('feta')"
+            >
+                <span class="room-icon">🫙</span>
+                <span>
+                    <strong>Feta</strong>
+                </span>
+                <span class="unread-badge hidden" data-unread-for="feta">0</span>
+            </button>
+
+            <button
+                class="room-button"
                 id="room-mozzarella"
                 onclick="switchRoom('mozzarella')"
             >
+                <span class="unread-badge hidden" data-unread-for="mozzarella">0</span>
                 <span class="room-icon">⚪</span>
                 <span>
                     <strong>Mozzarella</strong>
@@ -333,6 +355,8 @@
                             <option value="grilled">Grilled Cheese filter</option>
                         </select>
                         <input id="tempServerDescInput" maxlength="100" placeholder="Optional description">
+                        <label class="temp-private-toggle"><input id="tempServerPrivateInput" type="checkbox"> Private</label>
+                        <input id="tempServerCodeInput" maxlength="6" placeholder="Optional code">
                     </div>
 
                     <button onclick="createTempServer()">Create Server</button>
@@ -343,6 +367,10 @@
                 </div>
             </section>
 
+            <button id="scrollLockBtn" class="scroll-lock-btn hidden" onclick="scrollToBottomFromButton()">
+                ↓ new messages
+            </button>
+
             <div id="messages" class="messages">
 
                 <div class="empty-state">
@@ -350,6 +378,17 @@
                 </div>
 
             </div>
+
+            <section id="fetaBotMenu" class="feta-bot-menu hidden">
+                <div class="feta-bot-tabs">
+                    <button onclick="socket.emit('request tutorial', { topic: 'basics' })">Tutorial Bot</button>
+                    <button onclick="rollDicePrompt()">Roller Bot</button>
+                    <button onclick="socket.emit('ask trivia')">Trivia Bot</button>
+                    <button onclick="coinFlipPrompt()">Coin Flip Bot</button>
+                    <button disabled>🔮 Oracle Bot</button>
+                    <button disabled>🎵 Vibe Bot</button>
+                </div>
+            </section>
 
             <div id="replyPreview" class="reply-preview hidden">
                 <span id="replyPreviewText"></span>
@@ -510,6 +549,7 @@
                 <h3>👤 Your Profile</h3>
                 <p id="miniProfileStats">Loading...</p>
                 <button onclick="openOwnProfile()">Open Profile</button>
+                <button onclick="openLeaderboard()">Leaderboard 🏆</button>
             </div>
 
             <div class="sidebar-arcade-card">
@@ -575,6 +615,21 @@
 
     </section>
 
+    <section id="leaderboardModal" class="modal hidden">
+        <div class="modal-card leaderboard-card">
+            <button class="modal-close" onclick="closeLeaderboard()">×</button>
+            <h2>🏆 Leaderboard</h2>
+            <div class="leaderboard-tabs">
+                <button onclick="switchLeaderboardTab('totalCoinsEarned')">Earned</button>
+                <button onclick="switchLeaderboardTab('chaosUsed')">Chaos</button>
+                <button onclick="switchLeaderboardTab('cratesOpened')">Crates</button>
+                <button onclick="switchLeaderboardTab('messagesSent')">Messages</button>
+                <button onclick="switchLeaderboardTab('coins')">Coins</button>
+            </div>
+            <div id="leaderboardContent" class="leaderboard-content"></div>
+        </div>
+    </section>
+
     <section id="adminPanel" class="admin-panel hidden">
 
         <div id="adminHeader" class="admin-header">
@@ -593,6 +648,7 @@
                 <button class="admin-tab" data-admin-tab="rewards" onclick="switchAdminTab('rewards')">🎁 Rewards</button>
                 <button class="admin-tab" data-admin-tab="chaos" onclick="switchAdminTab('chaos')">🌪️ Chaos Events</button>
                 <button class="admin-tab" data-admin-tab="server" onclick="switchAdminTab('server')">📢 Server</button>
+                <button class="admin-tab" data-admin-tab="log" onclick="switchAdminTab('log')">📋 Log</button>
             </div>
 
             <div class="admin-main-grid">
@@ -626,7 +682,8 @@
                     <div class="admin-action-grid chaos-grid">
                         <button onclick="setAdminCommand('+/CheeseRain\\')"><strong>Cheese Rain</strong><span>Falling cheese</span></button>
                         <button onclick="setAdminCommand('+/CheeseStorm\\')"><strong>Cheese Storm</strong><span>Storm chaos</span></button>
-                        <button onclick="setAdminCommand('+/ButterBomb\\')"><strong>Lactose Bomb</strong><span>Butter impact</span></button>
+                        <button onclick="setAdminCommand('+/LactoseBomb\\')"><strong>Lactose Bomb</strong><span>Explosive lactose blast</span></button>
+                        <button onclick="setAdminCommand('+/ButterBomb\\')"><strong>Butter Bomb</strong><span>Butter impact</span></button>
                         <button onclick="setAdminCommand('+/ButterFlood\\')"><strong>Butter Flood</strong><span>Flood the UI</span></button>
                         <button onclick="setAdminCommand('+/Cheesenado\\')"><strong>Cheesenado</strong><span>Spin the room</span></button>
                         <button onclick="setAdminCommand('+/CheeseRNG\\')"><strong>CheeseRNG</strong><span>Random online reward</span></button>
@@ -686,6 +743,7 @@
                         <option value="startpoll">Start Poll</option>
                         <option value="addserverlifetime">Add Server Lifetime</option>
                         <option value="removeserver">Remove Server</option>
+                        <option value="setseason">Set Season</option>
                     </select>
 
                     <select id="adminPlayerSelect" onchange="buildAdminCommand()">
@@ -719,6 +777,7 @@
                     <option value="+/MouseRun\">Mouse Run</option>
                     <option value="+/MeltUI\">Melt UI</option>
                     <option value="+/ButterFlood\">Butter Flood</option>
+                    <option value="+/LactoseBomb\">Lactose Bomb</option>
                     <option value="+/ButterBomb\">Butter Bomb</option>
                     <option value="+/Cheesequake\">Cheesequake</option>
                     <option value="+/CheesePortal\">Cheese Portal</option>
@@ -729,6 +788,7 @@
                     <option value="+/Cheesenado\">Cheesenado</option>
                     <option value="+/CheeseRNG\">Cheese RNG</option>
                     <option value="+/CheeseBank\">Cheese Bank</option>
+                    <option value="+/SetSeason: halloween, 10m\">Set Halloween Season</option>
                 </select>
 
                 <input id="scheduleDelay" type="number" min="1" max="3600" value="10">
