@@ -1,4 +1,18 @@
 
+/* =========================================================
+   JUST ANOTHER LIFE OF CHEESE — SOCIAL CLIENT STATE
+========================================================= */
+
+let latestSocialData = {
+    friends: [],
+    incoming: [],
+    outgoing: [],
+    unreadTotal: 0
+};
+let currentDmUser = null;
+let currentDmThreadId = null;
+
+
 function escapeHtml(value) {
     return String(value ?? "")
         .replaceAll("&", "&amp;")
@@ -10,6 +24,7 @@ function escapeHtml(value) {
 
 
 const cheddarBrowser = document.getElementById("cheddarBrowser");
+const cheddarSocialHub = document.getElementById("cheddarSocialHub");
 const tempServerList = document.getElementById("tempServerList");
 const socket = io();
 
@@ -369,7 +384,7 @@ function updateRoomUI(roomId, roomInfo) {
     const isMozzarella = roomId === "mozzarella";
     const isCheeseBots = roomId === "feta";
 
-    document.body.dataset.theme = room.theme || "cheese";
+    document.body.dataset.theme = roomId === "feta" ? "cheeseBots" : (room.theme || "cheese");
 
     roomTitle.textContent = `${room.icon || "🧀"} ${room.name || "Room"}`;
 
@@ -421,8 +436,16 @@ function updateRoomUI(roomId, roomInfo) {
         cheddarBrowser.classList.toggle("hidden", roomId !== "cheddar");
     }
 
+    if (cheddarSocialHub) {
+        cheddarSocialHub.classList.toggle("hidden", roomId !== "cheddar");
+    }
+
     if (cheeseBotMenu) {
         cheeseBotMenu.classList.toggle("hidden", !isCheeseBots);
+    }
+
+    if (isCheeseBots) {
+        messageBar.classList.add("hidden");
     }
 
     if (messages) {
@@ -454,7 +477,7 @@ function updateRoomUI(roomId, roomInfo) {
     const messageBar = document.querySelector(".message-bar");
 
     if (messageBar) {
-        messageBar.classList.toggle("hidden", isMozzarella);
+        messageBar.classList.toggle("hidden", isMozzarella || isCheeseBots);
     }
 
     renderSchedulePopup();
@@ -3174,10 +3197,12 @@ function runUpgradedChaosEffect(data) {
     if (fn) {
         fn();
     } else {
-        chaosBanner(`${event.icon || "🧀"} ${event.name || "CHAOS EVENT"}`, data.by ? `Activated by ${data.by}` : "");
-        chaosBurst(["🧀", "✨"], 55, { duration: 2.5 });
+        if (typeof runChaosEvent === "function") {
+            runChaosEvent(rawChaosType);
+        }
     }
 }
+
 
 
 
@@ -3617,11 +3642,7 @@ function renderAchievementsIndex() {
 MERGED WAVE 1: FRIENDS, GIFTS, LEADERBOARD
 ========================= */
 
-function sendFriendRequest(username) {
-    socket.emit("send friend request", {
-        targetUsername: username
-    });
-}
+
 
 function giftCoinsTo(username) {
     const amount = Number(prompt(`Gift how many coins to ${username}? 1-500`));
@@ -3648,12 +3669,12 @@ socket.on("friend request", data => {
     const [accept, decline] = wrapper.querySelectorAll("button");
 
     accept.onclick = () => {
-        socket.emit("accept friend", { from: data.from });
+        socket.emit("accept friend request", { username: data.from });
         wrapper.remove();
     };
 
     decline.onclick = () => {
-        socket.emit("decline friend", { from: data.from });
+        socket.emit("decline friend request", { username: data.from });
         wrapper.remove();
     };
 
@@ -3720,14 +3741,26 @@ function renderLeaderboard() {
 ========================= */
 
 function rollDicePrompt() {
-    const sides = Number(prompt("Dice sides? 2-100", "20"));
-    if (!Number.isFinite(sides)) return;
+    const input = document.getElementById("diceSidesInput");
+    const sides = Number(input ? input.value : 20);
+
+    if (!Number.isFinite(sides)) {
+        showChatNotice("Enter a valid dice size.");
+        return;
+    }
+
     socket.emit("roll dice", { sides });
 }
 
 function coinFlipPrompt() {
-    const wager = Number(prompt("Optional wager? 0-500", "0"));
-    if (!Number.isFinite(wager)) return;
+    const input = document.getElementById("coinFlipWagerInput");
+    const wager = Number(input ? input.value : 0);
+
+    if (!Number.isFinite(wager)) {
+        showChatNotice("Enter a valid wager.");
+        return;
+    }
+
     socket.emit("coin flip", { wager });
 }
 
@@ -3735,3 +3768,416 @@ socket.on("chaos combo", data => {
     showChatNotice(`🌪️ ${data.text}`);
 });
 
+
+
+function submitTriviaAnswer() {
+    const input = document.getElementById("triviaAnswerInput");
+
+    if (!input) return;
+
+    const answer = input.value.trim();
+
+    if (!answer) {
+        showChatNotice("Type a trivia answer first.");
+        return;
+    }
+
+    socket.emit("answer trivia", {
+        answer
+    });
+
+    input.value = "";
+}
+
+
+socket.on("tutorial nudge", data => {
+    showChatNotice(data && data.text ? data.text : "Visit Cheese Bots for a quick tutorial 🤖");
+});
+
+
+/* =========================================================
+   JUST ANOTHER LIFE OF CHEESE — SOCIAL CLIENT
+========================================================= */
+
+function switchCheddarTab(tab) {
+    document.querySelectorAll(".cheddar-social-tab").forEach(button => {
+        button.classList.toggle("active", button.dataset.cheddarTab === tab);
+    });
+
+    const tempServers = document.getElementById("cheddarBrowser");
+    const dmPanel = document.getElementById("cheddarDmPanel");
+    const friendsPanel = document.getElementById("cheddarFriendsPanel");
+
+    if (tempServers) tempServers.classList.toggle("hidden", tab !== "servers");
+    if (dmPanel) dmPanel.classList.toggle("hidden", tab !== "dms");
+    if (friendsPanel) friendsPanel.classList.toggle("hidden", tab !== "friends");
+
+    if (tab === "dms" || tab === "friends") {
+        socket.emit("request social data");
+    }
+}
+
+socket.on("social data", data => {
+    latestSocialData = data || latestSocialData;
+    renderSocialHub();
+});
+
+socket.on("friend request", data => {
+    showChatNotice(`🧀 New friend request from ${data.from}`);
+    socket.emit("request social data");
+});
+
+function renderSocialHub() {
+    const badge = document.getElementById("dmUnreadBadge");
+    const unread = Number(latestSocialData.unreadTotal || 0);
+
+    if (badge) {
+        badge.textContent = unread;
+        badge.classList.toggle("hidden", unread <= 0);
+    }
+
+    const bottomBadge = document.getElementById("bottomDmUnreadBadge");
+    if (bottomBadge) {
+        bottomBadge.textContent = unread;
+        bottomBadge.classList.toggle("hidden", unread <= 0);
+    }
+
+    renderDmList();
+    renderFriendsList();
+}
+
+function renderDmList() {
+    const box = document.getElementById("dmList");
+    if (!box) return;
+
+    const friends = latestSocialData.friends || [];
+
+    if (!friends.length) {
+        box.innerHTML = `<div class="empty-state">Add friends to start DMs 🧀</div>`;
+        return;
+    }
+
+    box.innerHTML = friends
+        .slice()
+        .sort((a, b) => Number(b.lastMessageAt || 0) - Number(a.lastMessageAt || 0))
+        .map(friend => `
+            <button class="dm-row" onclick="openDmWith('${friend.username}')">
+                <span class="dm-avatar">${friend.online ? "🟢" : "⚪"}</span>
+                <strong>${escapeHtml(friend.username)}</strong>
+                <small>${escapeHtml(friend.lastMessagePreview || "No messages yet")}</small>
+                ${friend.unread ? `<span class="mini-badge">${friend.unread}</span>` : ""}
+            </button>
+        `).join("");
+}
+
+function renderFriendsList() {
+    const requestBox = document.getElementById("friendRequestsList");
+    const friendsBox = document.getElementById("friendsList");
+
+    if (requestBox) {
+        const incoming = latestSocialData.incoming || [];
+        const outgoing = latestSocialData.outgoing || [];
+
+        requestBox.innerHTML = `
+            ${incoming.length ? `<h4>Incoming requests</h4>` : ""}
+            ${incoming.map(name => `
+                <div class="friend-row">
+                    <strong>${escapeHtml(name)}</strong>
+                    <span>
+                        <button onclick="acceptFriendRequest('${name}')">Accept</button>
+                        <button onclick="declineFriendRequest('${name}')">Decline</button>
+                    </span>
+                </div>
+            `).join("")}
+            ${outgoing.length ? `<h4>Sent requests</h4>` : ""}
+            ${outgoing.map(name => `
+                <div class="friend-row">
+                    <strong>${escapeHtml(name)}</strong>
+                    <button onclick="recallFriendRequest('${name}')">Recall</button>
+                </div>
+            `).join("")}
+        `;
+    }
+
+    if (friendsBox) {
+        const friends = latestSocialData.friends || [];
+
+        friendsBox.innerHTML = friends.length ? friends.map(friend => `
+            <div class="friend-row">
+                <strong>${friend.online ? "🟢" : "⚪"} ${escapeHtml(friend.username)}</strong>
+                <span>
+                    <button onclick="openDmWith('${friend.username}')">DM</button>
+                    <button onclick="openProfile('${friend.username}')">Profile</button>
+                    <button onclick="removeFriend('${friend.username}')">Remove</button>
+                </span>
+            </div>
+        `).join("") : `<div class="empty-state">No friends yet.</div>`;
+    }
+}
+
+function sendFriendRequest(username) {
+    socket.emit("send friend request", { targetUsername: username });
+}
+
+function acceptFriendRequest(username) {
+    socket.emit("accept friend request", { username });
+}
+
+function declineFriendRequest(username) {
+    socket.emit("decline friend request", { username });
+}
+
+function recallFriendRequest(username) {
+    socket.emit("recall friend request", { username });
+}
+
+function removeFriend(username) {
+    if (!confirm(`Remove ${username} from friends?`)) return;
+    socket.emit("remove friend", { username });
+}
+
+function openDmWith(username) {
+    currentDmUser = username;
+    socket.emit("open dm", { username });
+    switchRoom("cheddar");
+    switchCheddarTab("dms");
+}
+
+socket.on("dm thread", thread => {
+    currentDmUser = thread.withUser;
+    currentDmThreadId = thread.threadId;
+
+    const panel = document.getElementById("dmThreadPanel");
+    const title = document.getElementById("dmThreadTitle");
+
+    if (panel) panel.classList.remove("hidden");
+    if (title) title.textContent = `💬 ${thread.withUser}`;
+
+    renderDmMessages(thread.messages || []);
+    socket.emit("request social data");
+});
+
+socket.on("dm message", data => {
+    if (data.withUser === currentDmUser) {
+        const box = document.getElementById("dmMessages");
+        if (box) {
+            box.insertAdjacentHTML("beforeend", renderDmMessage(data.message));
+            box.scrollTop = box.scrollHeight;
+        }
+    } else {
+        showChatNotice(`💬 New DM from ${data.withUser}`);
+    }
+
+    socket.emit("request social data");
+});
+
+function renderDmMessages(messages) {
+    const box = document.getElementById("dmMessages");
+    if (!box) return;
+
+    box.innerHTML = messages.map(renderDmMessage).join("");
+    box.scrollTop = box.scrollHeight;
+}
+
+function renderDmMessage(message) {
+    const mine = currentUser && message.from && message.from.toLowerCase() === currentUser.toLowerCase();
+
+    return `
+        <div class="dm-message ${mine ? "mine" : "theirs"} ${message.mutedNotice ? "muted-notice" : ""}">
+            <strong>${escapeHtml(message.from)}</strong>
+            <p>${escapeHtml(message.text)}</p>
+            <small>${new Date(message.createdAt).toLocaleTimeString()}</small>
+        </div>
+    `;
+}
+
+function sendCurrentDm() {
+    const input = document.getElementById("dmMessageInput");
+    if (!input || !currentDmUser) return;
+
+    const text = input.value.trim();
+    if (!text) return;
+
+    socket.emit("send dm", {
+        to: currentDmUser,
+        text
+    });
+
+    input.value = "";
+}
+
+function sendMutedDmNotice() {
+    if (!currentDmUser) return;
+    socket.emit("send muted dm notice", { to: currentDmUser });
+}
+
+function closeDmThread() {
+    currentDmUser = null;
+    currentDmThreadId = null;
+
+    const panel = document.getElementById("dmThreadPanel");
+    if (panel) panel.classList.add("hidden");
+}
+
+socket.on("admin dm history", thread => {
+    const lines = (thread.messages || []).map(message => {
+        return `[${new Date(message.createdAt).toLocaleString()}] ${message.from}: ${message.text}`;
+    }).join("\n");
+
+    const output = `DM History: ${thread.playerOne} ↔ ${thread.playerTwo}\n\n${lines || "No messages."}`;
+
+    const existing = document.getElementById("adminDmHistoryModal");
+    if (existing) existing.remove();
+
+    const modal = document.createElement("section");
+    modal.id = "adminDmHistoryModal";
+    modal.className = "modal admin-dm-history-modal";
+    modal.innerHTML = `
+        <div class="modal-card">
+            <button class="modal-close" onclick="document.getElementById('adminDmHistoryModal')?.remove()">×</button>
+            <h2>💬 DM History: ${escapeHtml(thread.playerOne)} ↔ ${escapeHtml(thread.playerTwo)}</h2>
+            <pre class="admin-dm-history-output"></pre>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.querySelector("pre").textContent = output;
+});
+
+function toggleConsoleMode() {
+    document.body.classList.toggle("console-mode");
+    localStorage.setItem("cheeseConsoleMode", document.body.classList.contains("console-mode") ? "1" : "0");
+}
+
+if (localStorage.getItem("cheeseConsoleMode") === "1" || /Xbox|PlayStation|TV|Steam Deck/i.test(navigator.userAgent)) {
+    document.body.classList.add("console-mode");
+}
+
+function openMobileSection(section) {
+    document.body.dataset.mobileSection = section;
+
+    if (section === "rooms") {
+        document.body.classList.add("sidebar-open");
+    }
+
+    if (section === "chat") {
+        document.body.classList.remove("sidebar-open");
+    }
+
+    if (section === "admin") {
+        const panel = document.getElementById("adminPanel");
+        if (panel) panel.classList.toggle("admin-mobile-open");
+    }
+}
+
+
+function renderProfileSocialActions(username) {
+    if (!username || username.toLowerCase() === currentUser.toLowerCase()) return "";
+
+    const social = latestSocialData || {};
+    const friends = social.friends || [];
+    const incoming = social.incoming || [];
+    const outgoing = social.outgoing || [];
+    const lower = username.toLowerCase();
+
+    if (friends.some(friend => friend.username && friend.username.toLowerCase() === lower || String(friend).toLowerCase() === lower)) {
+        return `<button onclick="openDmWith('${username}')">DM 💬</button><button onclick="removeFriend('${username}')">Remove Friend</button>`;
+    }
+
+    if (incoming.some(name => String(name).toLowerCase() === lower)) {
+        return `<button onclick="acceptFriendRequest('${username}')">Accept Friend Request</button><button onclick="declineFriendRequest('${username}')">Decline</button>`;
+    }
+
+    if (outgoing.some(name => String(name).toLowerCase() === lower)) {
+        return `<button onclick="recallFriendRequest('${username}')">Recall Request</button>`;
+    }
+
+    return `<button onclick="sendFriendRequest('${username}')">Add Friend</button>`;
+}
+
+
+/* =========================================================
+   JUST ANOTHER LIFE OF CHEESE — ADMIN PANEL DRAG/COLLAPSE
+========================================================= */
+
+(function setupAdminPanelLifeOfCheese() {
+    const panel = document.getElementById("adminPanel");
+    if (!panel) return;
+
+    const savedCollapsed = localStorage.getItem("cheeseAdminCollapsed");
+    if (savedCollapsed === "1") panel.classList.add("collapsed");
+
+    const savedPosition = localStorage.getItem("cheeseAdminPosition");
+    if (savedPosition) {
+        try {
+            const pos = JSON.parse(savedPosition);
+            if (Number.isFinite(pos.left) && Number.isFinite(pos.top) && window.innerWidth > 900) {
+                panel.style.left = `${Math.max(0, Math.min(window.innerWidth - 80, pos.left))}px`;
+                panel.style.top = `${Math.max(0, Math.min(window.innerHeight - 60, pos.top))}px`;
+                panel.style.right = "auto";
+                panel.style.bottom = "auto";
+            }
+        } catch {}
+    }
+
+    let header = panel.querySelector(".admin-panel-header") || panel.querySelector("h2") || panel.firstElementChild;
+    if (!header) return;
+
+    header.classList.add("admin-drag-handle");
+
+    if (!panel.querySelector(".admin-collapse-toggle")) {
+        const btn = document.createElement("button");
+        btn.className = "admin-collapse-toggle";
+        btn.textContent = "Collapse";
+        btn.type = "button";
+        btn.onclick = event => {
+            event.stopPropagation();
+            panel.classList.toggle("collapsed");
+            localStorage.setItem("cheeseAdminCollapsed", panel.classList.contains("collapsed") ? "1" : "0");
+            btn.textContent = panel.classList.contains("collapsed") ? "Expand" : "Collapse";
+        };
+        header.appendChild(btn);
+    }
+
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    let startLeft = 0;
+    let startTop = 0;
+
+    header.addEventListener("pointerdown", event => {
+        if (window.innerWidth <= 900) return;
+        if (event.target.closest("button, input, select, textarea")) return;
+
+        dragging = true;
+        startX = event.clientX;
+        startY = event.clientY;
+        const rect = panel.getBoundingClientRect();
+        startLeft = rect.left;
+        startTop = rect.top;
+        header.setPointerCapture(event.pointerId);
+    });
+
+    header.addEventListener("pointermove", event => {
+        if (!dragging) return;
+
+        const left = Math.max(0, Math.min(window.innerWidth - 80, startLeft + event.clientX - startX));
+        const top = Math.max(0, Math.min(window.innerHeight - 60, startTop + event.clientY - startY));
+
+        panel.style.left = `${left}px`;
+        panel.style.top = `${top}px`;
+        panel.style.right = "auto";
+        panel.style.bottom = "auto";
+    });
+
+    header.addEventListener("pointerup", () => {
+        if (!dragging) return;
+        dragging = false;
+
+        const rect = panel.getBoundingClientRect();
+        localStorage.setItem("cheeseAdminPosition", JSON.stringify({
+            left: rect.left,
+            top: rect.top
+        }));
+    });
+})();

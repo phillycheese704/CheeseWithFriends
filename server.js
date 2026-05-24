@@ -2,6 +2,116 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const fs = require("fs");
+
+const MODERATION_FILE = "moderation.json";
+
+function readModerationData() {
+    try {
+        if (!fs.existsSync(MODERATION_FILE)) {
+            return {
+                bannedUsers: {},
+                mutedUsers: {},
+                warningHistory: {}
+            };
+        }
+
+        const parsed = JSON.parse(fs.readFileSync(MODERATION_FILE, "utf8"));
+
+        return {
+            bannedUsers: parsed.bannedUsers || {},
+            mutedUsers: parsed.mutedUsers || {},
+            warningHistory: parsed.warningHistory || {}
+        };
+    } catch (error) {
+        console.error("Could not read moderation data:", error);
+        return {
+            bannedUsers: {},
+            mutedUsers: {},
+            warningHistory: {}
+        };
+    }
+}
+
+function writeModerationData(data) {
+    try {
+        fs.writeFileSync(MODERATION_FILE, JSON.stringify(data, null, 2));
+    } catch (error) {
+        console.error("Could not write moderation data:", error);
+    }
+}
+
+function saveModerationState() {
+    const data = readModerationData();
+
+    data.bannedUsers = {};
+    bannedUsers.forEach((value, key) => {
+        data.bannedUsers[key] = value;
+    });
+
+    data.mutedUsers = {};
+    mutedUsers.forEach((value, key) => {
+        data.mutedUsers[key] = value;
+    });
+
+    writeModerationData(data);
+}
+
+function loadModerationState() {
+    const data = readModerationData();
+    let changed = false;
+
+    bannedUsers.clear();
+    mutedUsers.clear();
+
+    Object.entries(data.bannedUsers || {}).forEach(([key, value]) => {
+        if (!value || !value.expiresAt || value.expiresAt > Date.now()) {
+            bannedUsers.set(key, value);
+        } else {
+            changed = true;
+        }
+    });
+
+    Object.entries(data.mutedUsers || {}).forEach(([key, value]) => {
+        if (!value || !value.expiresAt || value.expiresAt > Date.now()) {
+            mutedUsers.set(key, value);
+        } else {
+            changed = true;
+        }
+    });
+
+    if (changed) {
+        saveModerationState();
+    }
+}
+
+function addWarningHistory(targetUsername, warning) {
+    const data = readModerationData();
+    const key = String(targetUsername || "").trim().toLowerCase();
+
+    if (!key) return;
+
+    if (!Array.isArray(data.warningHistory[key])) {
+        data.warningHistory[key] = [];
+    }
+
+    data.warningHistory[key].push({
+        ...warning,
+        createdAt: Date.now()
+    });
+
+    data.warningHistory[key] = data.warningHistory[key].slice(-50);
+
+    writeModerationData(data);
+}
+
+function getWarningHistory(targetUsername) {
+    const data = readModerationData();
+    const key = String(targetUsername || "").trim().toLowerCase();
+
+    return data.warningHistory[key] || [];
+}
+
+
 const path = require("path");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
@@ -198,7 +308,7 @@ const rooms = {
     feta: {
         id: "feta",
         name: "Cheese Bots",
-        icon: "🤖🧀",
+        icon: "🤖",
         theme: "cheeseBots",
         readOnly: false,
         noChat: false,
@@ -246,12 +356,14 @@ const sessions = new Map();
 const onlineUsers = new Map();
 const bannedUsers = new Map();
 const mutedUsers = new Map();
+loadModerationState();
 
 let adminAppearsOffline = false;
 let visualNameOverride = "";
 let chaosLevel = 0;
 let scheduledEvents = [];
 let activePoll = null;
+const messageReactionUsers = new Map();
 let scheduledShutdownTimeout = null;
 let scheduledShutdown = null;
 let activeCheeseBank = null;
@@ -1217,6 +1329,12 @@ function getPublicPlayerData(username) {
         index: profile.index,
         equippedCosmetics: profile.equippedCosmetics,
         friendCount: Array.isArray(profile.friends) ? profile.friends.length : 0,
+        social: {
+            friends: profile.friends || [],
+            incomingFriendRequests: profile.friendRequests || [],
+            outgoingFriendRequests: profile.outgoingFriendRequests || [],
+            dmUnread: profile.dmUnread || {}
+        },
         achievementCount: profile.achievements ? Object.keys(profile.achievements).length : 0,
         achievements: profile.achievements || {},
         bookCompletion: getBookCompletionPercent(profile),
@@ -1363,7 +1481,7 @@ const grilledBlockedRoots = [
 ];
 
 function containsBlockedLanguage(text, roomId) {
-    const room = rooms[roomId] || rooms.cheeseLounge;
+    const room = getRoomInfoById(roomId) || rooms.cheeseLounge;
 
     if (!filterEnabled[roomId]) return false;
     if (room.filterLevel === "none") return false;
@@ -1408,7 +1526,7 @@ const blockedShoppingPatterns = [
 ];
 
 function linkAllowed(text, roomId) {
-    const room = rooms[roomId] || rooms.cheeseLounge;
+    const room = getRoomInfoById(roomId) || rooms.cheeseLounge;
 
     if (!containsLink(text)) return true;
 
@@ -1834,6 +1952,7 @@ function migrateWave2Profile(profile) {
     if (typeof profile.dailyGiftedCoins !== "number") profile.dailyGiftedCoins = 0;
     if (!profile.lastGiftResetDate) profile.lastGiftResetDate = safeTodayKey();
     if (typeof profile.cheeseTokens !== "number") profile.cheeseTokens = 0;
+    if (typeof profile.tutorialSeen !== "boolean") profile.tutorialSeen = false;
 
     return profile;
 }
@@ -1876,13 +1995,45 @@ function getLeaderboard(currentUsername) {
 }
 
 const triviaQuestions = [
-    { q: "Which cheese is traditionally used on pizza?", a: "Mozzarella", options: ["Brie", "Mozzarella", "Cheese Bots", "Blue Cheese"] },
+    { q: "Which cheese is traditionally used on pizza?", a: "Mozzarella", options: ["Brie", "Mozzarella", "Feta", "Blue Cheese"] },
     { q: "Which cheese is famous for holes?", a: "Swiss", options: ["Swiss", "Cheddar", "Parmesan", "Gouda"] },
-    { q: "Which cheese is salty and crumbly?", a: "Cheese Bots", options: ["Cheese Bots", "Brie", "Mozzarella", "Gouda"] },
-    { q: "Which cheese is often aged and grated over pasta?", a: "Parmesan", options: ["Parmesan", "Brie", "Swiss", "Cheese Bots"] }
+    { q: "Which cheese is salty and crumbly?", a: "Feta", options: ["Feta", "Brie", "Mozzarella", "Gouda"] },
+    { q: "Which cheese is often aged and grated over pasta?", a: "Parmesan", options: ["Parmesan", "Brie", "Swiss", "Feta"] },
+    { q: "Which cheese is usually orange and common in burgers?", a: "Cheddar", options: ["Cheddar", "Ricotta", "Camembert", "Feta"] },
+    { q: "Which cheese is soft, white, and often used in lasagna?", a: "Ricotta", options: ["Ricotta", "Swiss", "Gouda", "Blue Cheese"] },
+    { q: "Which cheese is known for blue-green veins?", a: "Blue Cheese", options: ["Blue Cheese", "Mozzarella", "Cheddar", "Brie"] },
+    { q: "Which cheese has a red wax coating in many shops?", a: "Edam", options: ["Edam", "Feta", "Parmesan", "Ricotta"] },
+    { q: "Which cheese is famous from the Netherlands?", a: "Gouda", options: ["Gouda", "Feta", "Halloumi", "Paneer"] },
+    { q: "Which cheese can squeak when you eat it fresh?", a: "Cheese Curds", options: ["Cheese Curds", "Brie", "Parmesan", "Ricotta"] },
+    { q: "Which cheese is often grilled without melting away?", a: "Halloumi", options: ["Halloumi", "Mozzarella", "Brie", "Swiss"] },
+    { q: "Which cheese is common in Greek salad?", a: "Feta", options: ["Feta", "Cheddar", "Gouda", "Swiss"] },
+    { q: "Which cheese is stretched to make string cheese?", a: "Mozzarella", options: ["Mozzarella", "Blue Cheese", "Parmesan", "Feta"] },
+    { q: "Which cheese is commonly used in mac and cheese?", a: "Cheddar", options: ["Cheddar", "Feta", "Ricotta", "Brie"] },
+    { q: "Which cheese is often described as creamy with a bloomy rind?", a: "Brie", options: ["Brie", "Parmesan", "Swiss", "Cheddar"] },
+    { q: "Which cheese is hard, salty, and often shaved over salads?", a: "Parmesan", options: ["Parmesan", "Mozzarella", "Ricotta", "Halloumi"] },
+    { q: "Which dairy animal is most commonly linked with cheese making?", a: "Cow", options: ["Cow", "Chicken", "Duck", "Horse"] },
+    { q: "What is cheese mainly made from?", a: "Milk", options: ["Milk", "Bread", "Rice", "Potato"] },
+    { q: "What process helps some cheeses develop stronger flavour over time?", a: "Aging", options: ["Aging", "Freezing", "Boiling", "Frying"] },
+    { q: "Which cheese is commonly used on nachos?", a: "Cheddar", options: ["Cheddar", "Brie", "Ricotta", "Feta"] },
+    { q: "Which cheese is often used in cheesecake?", a: "Cream Cheese", options: ["Cream Cheese", "Swiss", "Halloumi", "Gouda"] },
+    { q: "Which cheese is popular in paneer tikka?", a: "Paneer", options: ["Paneer", "Blue Cheese", "Brie", "Cheddar"] }
 ];
 let activeTrivia = null;
 let triviaCooldownUntil = 0;
+
+
+function sendPrivateFetaBotMessage(socket, botName, text) {
+    const message = {
+        id: makeId(),
+        username: botName,
+        text,
+        room: "feta",
+        createdAt: Date.now(),
+        bot: true
+    };
+
+    socket.emit("chat message", message);
+}
 
 function sendFetaBotMessage(botName, text) {
     const message = {
@@ -1898,6 +2049,272 @@ function sendFetaBotMessage(botName, text) {
     if (roomMessages.feta.length > 120) roomMessages.feta.shift();
 
     io.to("feta").emit("chat message", message);
+}
+
+
+/* =========================================================
+   JUST ANOTHER LIFE OF CHEESE — SOCIAL + DM HELPERS
+========================================================= */
+
+const DM_FILE = "dms.json";
+const mutedDmNoticeCooldowns = new Map();
+
+
+
+function dmTextAllowed(text) {
+    const blockedWords = [
+        "porn", "sex", "blowjob", "massacre", "murder", "gore", "rape"
+    ];
+
+    const lowered = String(text || "").toLowerCase();
+
+    if (blockedWords.some(word => lowered.includes(word))) {
+        return false;
+    }
+
+    if (/https?:\/\//i.test(String(text || ""))) {
+        return false;
+    }
+
+    return true;
+}
+
+function getDmPolicyRoom() {
+    return {
+        filterLevel: "butter",
+        allowLinks: false,
+        noChat: false
+    };
+}
+
+function normalizeSocialName(username) {
+    return String(username || "").trim().toLowerCase();
+}
+
+function makeDmThreadId(a, b) {
+    return [normalizeSocialName(a), normalizeSocialName(b)].sort().join("::");
+}
+
+function readDmData() {
+    try {
+        if (!fs.existsSync(DM_FILE)) {
+            return {
+                threads: {}
+            };
+        }
+
+        const parsed = JSON.parse(fs.readFileSync(DM_FILE, "utf8"));
+
+        return {
+            threads: parsed.threads || {}
+        };
+    } catch (error) {
+        console.error("Could not read DM data:", error);
+        return {
+            threads: {}
+        };
+    }
+}
+
+function writeDmData(data) {
+    try {
+        fs.writeFileSync(DM_FILE, JSON.stringify(data, null, 2));
+    } catch (error) {
+        console.error("Could not write DM data:", error);
+    }
+}
+
+function ensureSocialProfile(profile) {
+    if (!profile) return profile;
+    if (!Array.isArray(profile.friends)) profile.friends = [];
+    if (!Array.isArray(profile.friendRequests)) profile.friendRequests = [];
+    if (!Array.isArray(profile.outgoingFriendRequests)) profile.outgoingFriendRequests = [];
+    if (!Array.isArray(profile.blockedUsers)) profile.blockedUsers = [];
+    if (!profile.dmUnread || typeof profile.dmUnread !== "object") profile.dmUnread = {};
+    return profile;
+}
+
+function saveSocialProfile(profile) {
+    ensureSocialProfile(profile);
+    savePlayerProfile(profile);
+}
+
+function areFriends(a, b) {
+    const pa = ensureSocialProfile(getPlayerProfile(a));
+    const nb = normalizeSocialName(b);
+
+    return pa.friends.some(friend => normalizeSocialName(friend) === nb);
+}
+
+function hasIncomingFriendRequest(profile, fromUsername) {
+    const normalized = normalizeSocialName(fromUsername);
+    return ensureSocialProfile(profile).friendRequests.some(name => normalizeSocialName(name) === normalized);
+}
+
+function hasOutgoingFriendRequest(profile, toUsername) {
+    const normalized = normalizeSocialName(toUsername);
+    return ensureSocialProfile(profile).outgoingFriendRequests.some(name => normalizeSocialName(name) === normalized);
+}
+
+function removeNameCaseInsensitive(list, username) {
+    const normalized = normalizeSocialName(username);
+    return (list || []).filter(name => normalizeSocialName(name) !== normalized);
+}
+
+function buildFriendPublicData(viewerUsername) {
+    const profile = ensureSocialProfile(getPlayerProfile(viewerUsername));
+    const online = new Set();
+
+    for (const session of sessions.values()) {
+        if (session && session.username) {
+            online.add(normalizeSocialName(session.username));
+        }
+    }
+
+    const dmData = readDmData();
+
+    const friends = profile.friends.map(name => {
+        const friendProfile = ensureSocialProfile(getPlayerProfile(name));
+        const threadId = makeDmThreadId(profile.username, friendProfile.username);
+        const messages = dmData.threads[threadId] || [];
+        const last = messages[messages.length - 1] || null;
+
+        return {
+            username: friendProfile.username,
+            online: online.has(normalizeSocialName(friendProfile.username)),
+            unread: safeNumber(profile.dmUnread && profile.dmUnread[threadId], 0),
+            lastMessageAt: last ? last.createdAt : null,
+            lastMessagePreview: last ? String(last.text || "").slice(0, 80) : ""
+        };
+    });
+
+    return {
+        friends,
+        incoming: profile.friendRequests || [],
+        outgoing: profile.outgoingFriendRequests || [],
+        unreadTotal: Object.values(profile.dmUnread || {}).reduce((sum, value) => sum + safeNumber(value, 0), 0)
+    };
+}
+
+function emitSocialData(username) {
+    const socket = getSocketByUsername(username);
+    if (!socket) return;
+
+    socket.emit("social data", buildFriendPublicData(username));
+    emitPlayerData(socket, username);
+}
+
+function getMuteRemainingMs(username) {
+    const key = normalizeSocialName(username);
+    const mute = mutedUsers.get(key);
+
+    if (!mute) return 0;
+    if (!mute.expiresAt) return 365 * 24 * 60 * 60 * 1000;
+
+    return Math.max(0, mute.expiresAt - Date.now());
+}
+
+function formatDurationShort(ms) {
+    if (!ms || ms <= 0) return "0s";
+    const totalSeconds = Math.ceil(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes <= 0) return `${seconds}s`;
+    if (minutes < 60) return `${minutes}m ${seconds}s`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ${minutes % 60}m`;
+}
+
+function appendDmMessage(fromUsername, toUsername, text, options = {}) {
+    const fromProfile = ensureSocialProfile(getPlayerProfile(fromUsername));
+    const toProfile = ensureSocialProfile(getPlayerProfile(toUsername));
+    const threadId = makeDmThreadId(fromProfile.username, toProfile.username);
+    const data = readDmData();
+
+    if (!Array.isArray(data.threads[threadId])) {
+        data.threads[threadId] = [];
+    }
+
+    const message = {
+        id: makeId(),
+        from: fromProfile.username,
+        to: toProfile.username,
+        text: String(text || "").slice(0, 600),
+        createdAt: Date.now(),
+        mutedNotice: !!options.mutedNotice,
+        readBy: [normalizeSocialName(fromProfile.username)]
+    };
+
+    data.threads[threadId].push(message);
+    data.threads[threadId] = data.threads[threadId].slice(-500);
+
+    writeDmData(data);
+
+    const recipientSocket = getSocketByUsername(toProfile.username);
+    const senderSocket = getSocketByUsername(fromProfile.username);
+
+    toProfile.dmUnread[threadId] = safeNumber(toProfile.dmUnread[threadId], 0) + 1;
+    saveSocialProfile(toProfile);
+
+    if (senderSocket) {
+        senderSocket.emit("dm message", {
+            threadId,
+            message,
+            withUser: toProfile.username
+        });
+        emitSocialData(fromProfile.username);
+    }
+
+    if (recipientSocket) {
+        recipientSocket.emit("dm message", {
+            threadId,
+            message,
+            withUser: fromProfile.username
+        });
+        recipientSocket.emit("message rejected", `💬 New DM from ${fromProfile.username}`);
+        emitSocialData(toProfile.username);
+    }
+
+    return {
+        threadId,
+        message
+    };
+}
+
+function getDmThreadForUsers(viewerUsername, otherUsername, limit = 80) {
+    const viewer = ensureSocialProfile(getPlayerProfile(viewerUsername));
+    const other = ensureSocialProfile(getPlayerProfile(otherUsername));
+    const threadId = makeDmThreadId(viewer.username, other.username);
+    const data = readDmData();
+    const messages = (data.threads[threadId] || []).slice(-limit);
+
+    viewer.dmUnread[threadId] = 0;
+    saveSocialProfile(viewer);
+
+    return {
+        threadId,
+        withUser: other.username,
+        messages
+    };
+}
+
+function canViewDmThread(session, playerOne, playerTwo) {
+    if (!session || !hasFullAdmin(session)) return false;
+    return !!playerOne && !!playerTwo;
+}
+
+function getDmThreadForAdmin(playerOne, playerTwo, limit = 50) {
+    const profileOne = ensureSocialProfile(getPlayerProfile(playerOne));
+    const profileTwo = ensureSocialProfile(getPlayerProfile(playerTwo));
+    const threadId = makeDmThreadId(profileOne.username, profileTwo.username);
+    const data = readDmData();
+
+    return {
+        threadId,
+        playerOne: profileOne.username,
+        playerTwo: profileTwo.username,
+        messages: (data.threads[threadId] || []).slice(-limit)
+    };
 }
 
 function getSessionFromSocketOrPayload(socket, payload) {
@@ -2394,7 +2811,7 @@ function finishChaosPoll(pollId) {
     activePoll = null;
 }
 
-function voteInPoll(socket, eventId) {
+function voteInPoll(socket, eventId, username) {
     if (!activePoll) {
         socket.emit("poll reply", "No poll is currently running.");
         return;
@@ -2405,7 +2822,7 @@ function voteInPoll(socket, eventId) {
         return;
     }
 
-    activePoll.voters[socket.id] = eventId;
+    activePoll.voters[username] = eventId;
 
     activePoll.votes = {};
 
@@ -2751,30 +3168,74 @@ function handleAdminTextCommand(socket, session, command) {
         return;
     }
 
+
+
+    if (commandName === "viewdm") {
+        if (!hasFullAdmin(session)) {
+            denyLimitedAdmin(socket);
+            return;
+        }
+
+        const args = splitCommandArgs(commandBody);
+        const playerOne = args[0];
+        const playerTwo = args[1];
+
+        if (!playerOne || !playerTwo) {
+            socket.emit("admin reply", "Usage: ;/ViewDM: player1, player2");
+            return;
+        }
+
+        const thread = getDmThreadForAdmin(playerOne, playerTwo, 50);
+
+        socket.emit("admin dm history", thread);
+        socket.emit("admin reply", `Loaded DM history for ${thread.playerOne} ↔ ${thread.playerTwo}.`);
+        addAdminLog(session.username, "view dm", `${thread.playerOne}, ${thread.playerTwo}`, `Viewed ${thread.messages.length} messages`);
+        return;
+    }
+
+    if (commandName === "warnings") {
+        const targetName = String(commandBody || "").trim();
+
+        if (!targetName) {
+            socket.emit("admin reply", "Usage: ;/Warnings: player");
+            return;
+        }
+
+        const history = getWarningHistory(targetName);
+        const summary = history.length
+            ? history.slice(-5).map(item => `${new Date(item.createdAt).toLocaleString()}: ${item.reason} by ${item.by}`).join(" | ")
+            : "No warnings recorded.";
+
+        socket.emit("admin reply", `Warnings for ${targetName}: ${summary}`);
+        return;
+    }
+
     if (commandName === "warning") {
         const args = splitCommandArgs(commandBody);
-        const playerName = args[0];
-        const warningText = args.slice(1).join(", ");
+        const targetName = args[0];
+        const reason = args.slice(1).join(", ").trim() || "No reason provided";
 
-        if (!playerName || !warningText) {
-            socket.emit("admin reply", "Usage: ;/Warning: <Player>, <Text>");
+        if (!targetName) {
+            socket.emit("admin reply", "Usage: ;/Warning: player, reason");
             return;
         }
 
-        if (isOwnerName(playerName)) {
-            socket.emit("admin reply", "You cannot warn the owner.");
-            return;
+        addWarningHistory(targetName, {
+            reason,
+            by: session.username
+        });
+
+        const targetSocket = getSocketByUsername(targetName);
+
+        if (targetSocket) {
+            targetSocket.emit("admin warning", {
+                reason,
+                by: session.username
+            });
         }
 
-        const target = getOnlineUserByName(playerName);
-
-        if (!target) {
-            socket.emit("admin reply", "Player not online.");
-            return;
-        }
-
-        io.to(target.socketId).emit("admin warning", warningText);
-        socket.emit("admin reply", `Warning sent to ${target.user.username}.`);
+        socket.emit("admin reply", `Warning recorded for ${targetName}.`);
+        addAdminLog(session.username, "warning", targetName, reason);
         return;
     }
 
@@ -2795,6 +3256,7 @@ function handleAdminTextCommand(socket, session, command) {
 
         const key = playerName.toLowerCase();
         bannedUsers.set(key, Infinity);
+        saveModerationState();
 
         const target = getOnlineUserByName(playerName);
 
@@ -2828,6 +3290,7 @@ function handleAdminTextCommand(socket, session, command) {
         }
 
         bannedUsers.set(playerName.toLowerCase(), Date.now() + ms);
+        saveModerationState();
 
         const target = getOnlineUserByName(playerName);
 
@@ -2861,6 +3324,7 @@ function handleAdminTextCommand(socket, session, command) {
         }
 
         mutedUsers.set(playerName.toLowerCase(), Date.now() + ms);
+        saveModerationState();
 
         const target = getOnlineUserByName(playerName);
 
@@ -2885,6 +3349,7 @@ function handleAdminTextCommand(socket, session, command) {
         }
 
         mutedUsers.delete(playerName.toLowerCase());
+        saveModerationState();
 
         const target = getOnlineUserByName(playerName);
 
@@ -2941,14 +3406,11 @@ function handleAdminTextCommand(socket, session, command) {
             scheduledShutdownTimeout = null;
         }
 
-        if (typeof shutdownUntil !== "undefined") {
-            shutdownUntil = 0;
+        if (typeof scheduledShutdown !== "undefined") {
+            scheduledShutdown = null;
         }
 
-        if (typeof offlineUntil !== "undefined") {
-            offlineUntil = 0;
-        }
-
+        io.emit("server shutdown ended");
         io.emit("system notice", "✅ Scheduled server shutdown cancelled.");
         socket.emit("admin reply", "Scheduled shutdown cancelled.");
         addAdminLog(session.username, "cancel shutdown", "", "Cancelled scheduled server shutdown");
@@ -2986,31 +3448,39 @@ function handleAdminTextCommand(socket, session, command) {
 
     if (commandName === "givecoins") {
         const args = splitCommandArgs(commandBody);
-        const playerName = args[0];
-        const amount = Number(args[1]);
+        const targetName = args[0];
+        const amount = safeNumber(args[1], 0);
 
-        if (!playerName || !Number.isFinite(amount)) {
-            socket.emit("admin reply", "Usage: ;/GiveCoins: <Player>, <Amount>");
+        if (!targetName || amount <= 0) {
+            socket.emit("admin reply", "Usage: ;/GiveCoins: player, amount");
             return;
         }
 
-        addCoins(playerName, amount);
-        socket.emit("admin reply", `${amount} Cheese Coins given to ${playerName}.`);
+        addCoins(targetName, amount);
+        emitPlayerDataByName(targetName);
+
+        socket.emit("admin reply", `${amount} Cheese Coins given to ${targetName}.`);
+        addAdminLog(session.username, "give coins", targetName, String(amount));
         return;
     }
 
     if (commandName === "setcoins") {
         const args = splitCommandArgs(commandBody);
-        const playerName = args[0];
-        const amount = Number(args[1]);
+        const targetName = args[0];
+        const amount = Math.max(0, safeNumber(args[1], 0));
 
-        if (!playerName || !Number.isFinite(amount)) {
-            socket.emit("admin reply", "Usage: ;/SetCoins: <Player>, <Amount>");
+        if (!targetName) {
+            socket.emit("admin reply", "Usage: ;/SetCoins: player, amount");
             return;
         }
 
-        setCoins(playerName, amount);
-        socket.emit("admin reply", `${playerName}'s Cheese Coins set to ${amount}.`);
+        const profile = getPlayerProfile(targetName);
+        profile.coins = amount;
+        savePlayerProfile(profile);
+        emitPlayerDataByName(targetName);
+
+        socket.emit("admin reply", `${targetName} now has ${amount} Cheese Coins.`);
+        addAdminLog(session.username, "set coins", targetName, String(amount));
         return;
     }
 
@@ -3054,7 +3524,7 @@ function handleAdminTextCommand(socket, session, command) {
         io.to(room).emit("room data", {
             room,
             socketId: socket.id,
-            roomInfo: rooms[room],
+            roomInfo: getRoomInfoById(room),
             messages: roomMessages[room]
         });
 
@@ -3451,9 +3921,18 @@ io.on("connection", socket => {
         emitPlayerData(socket, session.username);
         emitOnlineUsers();
 
-        if (!rooms[room].noChat) {
+        if (!getRoomInfoById(room)?.noChat) {
             sendSystemMessage(`${session.username} joined ${(getRoomInfoById(room)?.name || room)}.`, room);
         }
+        const joinedProfile = getPlayerProfile(session.username);
+
+        if (!joinedProfile.tutorialSeen) {
+            socket.emit("tutorial nudge", {
+                room: "feta",
+                text: "New here? Visit Cheese Bots for a quick tutorial 🤖"
+            });
+        }
+
     });
 
     socket.on("switch room", roomId => {
@@ -3607,15 +4086,14 @@ io.on("connection", socket => {
     socket.on("react message", data => {
         if (!session) return;
 
-        const roomId = isRoomAvailable(data.room) ? data.room : "cheeseLounge";
-        const messageId = data.messageId;
-        const emoji = String(data.emoji || "").slice(0, 4);
+        const room = data && data.room ? data.room : session.room;
+        const messageId = data && data.messageId;
+        const emoji = String(data && data.emoji || "").trim().slice(0, 8);
 
-        if (!emoji) return;
+        if (!messageId || !emoji) return;
 
-        const message = (roomMessages[roomId] || []).find(
-            item => item.id === messageId
-        );
+        const messages = getRoomMessagesById(room) || [];
+        const message = messages.find(item => item.id === messageId);
 
         if (!message) return;
 
@@ -3623,12 +4101,25 @@ io.on("connection", socket => {
             message.reactions = {};
         }
 
-        message.reactions[emoji] = (message.reactions[emoji] || 0) + 1;
+        const reactionKey = `${message.id}:${emoji}`;
+        const reactedUsers = messageReactionUsers.get(reactionKey) || new Set();
+        const reactor = session.username.toLowerCase();
 
-        io.to(roomId).emit("reaction update", {
-            room: roomId,
+        if (reactedUsers.has(reactor)) {
+            socket.emit("message rejected", "You already reacted with that emoji.");
+            return;
+        }
+
+        reactedUsers.add(reactor);
+        messageReactionUsers.set(reactionKey, reactedUsers);
+
+        message.reactions[emoji] = safeNumber(message.reactions[emoji], 0) + 1;
+
+        io.to(room).emit("message reaction", {
+            room,
             messageId,
-            reactions: message.reactions
+            emoji,
+            count: message.reactions[emoji]
         });
     });
 
@@ -3693,6 +4184,7 @@ io.on("connection", socket => {
         markEventWitnessed(session.username, result.event.id);
         profile.cratesOpened += 1;
         savePlayerProfile(profile);
+        checkAchievements(session.username);
 
         socket.emit("crate opened", {
             crate: result.crate,
@@ -3730,6 +4222,7 @@ io.on("connection", socket => {
 
         profile.cratesOpened += 1;
         savePlayerProfile(profile);
+        checkAchievements(session.username);
 
         const choices = rollCosmeticChoice(session.username);
 
@@ -3875,8 +4368,7 @@ io.on("connection", socket => {
 
     socket.on("vote poll", eventId => {
         if (!session) return;
-
-        voteInPoll(socket, eventId);
+        voteInPoll(socket, eventId, session.username.toLowerCase());
     });
 
 
@@ -4170,90 +4662,11 @@ io.on("connection", socket => {
 
 
 
-    socket.on("send friend request", data => {
-        if (!session) return;
-
-        const targetUsername = String(data && data.targetUsername || "").trim();
-
-        if (!targetUsername || targetUsername.toLowerCase() === session.username.toLowerCase()) {
-            socket.emit("message rejected", "Choose another player.");
-            return;
-        }
-
-        const sender = getPlayerProfile(session.username);
-        const target = getPlayerProfile(targetUsername);
-
-        if (sender.friends.includes(target.username)) {
-            socket.emit("message rejected", "You are already friends.");
-            return;
-        }
-
-        if (!target.friendRequests.includes(sender.username)) {
-            target.friendRequests.push(sender.username);
-            savePlayerProfile(target);
-        }
-
-        const targetSocket = getSocketByUsername(target.username);
-
-        if (targetSocket) {
-            targetSocket.emit("friend request", {
-                from: sender.username
-            });
-        }
-
-        socket.emit("message rejected", `Friend request sent to ${target.username}.`);
-    });
-
-    socket.on("accept friend", data => {
-        if (!session) return;
-
-        const fromUsername = String(data && data.from || "").trim();
-        const me = getPlayerProfile(session.username);
-        const other = getPlayerProfile(fromUsername);
-
-        const hasRequest = me.friendRequests
-            .map(name => String(name).toLowerCase())
-            .includes(String(other.username).toLowerCase());
-
-        if (!hasRequest) {
-            socket.emit("message rejected", "No friend request from that player.");
-            return;
-        }
 
 
-        if (!me.friends.includes(other.username)) me.friends.push(other.username);
-        if (!other.friends.includes(me.username)) other.friends.push(me.username);
 
-        me.friendRequests = me.friendRequests.filter(name => name.toLowerCase() !== other.username.toLowerCase());
 
-        savePlayerProfile(me);
-        savePlayerProfile(other);
 
-        emitPlayerData(socket, me.username);
-        emitPlayerDataByName(other.username);
-
-        const otherSocket = getSocketByUsername(other.username);
-
-        if (otherSocket) {
-            otherSocket.emit("message rejected", `${me.username} accepted your friend request.`);
-        }
-
-        socket.emit("message rejected", `You are now friends with ${other.username}.`);
-        emitOnlineUsers();
-    });
-
-    socket.on("decline friend", data => {
-        if (!session) return;
-
-        const fromUsername = String(data && data.from || "").trim();
-        const me = getPlayerProfile(session.username);
-
-        me.friendRequests = me.friendRequests.filter(name => name.toLowerCase() !== fromUsername.toLowerCase());
-        savePlayerProfile(me);
-
-        emitPlayerData(socket, me.username);
-        socket.emit("message rejected", "Friend request declined.");
-    });
 
     socket.on("gift coins", data => {
         if (!session) return;
@@ -4335,12 +4748,15 @@ io.on("connection", socket => {
             return;
         }
         const topic = String(data && data.topic || "basics").slice(0, 30);
+        const profile = getPlayerProfile(session.username);
+        profile.tutorialSeen = true;
+        savePlayerProfile(profile);
         const lines = [
             `Welcome to CheeseWithFriends tutorial: ${topic}.`,
             "Use rooms on the left, earn cheese coins, and watch for chaos.",
             "Mozzarella is the shop. Cheddar is for temp servers. Cheese Bots is for robotic cheese helpers."
         ];
-        lines.forEach((line, index) => setTimeout(() => sendFetaBotMessage("Tutorial Bot", line), 1200 * index));
+        lines.forEach((line, index) => setTimeout(() => sendPrivateFetaBotMessage(socket, "Tutorial Bot", line), 1200 * index));
     });
 
     socket.on("roll dice", data => {
@@ -4410,6 +4826,238 @@ io.on("connection", socket => {
         }
         sendFetaBotMessage("Coin Flip Bot", `${session.username} flipped ${win ? "HEADS" : "TAILS"}${wager ? win ? ` and won ${wager} 🧀` : ` and lost ${wager} 🧀` : ""}`);
     });
+
+
+    socket.on("request social data", () => {
+        if (!session) return;
+        emitSocialData(session.username);
+    });
+
+    socket.on("send friend request", data => {
+        if (!session) return;
+
+        const targetName = String(data && data.targetUsername || "").trim();
+
+        if (!targetName || normalizeSocialName(targetName) === normalizeSocialName(session.username)) {
+            socket.emit("message rejected", "Choose another player.");
+            return;
+        }
+
+        const sender = ensureSocialProfile(getPlayerProfile(session.username));
+        const target = ensureSocialProfile(getPlayerProfile(targetName));
+
+        if (areFriends(sender.username, target.username)) {
+            socket.emit("message rejected", "You are already friends.");
+            return;
+        }
+
+        if (hasIncomingFriendRequest(sender, target.username)) {
+            sender.friendRequests = removeNameCaseInsensitive(sender.friendRequests, target.username);
+            target.outgoingFriendRequests = removeNameCaseInsensitive(target.outgoingFriendRequests, sender.username);
+
+            sender.friends.push(target.username);
+            target.friends.push(sender.username);
+
+            saveSocialProfile(sender);
+            saveSocialProfile(target);
+
+            socket.emit("message rejected", `You are now friends with ${target.username}.`);
+            const targetSocket = getSocketByUsername(target.username);
+            if (targetSocket) targetSocket.emit("message rejected", `${sender.username} accepted your friend request 🧀`);
+
+            emitSocialData(sender.username);
+            emitSocialData(target.username);
+            return;
+        }
+
+        if (!hasOutgoingFriendRequest(sender, target.username)) {
+            sender.outgoingFriendRequests.push(target.username);
+        }
+
+        if (!hasIncomingFriendRequest(target, sender.username)) {
+            target.friendRequests.push(sender.username);
+        }
+
+        saveSocialProfile(sender);
+        saveSocialProfile(target);
+
+        const targetSocket = getSocketByUsername(target.username);
+        if (targetSocket) {
+            targetSocket.emit("friend request", {
+                from: sender.username
+            });
+            emitSocialData(target.username);
+        }
+
+        emitSocialData(sender.username);
+        socket.emit("message rejected", `Friend request sent to ${target.username}.`);
+    });
+
+    socket.on("accept friend request", data => {
+        if (!session) return;
+
+        const fromName = String(data && data.from || data && data.username || "").trim();
+        const me = ensureSocialProfile(getPlayerProfile(session.username));
+        const other = ensureSocialProfile(getPlayerProfile(fromName));
+
+        if (!hasIncomingFriendRequest(me, other.username)) {
+            socket.emit("message rejected", "No friend request from that player.");
+            return;
+        }
+
+        me.friendRequests = removeNameCaseInsensitive(me.friendRequests, other.username);
+        other.outgoingFriendRequests = removeNameCaseInsensitive(other.outgoingFriendRequests, me.username);
+
+        if (!me.friends.some(friend => normalizeSocialName(friend) === normalizeSocialName(other.username))) {
+            me.friends.push(other.username);
+        }
+
+        if (!other.friends.some(friend => normalizeSocialName(friend) === normalizeSocialName(me.username))) {
+            other.friends.push(me.username);
+        }
+
+        saveSocialProfile(me);
+        saveSocialProfile(other);
+
+        socket.emit("message rejected", `You are now friends with ${other.username}.`);
+        const otherSocket = getSocketByUsername(other.username);
+        if (otherSocket) otherSocket.emit("message rejected", `${me.username} accepted your friend request 🧀`);
+
+        emitSocialData(me.username);
+        emitSocialData(other.username);
+    });
+
+    socket.on("decline friend request", data => {
+        if (!session) return;
+
+        const fromName = String(data && data.from || data && data.username || "").trim();
+        const me = ensureSocialProfile(getPlayerProfile(session.username));
+        const other = ensureSocialProfile(getPlayerProfile(fromName));
+
+        me.friendRequests = removeNameCaseInsensitive(me.friendRequests, other.username);
+        other.outgoingFriendRequests = removeNameCaseInsensitive(other.outgoingFriendRequests, me.username);
+
+        saveSocialProfile(me);
+        saveSocialProfile(other);
+
+        socket.emit("message rejected", `Declined friend request from ${other.username}.`);
+        emitSocialData(me.username);
+        emitSocialData(other.username);
+    });
+
+    socket.on("recall friend request", data => {
+        if (!session) return;
+
+        const targetName = String(data && data.targetUsername || data && data.username || "").trim();
+        const me = ensureSocialProfile(getPlayerProfile(session.username));
+        const target = ensureSocialProfile(getPlayerProfile(targetName));
+
+        me.outgoingFriendRequests = removeNameCaseInsensitive(me.outgoingFriendRequests, target.username);
+        target.friendRequests = removeNameCaseInsensitive(target.friendRequests, me.username);
+
+        saveSocialProfile(me);
+        saveSocialProfile(target);
+
+        socket.emit("message rejected", `Friend request to ${target.username} recalled.`);
+        emitSocialData(me.username);
+        emitSocialData(target.username);
+    });
+
+    socket.on("remove friend", data => {
+        if (!session) return;
+
+        const targetName = String(data && data.targetUsername || data && data.username || "").trim();
+        const me = ensureSocialProfile(getPlayerProfile(session.username));
+        const target = ensureSocialProfile(getPlayerProfile(targetName));
+
+        me.friends = removeNameCaseInsensitive(me.friends, target.username);
+        target.friends = removeNameCaseInsensitive(target.friends, me.username);
+
+        saveSocialProfile(me);
+        saveSocialProfile(target);
+
+        socket.emit("message rejected", `${target.username} removed from friends.`);
+        emitSocialData(me.username);
+        emitSocialData(target.username);
+    });
+
+    socket.on("open dm", data => {
+        if (!session) return;
+
+        const otherName = String(data && data.username || data && data.withUser || "").trim();
+
+        if (!otherName || !areFriends(session.username, otherName)) {
+            socket.emit("message rejected", "You can only DM friends.");
+            return;
+        }
+
+        socket.emit("dm thread", getDmThreadForUsers(session.username, otherName));
+        emitSocialData(session.username);
+    });
+
+    socket.on("send dm", data => {
+        if (!session) return;
+
+        const toName = String(data && data.to || data && data.username || "").trim();
+        const text = String(data && data.text || "").trim();
+
+        if (!toName || !text) return;
+
+        if (!areFriends(session.username, toName)) {
+            socket.emit("message rejected", "You can only DM friends.");
+            return;
+        }
+
+        const muteRemaining = getMuteRemainingMs(session.username);
+
+        if (muteRemaining > 0) {
+            socket.emit("message rejected", "You are muted. Use the muted notice button instead.");
+            return;
+        }
+
+        if (!dmTextAllowed(text)) {
+            socket.emit("message rejected", "That DM was blocked by the safety filter.");
+            return;
+        }
+
+        appendDmMessage(session.username, toName, text);
+    });
+
+    socket.on("send muted dm notice", data => {
+        if (!session) return;
+
+        const toName = String(data && data.to || data && data.username || "").trim();
+
+        if (!toName || !areFriends(session.username, toName)) {
+            socket.emit("message rejected", "You can only DM friends.");
+            return;
+        }
+
+        const muteRemaining = getMuteRemainingMs(session.username);
+
+        if (muteRemaining <= 0) {
+            socket.emit("message rejected", "You are not muted.");
+            return;
+        }
+
+        const cooldownKey = `${normalizeSocialName(session.username)}::${normalizeSocialName(toName)}`;
+        const lastSent = mutedDmNoticeCooldowns.get(cooldownKey) || 0;
+
+        if (Date.now() - lastSent < 60000) {
+            socket.emit("message rejected", "Muted notice is cooling down.");
+            return;
+        }
+
+        mutedDmNoticeCooldowns.set(cooldownKey, Date.now());
+
+        appendDmMessage(
+            session.username,
+            toName,
+            `I am muted right now, i can talk in ${formatDurationShort(muteRemaining)} 🧀🤫`,
+            { mutedNotice: true }
+        );
+    });
+
 
     socket.on("disconnect", () => {
         const online = onlineUsers.get(socket.id);

@@ -5170,16 +5170,11 @@ MERGED WAVE 1: FRIENDS / GIFTS / LEADERBOARD
    WAVE 3: PRIVATE TEMP / FETA BOTS / CHAOS STACKING
 ========================================================= */
 
-body[data-theme="cheeseBots"] {
-    --page-bg: linear-gradient(135deg, #fffaf0, #ead7b7);
-    --panel: rgba(255,250,240,0.94);
-    --accent: #d6b47c;
-    --accent2: #8a6f45;
-}
+
 
 .cheese-bot-menu {
     padding: 14px;
-    background: rgba(255,250,240,0.82);
+    background: rgba(18,24,33,0.82);
     border-bottom: 2px solid rgba(138,111,69,0.25);
 }
 
@@ -5195,7 +5190,7 @@ body[data-theme="cheeseBots"] {
     border-radius: 14px;
     padding: 10px 12px;
     background: #8a6f45;
-    color: #fffaf0;
+    color: #121821;
     font-weight: 1000;
 }
 
@@ -5310,4 +5305,578 @@ body[data-theme="cheeseBots"] .message[data-bot="true"] {
 
 body[data-theme="cheeseBots"] #room-feta.active {
     box-shadow: 0 0 24px rgba(64,196,255,0.32), inset 0 0 18px rgba(255,216,77,0.18);
+}
+
+
+/* =========================================================
+   CHEESE BOTS VISUAL TWEAK
+========================================================= */
+
+#room-feta {
+    justify-content: center;
+    text-align: center;
+    gap: 12px;
+}
+
+#room-feta .room-icon {
+    font-size: 34px;
+}
+
+#room-feta .cheese-bots-room-label {
+    display: block;
+    text-align: center;
+}
+
+body[data-theme="cheeseBots"] {
+    background:
+        radial-gradient(circle at 18% 12%, rgba(255, 216, 77, 0.34), transparent 28%),
+        radial-gradient(circle at 78% 18%, rgba(64, 196, 255, 0.26), transparent 26%),
+        linear-gradient(135deg, #131722 0%, #202737 48%, #3b2d08 100%) !important;
+}
+
+body[data-theme="cheeseBots"] .chat-page {
+    position: relative;
+    background:
+        radial-gradient(circle at 18% 20%, rgba(255, 216, 77, 0.22), transparent 24%),
+        radial-gradient(circle at 82% 16%, rgba(64, 196, 255, 0.20), transparent 26%),
+        linear-gradient(135deg, #111722 0%, #1b2431 55%, #33270b 100%) !important;
+    color: #fff3b0;
+}
+
+body[data-theme="cheeseBots"] .chat-page::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(rgba(64,196,255,0.075) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,216,77,0.07) 1px, transparent 1px);
+    background-size: 34px 34px;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.7), rgba(0,0,0,0.18));
+}
+
+body[data-theme="cheeseBots"] .chat-header {
+    background:
+        linear-gradient(135deg, rgba(255, 216, 77, 0.18), rgba(64, 196, 255, 0.14)),
+        #151b25 !important;
+    border-bottom: 3px solid rgba(64, 196, 255, 0.38) !important;
+}
+
+body[data-theme="cheeseBots"] .chat-title h1,
+body[data-theme="cheeseBots"] .chat-title p {
+    color: #fff3b0;
+    text-shadow: 0 0 14px rgba(64, 196, 255, 0.22);
+}
+
+body[data-theme="cheeseBots"] .messages {
+    position: relative;
+    background:
+        radial-gradient(circle at 50% 10%, rgba(255, 216, 77, 0.12), transparent 35%),
+        linear-gradient(rgba(64,196,255,0.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,216,77,0.055) 1px, transparent 1px),
+        #121821 !important;
+    background-size: auto, 30px 30px, 30px 30px, auto;
+    border-color: rgba(64, 196, 255, 0.34) !important;
+}
+
+body[data-theme="cheeseBots"] .messages::after {
+    content: "🤖  🧀  0101  CHEESE BOT NETWORK  1010  🧀  🤖";
+    position: absolute;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    opacity: 0.12;
+    font-weight: 1000;
+    letter-spacing: 2px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+body[data-theme="cheeseBots"] .empty-state {
+    background:
+        linear-gradient(135deg, rgba(255, 216, 77, 0.20), rgba(64, 196, 255, 0.16)),
+        rgba(18, 24, 33, 0.92) !important;
+    color: #fff3b0 !important;
+    box-shadow: 0 0 34px rgba(64, 196, 255, 0.16);
+}
+
+body[data-theme="cheeseBots"] .cheese-bot-menu {
+    background:
+        linear-gradient(135deg, rgba(255, 216, 77, 0.18), rgba(64, 196, 255, 0.16)),
+        #121821 !important;
+    border-bottom: 2px solid rgba(64, 196, 255, 0.36);
+}
+
+/* More breathing room on the right panel cards */
+.users-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.users-sidebar > * {
+    margin-bottom: 0 !important;
+}
+
+.profile-card,
+.arcade-card,
+.online-users-card,
+.users-card {
+    margin-bottom: 28px;
+}
+
+.profile-card + .arcade-card,
+#profileCard + #arcadeCard {
+    margin-top: 26px;
+}
+
+
+/* =========================================================
+   QA V2 BOT FIXES
+========================================================= */
+
+.cheese-bot-inline-control {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.cheese-bot-inline-control input {
+    min-width: 0;
+    border: 1px solid rgba(64, 196, 255, 0.34);
+    border-radius: 14px;
+    padding: 10px 12px;
+    background: rgba(18, 24, 33, 0.92);
+    color: #fff3b0;
+    font-weight: 900;
+}
+
+.cheese-bot-inline-control input::placeholder {
+    color: rgba(255, 243, 176, 0.62);
+}
+
+body[data-theme="cheeseBots"] .message-bar {
+    display: none !important;
+}
+
+
+/* =========================================================
+   QA V3 INLINE BOT CONTROLS
+========================================================= */
+
+.cheese-bot-inline-control {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.cheese-bot-inline-control input {
+    min-width: 0;
+    border: 1px solid rgba(64, 196, 255, 0.34);
+    border-radius: 14px;
+    padding: 10px 12px;
+    background: rgba(18, 24, 33, 0.92);
+    color: #fff3b0;
+    font-weight: 900;
+}
+
+.cheese-bot-inline-control input::placeholder {
+    color: rgba(255, 243, 176, 0.62);
+}
+
+
+/* =========================================================
+   JUST ANOTHER LIFE OF CHEESE — RESPONSIVE + SOCIAL V1
+========================================================= */
+
+.cheddar-social-hub {
+    border-top: 2px solid rgba(255, 190, 60, 0.22);
+    background: rgba(255, 248, 210, 0.42);
+    padding: 12px;
+}
+
+.cheddar-social-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.cheddar-social-tab {
+    border: 0;
+    border-radius: 16px;
+    padding: 10px 12px;
+    background: rgba(90, 55, 0, 0.12);
+    font-weight: 1000;
+    cursor: pointer;
+}
+
+.cheddar-social-tab.active {
+    background: linear-gradient(135deg, #ffcf40, #ff9f1c);
+    color: #3a2600;
+    box-shadow: 0 0 20px rgba(255, 183, 3, 0.26);
+}
+
+.cheddar-social-panel {
+    display: grid;
+    gap: 12px;
+}
+
+.dm-list,
+.friends-list,
+.friend-requests-list {
+    display: grid;
+    gap: 8px;
+}
+
+.dm-row,
+.friend-row {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    align-items: center;
+    border: 1px solid rgba(80, 50, 0, 0.14);
+    border-radius: 16px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.48);
+    color: inherit;
+    text-align: left;
+}
+
+.dm-row small {
+    opacity: 0.72;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.friend-row span {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.friend-row button,
+.dm-thread-header button,
+.dm-input-bar button,
+.dm-muted-notice button {
+    border: 0;
+    border-radius: 12px;
+    padding: 8px 10px;
+    font-weight: 1000;
+    background: #4b3400;
+    color: #fff1a8;
+}
+
+.dm-thread-panel {
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.50);
+    padding: 12px;
+    box-shadow: inset 0 0 0 1px rgba(90, 55, 0, 0.12);
+}
+
+.dm-thread-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.dm-messages {
+    max-height: 340px;
+    overflow-y: auto;
+    display: grid;
+    gap: 8px;
+    padding: 8px;
+}
+
+.dm-message {
+    max-width: 78%;
+    border-radius: 16px;
+    padding: 9px 11px;
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: 0 4px 14px rgba(70, 45, 0, 0.08);
+}
+
+.dm-message.mine {
+    justify-self: end;
+    background: linear-gradient(135deg, #fff3b0, #ffcf40);
+}
+
+.dm-message.theirs {
+    justify-self: start;
+}
+
+.dm-message.muted-notice {
+    border: 2px dashed rgba(90, 55, 0, 0.28);
+}
+
+.dm-message p {
+    margin: 4px 0;
+}
+
+.dm-input-bar {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.dm-input-bar input {
+    border-radius: 14px;
+    border: 1px solid rgba(90, 55, 0, 0.20);
+    padding: 11px 12px;
+}
+
+.dm-muted-notice {
+    border-radius: 16px;
+    padding: 10px;
+    background: rgba(255, 231, 120, 0.38);
+    display: grid;
+    gap: 8px;
+}
+
+.mini-badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    padding: 0 6px;
+    background: #e63946;
+    color: white;
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.bottom-nav {
+    display: none;
+}
+
+body.console-mode button,
+body.console-mode input,
+body.console-mode select,
+body.console-mode textarea {
+    font-size: 18px !important;
+    min-height: 46px;
+}
+
+body.console-mode .room-button,
+body.console-mode .dm-row,
+body.console-mode .friend-row {
+    min-height: 58px;
+    outline-offset: 4px;
+}
+
+body.console-mode *:focus {
+    outline: 4px solid rgba(64, 196, 255, 0.75) !important;
+    box-shadow: 0 0 0 6px rgba(255, 216, 77, 0.22) !important;
+}
+
+@media (max-width: 1366px) {
+    .app-shell,
+    .main-layout,
+    .chat-layout {
+        gap: 10px;
+    }
+
+    .sidebar {
+        width: min(230px, 24vw);
+    }
+
+    .users-sidebar {
+        width: min(280px, 27vw);
+    }
+
+    #adminPanel {
+        max-width: min(420px, 92vw);
+        max-height: 86vh;
+        overflow: auto;
+    }
+}
+
+@media (max-width: 900px) {
+    body {
+        overflow-x: hidden;
+    }
+
+    .app-shell,
+    .main-layout,
+    .chat-layout {
+        grid-template-columns: 1fr !important;
+    }
+
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: min(320px, 86vw);
+        z-index: 5000;
+        transform: translateX(-105%);
+        transition: transform 0.22s ease;
+    }
+
+    body.sidebar-open .sidebar {
+        transform: translateX(0);
+    }
+
+    .users-sidebar {
+        width: 100% !important;
+        max-width: none;
+        order: 3;
+    }
+
+    .chat-page,
+    .chat-main,
+    .messages {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .message-bar {
+        position: sticky;
+        bottom: 66px;
+        z-index: 60;
+    }
+
+    #adminPanel {
+        position: fixed !important;
+        left: 10px !important;
+        right: 10px !important;
+        bottom: 76px !important;
+        top: auto !important;
+        width: auto !important;
+        max-height: 58vh;
+        transform: none !important;
+        z-index: 7000;
+    }
+
+    #adminPanel:not(.admin-mobile-open).collapsed,
+    #adminPanel.collapsed {
+        max-height: 56px;
+        overflow: hidden;
+    }
+
+    .bottom-nav {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 9000;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 4px;
+        padding: 7px max(7px, env(safe-area-inset-left)) max(7px, env(safe-area-inset-bottom)) max(7px, env(safe-area-inset-right));
+        background: rgba(40, 27, 0, 0.94);
+        box-shadow: 0 -8px 30px rgba(0,0,0,0.18);
+    }
+
+    .bottom-nav button {
+        border: 0;
+        border-radius: 14px;
+        padding: 8px 4px;
+        background: rgba(255, 216, 77, 0.18);
+        color: #fff1a8;
+        font-weight: 1000;
+        display: grid;
+        gap: 2px;
+        place-items: center;
+    }
+
+    .bottom-nav span {
+        font-size: 10px;
+    }
+
+    .cheddar-social-tabs {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .dm-row,
+    .friend-row {
+        grid-template-columns: 1fr;
+    }
+
+    .dm-message {
+        max-width: 92%;
+    }
+
+    .dm-input-bar {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .chat-header,
+    .message-bar,
+    .cheddar-social-hub,
+    .dm-thread-panel {
+        border-radius: 0;
+    }
+
+    .messages {
+        min-height: calc(100vh - 220px);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+        font-size: 16px;
+    }
+}
+
+
+#adminPanel.collapsed {
+    overflow: hidden;
+}
+
+#adminPanel.collapsed .admin-tabs,
+#adminPanel.collapsed .admin-tab-panel,
+#adminPanel.collapsed .admin-command-box,
+#adminPanel.collapsed .admin-log-table {
+    display: none !important;
+}
+
+.admin-drag-handle {
+    cursor: grab;
+    user-select: none;
+}
+
+.admin-collapse-toggle {
+    float: right;
+    border: 0;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-weight: 1000;
+    background: rgba(255, 216, 77, 0.22);
+    color: inherit;
+}
+
+
+/* =========================================================
+   JUST ANOTHER LIFE OF CHEESE — V1 FINISHING FIXES
+========================================================= */
+
+.admin-dm-history-output {
+    max-height: 60vh;
+    overflow: auto;
+    white-space: pre-wrap;
+    text-align: left;
+    border-radius: 16px;
+    padding: 14px;
+    background: rgba(20, 16, 8, 0.88);
+    color: #fff4b8;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.bottom-nav .mini-badge {
+    position: absolute;
+    margin-left: 34px;
+    margin-top: -34px;
 }

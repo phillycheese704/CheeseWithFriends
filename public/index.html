@@ -173,9 +173,9 @@
                 id="room-feta"
                 onclick="switchRoom('feta')"
             >
-                <span class="room-icon">🤖🧀</span>
+                <span class="room-icon">🤖</span>
                 <span>
-                    <strong>Cheese Bots</strong>
+                    <strong class="cheese-bots-room-label">Cheese Bots</strong>
                 </span>
                 <span class="unread-badge hidden" data-unread-for="feta">0</span>
             </button>
@@ -382,13 +382,59 @@
             <section id="cheeseBotMenu" class="cheese-bot-menu hidden">
                 <div class="cheese-bot-tabs">
                     <button onclick="socket.emit('request tutorial', { topic: 'basics' })">Tutorial Bot 🤖</button>
-                    <button onclick="rollDicePrompt()">Dice Bot 🎲</button>
+                    <div class="cheese-bot-inline-control">
+                        <input id="diceSidesInput" type="number" min="2" max="100" value="20" placeholder="Dice sides">
+                        <button onclick="rollDicePrompt()">Roll 🎲</button>
+                    </div>
                     <button onclick="socket.emit('ask trivia')">Trivia Bot 🧠</button>
-                    <button onclick="coinFlipPrompt()">Coin Bot 🪙</button>
+                    <div class="cheese-bot-inline-control trivia-answer-control">
+                        <input id="triviaAnswerInput" maxlength="40" placeholder="Trivia answer">
+                        <button onclick="submitTriviaAnswer()">Answer</button>
+                    </div>
+                    <div class="cheese-bot-inline-control">
+                        <input id="coinFlipWagerInput" type="number" min="0" max="500" value="0" placeholder="Wager">
+                        <button onclick="coinFlipPrompt()">Flip 🪙</button>
+                    </div>
                     <button disabled>🔮 Oracle Bot 🔮</button>
                     <button disabled>🎵 Vibe Bot 🎵</button>
                 </div>
             </section>
+
+            
+            <section id="cheddarSocialHub" class="cheddar-social-hub hidden">
+                <div class="cheddar-social-tabs">
+                    <button class="cheddar-social-tab active" data-cheddar-tab="servers" onclick="switchCheddarTab('servers')">🧀 Temp Servers</button>
+                    <button class="cheddar-social-tab" data-cheddar-tab="dms" onclick="switchCheddarTab('dms')">💬 DMs <span id="dmUnreadBadge" class="mini-badge hidden">0</span></button>
+                    <button class="cheddar-social-tab" data-cheddar-tab="friends" onclick="switchCheddarTab('friends')">👥 Friends</button>
+                </div>
+
+                <div id="cheddarDmPanel" class="cheddar-social-panel hidden">
+                    <h3>💬 Direct Messages</h3>
+                    <div id="dmList" class="dm-list"></div>
+                    <div id="dmThreadPanel" class="dm-thread-panel hidden">
+                        <div class="dm-thread-header">
+                            <button onclick="closeDmThread()">← Back</button>
+                            <strong id="dmThreadTitle">DM</strong>
+                        </div>
+                        <div id="dmMessages" class="dm-messages"></div>
+                        <div id="dmMutedNotice" class="dm-muted-notice hidden">
+                            <p>You are muted right now.</p>
+                            <button onclick="sendMutedDmNotice()">Send muted notice 🧀🤫</button>
+                        </div>
+                        <div id="dmInputBar" class="dm-input-bar">
+                            <input id="dmMessageInput" maxlength="600" placeholder="Type a DM...">
+                            <button onclick="sendCurrentDm()">Send</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="cheddarFriendsPanel" class="cheddar-social-panel hidden">
+                    <h3>👥 Friends</h3>
+                    <div id="friendRequestsList" class="friend-requests-list"></div>
+                    <div id="friendsList" class="friends-list"></div>
+                </div>
+            </section>
+
 
             <div id="replyPreview" class="reply-preview hidden">
                 <span id="replyPreviewText"></span>
@@ -549,6 +595,7 @@
                 <h3>👤 Your Profile</h3>
                 <p id="miniProfileStats">Loading...</p>
                 <button onclick="openOwnProfile()">Open Profile</button>
+                <button id="consoleModeToggle" onclick="toggleConsoleMode()">🎮 Console Mode</button>
                 <button onclick="openLeaderboard()">Leaderboard 🏆</button>
             </div>
 
@@ -722,6 +769,8 @@
                     <select id="adminCommandSelect" onchange="buildAdminCommand()">
                         <option value="">Choose command...</option>
                         <option value="warning">Warning</option>
+                        <option value="warnings">Warning History</option>
+                        <option value="viewdm">View DMs</option>
                         <option value="ban">Ban</option>
                         <option value="tempban">Temp Ban</option>
                         <option value="mute">Mute</option>
@@ -813,6 +862,15 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="client.js"></script>
+
+
+    <nav id="bottomNav" class="bottom-nav">
+        <button onclick="openMobileSection('rooms')">🏠<span>Rooms</span></button>
+        <button onclick="openMobileSection('chat')">💬<span>Chat</span></button>
+        <button onclick="switchRoom('cheddar'); openMobileSection('chat')">🧀<span>Cheddar</span><span id="bottomDmUnreadBadge" class="mini-badge hidden">0</span></button>
+        <button onclick="openOwnProfile()">👤<span>Me</span></button>
+        <button id="bottomAdminBtn" class="hidden" onclick="openMobileSection('admin')">⚙️<span>Admin</span></button>
+    </nav>
 
 </body>
 </html>
