@@ -1,4 +1,18 @@
 
+function applyCheeseBotsVisualTheme(roomId) {
+    if (roomId === "feta") {
+        document.body.dataset.theme = "cheeseBots";
+        document.documentElement.dataset.theme = "cheeseBots";
+        document.body.classList.add("cheese-bots-active");
+    } else {
+        document.body.classList.remove("cheese-bots-active");
+        if (document.documentElement.dataset.theme === "cheeseBots") {
+            document.documentElement.removeAttribute("data-theme");
+        }
+    }
+}
+
+
 /* =========================================================
    JUST ANOTHER LIFE OF CHEESE — SOCIAL CLIENT STATE
 ========================================================= */
@@ -334,6 +348,7 @@ function switchRoom(roomId) {
     if (roomId === currentRoom) return;
 
     currentRoom = roomId;
+    applyCheeseBotsVisualTheme(roomId);
     unreadCounts[roomId] = 0;
     renderUnreadBadges();
     scrollLockCount = 0;
@@ -385,6 +400,7 @@ function updateRoomUI(roomId, roomInfo) {
     const isCheeseBots = roomId === "feta";
 
     document.body.dataset.theme = roomId === "feta" ? "cheeseBots" : (room.theme || "cheese");
+    applyCheeseBotsVisualTheme(roomId);
 
     roomTitle.textContent = `${room.icon || "🧀"} ${room.name || "Room"}`;
 
@@ -2494,6 +2510,7 @@ socket.on("admin status", data => {
 });
 
 socket.on("room data", data => {
+    applyCheeseBotsVisualTheme(data.roomId || data.room || currentRoom);
     currentRoom = data.room;
     currentRoomInfo = data.roomInfo;
 
@@ -3656,7 +3673,9 @@ function giftCoinsTo(username) {
 }
 
 socket.on("friend request", data => {
-    const wrapper = document.createElement("div");
+    
+    socket.emit("request social data");
+const wrapper = document.createElement("div");
     wrapper.className = "friend-request-toast";
     wrapper.innerHTML = `
         <strong>🧀 Friend request from ${data.from}</strong>
@@ -3681,6 +3700,8 @@ socket.on("friend request", data => {
     document.body.appendChild(wrapper);
     setTimeout(() => wrapper.remove(), 15000);
 });
+
+
 
 function openLeaderboard() {
     const modal = document.getElementById("leaderboardModal");
@@ -3822,10 +3843,7 @@ socket.on("social data", data => {
     renderSocialHub();
 });
 
-socket.on("friend request", data => {
-    showChatNotice(`🧀 New friend request from ${data.from}`);
-    socket.emit("request social data");
-});
+
 
 function renderSocialHub() {
     const badge = document.getElementById("dmUnreadBadge");
@@ -3834,12 +3852,6 @@ function renderSocialHub() {
     if (badge) {
         badge.textContent = unread;
         badge.classList.toggle("hidden", unread <= 0);
-    }
-
-    const bottomBadge = document.getElementById("bottomDmUnreadBadge");
-    if (bottomBadge) {
-        bottomBadge.textContent = unread;
-        bottomBadge.classList.toggle("hidden", unread <= 0);
     }
 
     renderDmList();
@@ -4044,31 +4056,11 @@ socket.on("admin dm history", thread => {
     modal.querySelector("pre").textContent = output;
 });
 
-function toggleConsoleMode() {
-    document.body.classList.toggle("console-mode");
-    localStorage.setItem("cheeseConsoleMode", document.body.classList.contains("console-mode") ? "1" : "0");
-}
 
 if (localStorage.getItem("cheeseConsoleMode") === "1" || /Xbox|PlayStation|TV|Steam Deck/i.test(navigator.userAgent)) {
     document.body.classList.add("console-mode");
 }
 
-function openMobileSection(section) {
-    document.body.dataset.mobileSection = section;
-
-    if (section === "rooms") {
-        document.body.classList.add("sidebar-open");
-    }
-
-    if (section === "chat") {
-        document.body.classList.remove("sidebar-open");
-    }
-
-    if (section === "admin") {
-        const panel = document.getElementById("adminPanel");
-        if (panel) panel.classList.toggle("admin-mobile-open");
-    }
-}
 
 
 function renderProfileSocialActions(username) {
@@ -4100,12 +4092,26 @@ function renderProfileSocialActions(username) {
    JUST ANOTHER LIFE OF CHEESE — ADMIN PANEL DRAG/COLLAPSE
 ========================================================= */
 
+
+
+
+(function setupSilentConsoleSupport() {
+    const isConsoleish = /Xbox|PlayStation|TV|Steam Deck/i.test(navigator.userAgent);
+
+    if (isConsoleish) {
+        document.body.classList.add("console-friendly");
+    }
+})();
+
+
 (function setupAdminPanelLifeOfCheese() {
     const panel = document.getElementById("adminPanel");
     if (!panel) return;
 
     const savedCollapsed = localStorage.getItem("cheeseAdminCollapsed");
-    if (savedCollapsed === "1") panel.classList.add("collapsed");
+    if (savedCollapsed === "1") {
+        panel.classList.add("collapsed");
+    }
 
     const savedPosition = localStorage.getItem("cheeseAdminPosition");
     if (savedPosition) {
@@ -4120,24 +4126,9 @@ function renderProfileSocialActions(username) {
         } catch {}
     }
 
-    let header = panel.querySelector(".admin-panel-header") || panel.querySelector("h2") || panel.firstElementChild;
+    const header = panel.querySelector(".admin-panel-header") || panel.querySelector("h2") || panel.firstElementChild;
     if (!header) return;
-
     header.classList.add("admin-drag-handle");
-
-    if (!panel.querySelector(".admin-collapse-toggle")) {
-        const btn = document.createElement("button");
-        btn.className = "admin-collapse-toggle";
-        btn.textContent = "Collapse";
-        btn.type = "button";
-        btn.onclick = event => {
-            event.stopPropagation();
-            panel.classList.toggle("collapsed");
-            localStorage.setItem("cheeseAdminCollapsed", panel.classList.contains("collapsed") ? "1" : "0");
-            btn.textContent = panel.classList.contains("collapsed") ? "Expand" : "Collapse";
-        };
-        header.appendChild(btn);
-    }
 
     let dragging = false;
     let startX = 0;
@@ -4152,10 +4143,14 @@ function renderProfileSocialActions(username) {
         dragging = true;
         startX = event.clientX;
         startY = event.clientY;
+
         const rect = panel.getBoundingClientRect();
         startLeft = rect.left;
         startTop = rect.top;
-        header.setPointerCapture(event.pointerId);
+
+        if (header.setPointerCapture) {
+            header.setPointerCapture(event.pointerId);
+        }
     });
 
     header.addEventListener("pointermove", event => {
@@ -4180,4 +4175,32 @@ function renderProfileSocialActions(username) {
             top: rect.top
         }));
     });
+})();
+
+
+(function setupViewDmQuickCommand() {
+    const bind = () => {
+        const select = document.getElementById("adminCommandSelect");
+        const input = document.getElementById("adminCommandInput");
+        const playerSelect = document.getElementById("adminPlayerSelect");
+
+        if (!select || !input) return;
+
+        if (select.dataset.viewdmBound === "1") return;
+        select.dataset.viewdmBound = "1";
+
+        select.addEventListener("change", () => {
+            if (select.value !== "viewdm") return;
+            const player = playerSelect && playerSelect.value ? playerSelect.value : "<PlayerOne>";
+            input.value = `;/ViewDM: ${player}, <OtherPlayer>`;
+        });
+    };
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", bind);
+    } else {
+        bind();
+    }
+
+    setTimeout(bind, 700);
 })();

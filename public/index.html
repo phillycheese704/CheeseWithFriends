@@ -595,7 +595,6 @@
                 <h3>👤 Your Profile</h3>
                 <p id="miniProfileStats">Loading...</p>
                 <button onclick="openOwnProfile()">Open Profile</button>
-                <button id="consoleModeToggle" onclick="toggleConsoleMode()">🎮 Console Mode</button>
                 <button onclick="openLeaderboard()">Leaderboard 🏆</button>
             </div>
 
@@ -862,15 +861,6 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="client.js"></script>
-
-
-    <nav id="bottomNav" class="bottom-nav">
-        <button onclick="openMobileSection('rooms')">🏠<span>Rooms</span></button>
-        <button onclick="openMobileSection('chat')">💬<span>Chat</span></button>
-        <button onclick="switchRoom('cheddar'); openMobileSection('chat')">🧀<span>Cheddar</span><span id="bottomDmUnreadBadge" class="mini-badge hidden">0</span></button>
-        <button onclick="openOwnProfile()">👤<span>Me</span></button>
-        <button id="bottomAdminBtn" class="hidden" onclick="openMobileSection('admin')">⚙️<span>Admin</span></button>
-    </nav>
 
 </body>
 </html>

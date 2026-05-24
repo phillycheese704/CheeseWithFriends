@@ -5653,29 +5653,8 @@ body[data-theme="cheeseBots"] .message-bar {
     font-weight: 1000;
 }
 
-.bottom-nav {
-    display: none;
-}
 
-body.console-mode button,
-body.console-mode input,
-body.console-mode select,
-body.console-mode textarea {
-    font-size: 18px !important;
-    min-height: 46px;
-}
 
-body.console-mode .room-button,
-body.console-mode .dm-row,
-body.console-mode .friend-row {
-    min-height: 58px;
-    outline-offset: 4px;
-}
-
-body.console-mode *:focus {
-    outline: 4px solid rgba(64, 196, 255, 0.75) !important;
-    box-shadow: 0 0 0 6px rgba(255, 216, 77, 0.22) !important;
-}
 
 @media (max-width: 1366px) {
     .app-shell,
@@ -5762,35 +5741,8 @@ body.console-mode *:focus {
         overflow: hidden;
     }
 
-    .bottom-nav {
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 9000;
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 4px;
-        padding: 7px max(7px, env(safe-area-inset-left)) max(7px, env(safe-area-inset-bottom)) max(7px, env(safe-area-inset-right));
-        background: rgba(40, 27, 0, 0.94);
-        box-shadow: 0 -8px 30px rgba(0,0,0,0.18);
-    }
 
-    .bottom-nav button {
-        border: 0;
-        border-radius: 14px;
-        padding: 8px 4px;
-        background: rgba(255, 216, 77, 0.18);
-        color: #fff1a8;
-        font-weight: 1000;
-        display: grid;
-        gap: 2px;
-        place-items: center;
-    }
 
-    .bottom-nav span {
-        font-size: 10px;
-    }
 
     .cheddar-social-tabs {
         display: grid;
@@ -5848,15 +5800,7 @@ body.console-mode *:focus {
     user-select: none;
 }
 
-.admin-collapse-toggle {
-    float: right;
-    border: 0;
-    border-radius: 999px;
-    padding: 6px 10px;
-    font-weight: 1000;
-    background: rgba(255, 216, 77, 0.22);
-    color: inherit;
-}
+
 
 
 /* =========================================================
@@ -5875,8 +5819,284 @@ body.console-mode *:focus {
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
-.bottom-nav .mini-badge {
-    position: absolute;
-    margin-left: 34px;
-    margin-top: -34px;
+
+
+   This is intentionally last so it beats older cream/white room styles.
+========================================================= */
+
+body[data-theme="cheeseBots"],
+html[data-theme="cheeseBots"] body,
+body.cheese-bots-active {
+    background:
+        radial-gradient(circle at 18% 12%, rgba(255, 217, 71, 0.32), transparent 30%),
+        radial-gradient(circle at 82% 16%, rgba(45, 205, 255, 0.26), transparent 28%),
+        linear-gradient(135deg, #080d16 0%, #111827 42%, #271f08 100%) !important;
+    color: #fff4b8 !important;
+}
+
+body[data-theme="cheeseBots"] .chat-page,
+body.cheese-bots-active .chat-page,
+body[data-theme="cheeseBots"] .main-chat,
+body.cheese-bots-active .main-chat,
+body[data-theme="cheeseBots"] .chat-main,
+body.cheese-bots-active .chat-main {
+    background:
+        radial-gradient(circle at top left, rgba(255, 217, 71, 0.18), transparent 34%),
+        radial-gradient(circle at top right, rgba(45, 205, 255, 0.18), transparent 30%),
+        linear-gradient(rgba(45,205,255,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,217,71,0.055) 1px, transparent 1px),
+        #0b111d !important;
+    background-size: auto, auto, 34px 34px, 34px 34px, auto !important;
+    color: #fff4b8 !important;
+}
+
+body[data-theme="cheeseBots"] .chat-header,
+body.cheese-bots-active .chat-header,
+body[data-theme="cheeseBots"] .message-bar,
+body.cheese-bots-active .message-bar,
+body[data-theme="cheeseBots"] .cheese-bot-menu,
+body.cheese-bots-active .cheese-bot-menu {
+    background:
+        linear-gradient(135deg, rgba(255,217,71,0.18), rgba(45,205,255,0.14)),
+        rgba(10, 16, 27, 0.96) !important;
+    border-color: rgba(45, 205, 255, 0.38) !important;
+    color: #fff4b8 !important;
+    box-shadow: 0 0 28px rgba(45, 205, 255, 0.12), inset 0 0 18px rgba(255, 217, 71, 0.06) !important;
+}
+
+body[data-theme="cheeseBots"] .messages,
+body.cheese-bots-active .messages {
+    position: relative;
+    background:
+        radial-gradient(circle at 50% 0%, rgba(255,217,71,0.12), transparent 36%),
+        linear-gradient(rgba(45,205,255,0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,217,71,0.06) 1px, transparent 1px),
+        #080d16 !important;
+    background-size: auto, 30px 30px, 30px 30px, auto !important;
+    border: 1px solid rgba(45,205,255,0.28) !important;
+    color: #fff4b8 !important;
+}
+
+body[data-theme="cheeseBots"] .messages::before,
+body.cheese-bots-active .messages::before {
+    content: "🤖 CHEESE BOT NETWORK // 0101 // 🧀";
+    position: sticky;
+    top: 8px;
+    z-index: 1;
+    display: block;
+    width: fit-content;
+    margin: 8px auto;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(8, 13, 22, 0.72);
+    color: rgba(255, 244, 184, 0.48);
+    border: 1px solid rgba(45,205,255,0.24);
+    font-weight: 1000;
+    letter-spacing: 1px;
+    pointer-events: none;
+}
+
+body[data-theme="cheeseBots"] .message,
+body.cheese-bots-active .message,
+body[data-theme="cheeseBots"] .empty-state,
+body.cheese-bots-active .empty-state {
+    background:
+        linear-gradient(135deg, rgba(255,217,71,0.12), rgba(45,205,255,0.10)),
+        rgba(12, 18, 31, 0.94) !important;
+    color: #fff4b8 !important;
+    border: 1px solid rgba(45,205,255,0.24) !important;
+    box-shadow: 0 0 18px rgba(45,205,255,0.08) !important;
+}
+
+body[data-theme="cheeseBots"] .cheese-bot-tabs button,
+body.cheese-bots-active .cheese-bot-tabs button,
+body[data-theme="cheeseBots"] .cheese-bot-inline-control input,
+body.cheese-bots-active .cheese-bot-inline-control input {
+    background:
+        linear-gradient(135deg, rgba(255,217,71,0.14), rgba(45,205,255,0.12)),
+        #0c1422 !important;
+    color: #fff4b8 !important;
+    border: 1px solid rgba(45,205,255,0.34) !important;
+    box-shadow: 0 0 20px rgba(45,205,255,0.10) !important;
+}
+
+body[data-theme="cheeseBots"] #room-feta.active,
+body.cheese-bots-active #room-feta.active {
+    background:
+        linear-gradient(135deg, rgba(255,217,71,0.22), rgba(45,205,255,0.18)),
+        #0c1422 !important;
+    box-shadow: 0 0 24px rgba(45,205,255,0.28), inset 0 0 18px rgba(255,217,71,0.16) !important;
+}
+
+body[data-theme="cheeseBots"] .room-button,
+body.cheese-bots-active .room-button {
+    color: inherit;
+}
+
+body[data-theme="cheeseBots"] .message-bar {
+    display: none !important;
+}
+
+
+body.console-friendly button,
+body.console-friendly input,
+body.console-friendly select,
+body.console-friendly textarea {
+    min-height: 46px;
+    font-size: 17px;
+}
+
+body.console-friendly *:focus {
+    outline: 4px solid rgba(45, 205, 255, 0.72) !important;
+    outline-offset: 3px;
+}
+
+
+
+/* =========================================================
+   CHEESE BOTS FINAL ROBOTIC THEME OVERRIDE
+========================================================= */
+
+body[data-theme="cheeseBots"],
+html[data-theme="cheeseBots"] body,
+body.cheese-bots-active {
+    background:
+        radial-gradient(circle at 18% 12%, rgba(255, 217, 71, 0.32), transparent 30%),
+        radial-gradient(circle at 82% 16%, rgba(45, 205, 255, 0.26), transparent 28%),
+        linear-gradient(135deg, #080d16 0%, #111827 42%, #271f08 100%) !important;
+    color: #fff4b8 !important;
+}
+
+body[data-theme="cheeseBots"] .app-shell,
+body[data-theme="cheeseBots"] .main-layout,
+body[data-theme="cheeseBots"] .chat-layout,
+body[data-theme="cheeseBots"] .chat-page,
+body[data-theme="cheeseBots"] .main-chat,
+body[data-theme="cheeseBots"] .chat-main,
+body.cheese-bots-active .app-shell,
+body.cheese-bots-active .main-layout,
+body.cheese-bots-active .chat-layout,
+body.cheese-bots-active .chat-page,
+body.cheese-bots-active .main-chat,
+body.cheese-bots-active .chat-main {
+    background:
+        radial-gradient(circle at top left, rgba(255, 217, 71, 0.18), transparent 34%),
+        radial-gradient(circle at top right, rgba(45, 205, 255, 0.18), transparent 30%),
+        linear-gradient(rgba(45,205,255,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,217,71,0.055) 1px, transparent 1px),
+        #0b111d !important;
+    background-size: auto, auto, 34px 34px, 34px 34px, auto !important;
+    color: #fff4b8 !important;
+}
+
+body[data-theme="cheeseBots"] .chat-header,
+body[data-theme="cheeseBots"] .users-sidebar,
+body[data-theme="cheeseBots"] .sidebar,
+body[data-theme="cheeseBots"] .message-bar,
+body[data-theme="cheeseBots"] .cheese-bot-menu,
+body[data-theme="cheeseBots"] .card,
+body[data-theme="cheeseBots"] .right-card,
+body.cheese-bots-active .chat-header,
+body.cheese-bots-active .users-sidebar,
+body.cheese-bots-active .sidebar,
+body.cheese-bots-active .message-bar,
+body.cheese-bots-active .cheese-bot-menu,
+body.cheese-bots-active .card,
+body.cheese-bots-active .right-card {
+    background:
+        linear-gradient(135deg, rgba(255,217,71,0.18), rgba(45,205,255,0.14)),
+        rgba(10, 16, 27, 0.96) !important;
+    border-color: rgba(45, 205, 255, 0.38) !important;
+    color: #fff4b8 !important;
+    box-shadow: 0 0 28px rgba(45, 205, 255, 0.12), inset 0 0 18px rgba(255, 217, 71, 0.06) !important;
+}
+
+body[data-theme="cheeseBots"] .messages,
+body.cheese-bots-active .messages {
+    position: relative;
+    background:
+        radial-gradient(circle at 50% 0%, rgba(255,217,71,0.12), transparent 36%),
+        linear-gradient(rgba(45,205,255,0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,217,71,0.06) 1px, transparent 1px),
+        #080d16 !important;
+    background-size: auto, 30px 30px, 30px 30px, auto !important;
+    border: 1px solid rgba(45,205,255,0.28) !important;
+    color: #fff4b8 !important;
+}
+
+body[data-theme="cheeseBots"] .messages::before,
+body.cheese-bots-active .messages::before {
+    content: "🤖 CHEESE BOT NETWORK // 0101 // 🧀";
+    position: sticky;
+    top: 8px;
+    z-index: 1;
+    display: block;
+    width: fit-content;
+    margin: 8px auto;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(8, 13, 22, 0.72);
+    color: rgba(255, 244, 184, 0.48);
+    border: 1px solid rgba(45,205,255,0.24);
+    font-weight: 1000;
+    letter-spacing: 1px;
+    pointer-events: none;
+}
+
+body[data-theme="cheeseBots"] .message,
+body[data-theme="cheeseBots"] .empty-state,
+body[data-theme="cheeseBots"] .room-button,
+body[data-theme="cheeseBots"] .online-user,
+body.cheese-bots-active .message,
+body.cheese-bots-active .empty-state,
+body.cheese-bots-active .room-button,
+body.cheese-bots-active .online-user {
+    background:
+        linear-gradient(135deg, rgba(255,217,71,0.12), rgba(45,205,255,0.10)),
+        rgba(12, 18, 31, 0.94) !important;
+    color: #fff4b8 !important;
+    border: 1px solid rgba(45,205,255,0.24) !important;
+    box-shadow: 0 0 18px rgba(45,205,255,0.08) !important;
+}
+
+body[data-theme="cheeseBots"] button,
+body[data-theme="cheeseBots"] input,
+body[data-theme="cheeseBots"] select,
+body[data-theme="cheeseBots"] textarea,
+body.cheese-bots-active button,
+body.cheese-bots-active input,
+body.cheese-bots-active select,
+body.cheese-bots-active textarea {
+    background:
+        linear-gradient(135deg, rgba(255,217,71,0.14), rgba(45,205,255,0.12)),
+        #0c1422 !important;
+    color: #fff4b8 !important;
+    border: 1px solid rgba(45,205,255,0.34) !important;
+    box-shadow: 0 0 20px rgba(45,205,255,0.10) !important;
+}
+
+body[data-theme="cheeseBots"] #room-feta.active,
+body.cheese-bots-active #room-feta.active {
+    background:
+        linear-gradient(135deg, rgba(255,217,71,0.22), rgba(45,205,255,0.18)),
+        #0c1422 !important;
+    box-shadow: 0 0 24px rgba(45,205,255,0.28), inset 0 0 18px rgba(255,217,71,0.16) !important;
+}
+
+body[data-theme="cheeseBots"] .message-bar,
+body.cheese-bots-active .message-bar {
+    display: none !important;
+}
+
+body.console-friendly button,
+body.console-friendly input,
+body.console-friendly select,
+body.console-friendly textarea {
+    min-height: 46px;
+    font-size: 17px;
+}
+
+body.console-friendly *:focus {
+    outline: 4px solid rgba(45, 205, 255, 0.72) !important;
+    outline-offset: 3px;
 }
