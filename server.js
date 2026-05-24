@@ -577,8 +577,7 @@ function createDefaultPlayerProfile(username) {
             icon: ""
         },
 
-        achievementsText: "Coming soon 🧀🏆",
-        arcadeChallengeClaims: {}
+        achievementsText: "Coming soon 🧀🏆"
     };
 }
 
@@ -588,11 +587,6 @@ function getPlayerProfile(username) {
 
     if (!data.players[key]) {
         data.players[key] = createDefaultPlayerProfile(username);
-        writePlayerDataFile(data);
-    }
-
-    if (!data.players[key].arcadeChallengeClaims || typeof data.players[key].arcadeChallengeClaims !== "object") {
-        data.players[key].arcadeChallengeClaims = {};
         writePlayerDataFile(data);
     }
 
@@ -1227,29 +1221,6 @@ const SWISS_CRATE = {
     ]
 };
 
-const ARCADE_CRATE = {
-    id: "arcade",
-    name: "Arcade Crate",
-    price: 1000,
-    tokenChance: 0.5,
-    description: "Can drop a chaos ability, cosmetic, or a tiny Cheese Token chance."
-};
-
-const BLUE_STILTON_CRATE = {
-    id: "blueStilton",
-    name: "Blue Stilton Crate",
-    price: 500,
-    odds: [
-        { rarity: "common", chance: 25 },
-        { rarity: "uncommon", chance: 20 },
-        { rarity: "rare", chance: 15 },
-        { rarity: "epic", chance: 35 },
-        { rarity: "legendary", chance: 5 }
-    ],
-    description: "Cosmetics only. Stronger odds for epic drops."
-};
-
-
 const DUPLICATE_COSMETIC_COINS = {
     common: 5,
     uncommon: 10,
@@ -1325,168 +1296,6 @@ function rollCosmeticChoice(username) {
     });
 }
 
-function rollCosmeticFromOdds(odds) {
-    const rarityEntry = rollRarity(odds);
-    const pool = Object.values(COSMETICS).filter(cosmetic => cosmetic.rarity === rarityEntry.rarity);
-    return pickRandom(pool);
-}
-
-function rollCosmeticChoiceFromOdds(username, odds) {
-    const first = rollCosmeticFromOdds(odds);
-    let second = rollCosmeticFromOdds(odds);
-    let guard = 0;
-
-    while (second.id === first.id && guard < 20) {
-        second = rollCosmeticFromOdds(odds);
-        guard++;
-    }
-
-    const profile = getPlayerProfile(username);
-
-    return [first, second].map(item => {
-        const duplicate = !!profile.index.cosmeticsOwned[item.id];
-
-        return {
-            ...item,
-            duplicate,
-            duplicateCoins: duplicate ? DUPLICATE_COSMETIC_COINS[item.rarity] : 0
-        };
-    });
-}
-
-function awardCosmeticDirect(username, cosmeticId) {
-    const cosmetic = COSMETICS[cosmeticId];
-
-    if (!cosmetic) {
-        return {
-            type: "none",
-            message: "No cosmetic found."
-        };
-    }
-
-    const profile = getPlayerProfile(username);
-    const duplicate = !!profile.index.cosmeticsOwned[cosmetic.id];
-
-    if (duplicate) {
-        const coins = DUPLICATE_COSMETIC_COINS[cosmetic.rarity] || 0;
-        addCoins(username, coins);
-
-        return {
-            type: "duplicateCosmetic",
-            cosmetic,
-            coins,
-            message: `Duplicate ${cosmetic.name}! Converted into ${coins} Cheese Coins.`
-        };
-    }
-
-    markCosmeticOwned(username, cosmetic.id);
-
-    return {
-        type: "cosmetic",
-        cosmetic,
-        message: `${cosmetic.name} added to your Cheese Index!`
-    };
-}
-
-function rollArcadeCrateReward(username, source = "Arcade Crate") {
-    const tokenRoll = Math.random() * 100;
-
-    if (tokenRoll < ARCADE_CRATE.tokenChance) {
-        addTokens(username, 1);
-
-        return {
-            type: "token",
-            source,
-            icon: "🪙",
-            name: "Cheese Token",
-            rarity: "legendary",
-            message: "INSANE! You found a Cheese Token from an Arcade Crate!"
-        };
-    }
-
-    const giveChaos = Math.random() < 0.5;
-
-    if (giveChaos) {
-        const events = Object.values(CHAOS_EVENTS);
-        const event = pickRandom(events);
-        const profile = addInventoryItem(username, event.id, 1);
-        markEventWitnessed(username, event.id);
-
-        return {
-            type: "chaos",
-            source,
-            reward: event,
-            icon: event.icon,
-            name: event.name,
-            rarity: event.rarity,
-            message: `${event.icon} ${event.name} added to your inventory.`
-        };
-    }
-
-    const cosmetics = Object.values(COSMETICS);
-    const cosmetic = pickRandom(cosmetics);
-    const result = awardCosmeticDirect(username, cosmetic.id);
-
-    return {
-        type: result.type,
-        source,
-        reward: result.cosmetic || cosmetic,
-        icon: "✨",
-        name: (result.cosmetic || cosmetic).name,
-        rarity: (result.cosmetic || cosmetic).rarity,
-        coins: result.coins || 0,
-        message: result.message
-    };
-}
-
-function getArcadeTodayKey() {
-    return new Date().toISOString().slice(0, 10);
-}
-
-function getArcadeClaimBucket(profile) {
-    const today = getArcadeTodayKey();
-
-    if (!profile.arcadeChallengeClaims || typeof profile.arcadeChallengeClaims !== "object") {
-        profile.arcadeChallengeClaims = {};
-    }
-
-    if (!profile.arcadeChallengeClaims[today]) {
-        profile.arcadeChallengeClaims[today] = {
-            claimed: {},
-            bonusClaimed: false
-        };
-    }
-
-    return profile.arcadeChallengeClaims[today];
-}
-
-function rollArcadeChallengeReward(username, challengeId) {
-    const roll = Math.random();
-
-    if (roll < 0.10) {
-        return rollArcadeCrateReward(username, `Daily Challenge: ${challengeId}`);
-    }
-
-    if (roll < 0.35) {
-        const cosmetics = Object.values(COSMETICS);
-        const cosmetic = pickRandom(cosmetics);
-        return awardCosmeticDirect(username, cosmetic.id);
-    }
-
-    const coins = 150 + Math.floor(Math.random() * 351);
-    addCoins(username, coins);
-
-    return {
-        type: "coins",
-        icon: "🧀",
-        name: `${coins} Cheese Coins`,
-        coins,
-        rarity: "common",
-        message: `You earned ${coins} Cheese Coins.`
-    };
-}
-
-
 function getBookCompletionPercent(profile) {
     const eventCount = Object.keys(CHAOS_EVENTS).length;
     const cosmeticCount = Object.keys(COSMETICS).length;
@@ -1534,8 +1343,6 @@ function getPublicPlayerData(username) {
         cosmetics: COSMETICS,
         crates: CHAOS_CRATES,
         swissCrate: SWISS_CRATE,
-        arcadeCrate: ARCADE_CRATE,
-        blueStiltonCrate: BLUE_STILTON_CRATE,
         duplicateCoins: DUPLICATE_COSMETIC_COINS
     };
 }
@@ -4349,131 +4156,6 @@ io.on("connection", socket => {
         const profileName = cleanUsername(username || session.username);
 
         socket.emit("profile data", getPublicPlayerData(profileName));
-    });
-
-
-    socket.on("buy arcade crate", () => {
-        if (!session) return;
-
-        const payment = removeCoins(session.username, ARCADE_CRATE.price);
-
-        if (!payment.success) {
-            socket.emit("shop reply", `You need ${ARCADE_CRATE.price} Cheese Coins for an Arcade Crate.`);
-            emitPlayerData(socket, session.username);
-            return;
-        }
-
-        const profile = getPlayerProfile(session.username);
-        profile.cratesOpened = safeNumber(profile.cratesOpened, 0) + 1;
-        savePlayerProfile(profile);
-
-        const reward = rollArcadeCrateReward(session.username, "Arcade Crate");
-
-        socket.emit("arcade crate opened", {
-            crate: ARCADE_CRATE,
-            reward
-        });
-
-        if (reward.type === "token" || reward.rarity === "legendary") {
-            sendGlobalSystemMessage(`${session.username} opened an Arcade Crate and found ${reward.name} ${reward.icon || "✨"}!`);
-        }
-
-        emitPlayerData(socket, session.username);
-    });
-
-    socket.on("open blue stilton crate", () => {
-        if (!session) return;
-
-        const payment = removeCoins(session.username, BLUE_STILTON_CRATE.price);
-
-        if (!payment.success) {
-            socket.emit("shop reply", `You need ${BLUE_STILTON_CRATE.price} Cheese Coins for a Blue Stilton Crate.`);
-            emitPlayerData(socket, session.username);
-            return;
-        }
-
-        const profile = getPlayerProfile(session.username);
-        profile.cratesOpened = safeNumber(profile.cratesOpened, 0) + 1;
-        savePlayerProfile(profile);
-        checkAchievements(session.username);
-
-        const choices = rollCosmeticChoiceFromOdds(session.username, BLUE_STILTON_CRATE.odds);
-
-        socket.emit("cosmetic choice", {
-            crate: BLUE_STILTON_CRATE,
-            choices
-        });
-
-        emitPlayerData(socket, session.username);
-    });
-
-    socket.on("claim arcade challenge reward", data => {
-        if (!session) return;
-
-        const challengeId = String(data && data.challengeId || "").slice(0, 60);
-
-        if (!challengeId) {
-            socket.emit("shop reply", "Missing challenge id.");
-            return;
-        }
-
-        const profile = getPlayerProfile(session.username);
-        const bucket = getArcadeClaimBucket(profile);
-
-        if (bucket.claimed[challengeId]) {
-            socket.emit("shop reply", "You already claimed that daily arcade challenge.");
-            emitPlayerData(socket, session.username);
-            return;
-        }
-
-        bucket.claimed[challengeId] = true;
-        savePlayerProfile(profile);
-
-        const reward = rollArcadeChallengeReward(session.username, challengeId);
-
-        socket.emit("arcade challenge reward", {
-            challengeId,
-            reward
-        });
-
-        emitPlayerData(socket, session.username);
-    });
-
-    socket.on("claim daily arcade bonus", () => {
-        if (!session) return;
-
-        const profile = getPlayerProfile(session.username);
-        const bucket = getArcadeClaimBucket(profile);
-        const claimedCount = Object.keys(bucket.claimed || {}).length;
-
-        if (claimedCount < 3) {
-            socket.emit("shop reply", "Complete all 3 daily arcade challenges first.");
-            emitPlayerData(socket, session.username);
-            return;
-        }
-
-        if (bucket.bonusClaimed) {
-            socket.emit("shop reply", "You already claimed today's Arcade Crate bonus.");
-            emitPlayerData(socket, session.username);
-            return;
-        }
-
-        bucket.bonusClaimed = true;
-        profile.cratesOpened = safeNumber(profile.cratesOpened, 0) + 1;
-        savePlayerProfile(profile);
-
-        const reward = rollArcadeCrateReward(session.username, "Daily Arcade Bonus");
-
-        socket.emit("daily arcade bonus reward", {
-            crate: ARCADE_CRATE,
-            reward
-        });
-
-        if (reward.type === "token" || reward.rarity === "legendary") {
-            sendGlobalSystemMessage(`${session.username} completed all daily arcade challenges and found ${reward.name} ${reward.icon || "✨"}!`);
-        }
-
-        emitPlayerData(socket, session.username);
     });
 
     socket.on("buy chaos crate", crateId => {
