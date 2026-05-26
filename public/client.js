@@ -734,23 +734,7 @@ function removeEmptyState() {
     }
 }
 
-function scrollToBottom() {
-    messages.scrollTop = messages.scrollHeight;
-}
 
-function safeScrollToBottom() {
-    const distanceFromBottom =
-        messages.scrollHeight - messages.scrollTop - messages.clientHeight;
-
-    if (distanceFromBottom < 140) {
-        messages.scrollTop = messages.scrollHeight;
-        scrollLockCount = 0;
-        updateScrollLockButton();
-    } else {
-        scrollLockCount += 1;
-        updateScrollLockButton();
-    }
-}
 
 function updateScrollLockButton() {
     if (!scrollLockBtn) return;
@@ -765,11 +749,6 @@ function updateScrollLockButton() {
     scrollLockBtn.textContent = `↓ ${scrollLockCount} new message${scrollLockCount === 1 ? "" : "s"}`;
 }
 
-function scrollToBottomFromButton() {
-    scrollToBottom();
-    scrollLockCount = 0;
-    updateScrollLockButton();
-}
 
 function cancelReply() {
     replyingTo = null;
@@ -1840,8 +1819,22 @@ function sendAdminCommand() {
 }
 
 function scheduleAdminEvent() {
-    const commandText = document.getElementById("scheduleCommand").value;
-    const delaySeconds = Number(document.getElementById("scheduleDelay").value);
+    const commandSelect = document.getElementById("scheduleCommand");
+    const commandInput = document.getElementById("adminCommandInput");
+    const delayInput = document.getElementById("scheduleDelay");
+
+    const commandText = String(
+        (commandSelect && commandSelect.value) ||
+        (commandInput && commandInput.value) ||
+        ""
+    ).trim();
+
+    const delaySeconds = Number(delayInput && delayInput.value ? delayInput.value : 10);
+
+    if (!commandText) {
+        showChatNotice("Choose a command to schedule.");
+        return;
+    }
 
     socket.emit("schedule event", {
         commandText,
@@ -1851,40 +1844,89 @@ function scheduleAdminEvent() {
 }
 
 function buildAdminCommand() {
-    const command = adminCommandSelect.value;
-    const player = adminPlayerSelect.value || "<Player>";
-    const amount = adminAmountInput.value.trim();
-    const text = adminTextInput.value.trim();
-    const events = adminEventsInput.value.trim();
+    const select = document.getElementById("adminCommandSelect");
+    const playerSelect = document.getElementById("adminPlayerSelect");
+    const amountInput = document.getElementById("adminAmountInput");
+    const textInput = document.getElementById("adminTextInput");
+    const eventsInput = document.getElementById("adminEventsInput");
+    const commandInput = document.getElementById("adminCommandInput");
+
+    if (!select || !commandInput) return;
+
+    const command = select.value;
+    const player = playerSelect && playerSelect.value ? playerSelect.value : "<Player>";
+    const amount = amountInput ? amountInput.value.trim() : "";
+    const text = textInput ? textInput.value.trim() : "";
+    const events = eventsInput ? eventsInput.value.trim() : "";
+
+    const commands = {
+        warning: `;/Warning: ${player}, ${text || "Reason"}`,
+        warnings: `;/Warnings: ${player}`,
+        viewdm: `;/ViewDM: ${player}, <OtherPlayer>`,
+        ban: `;/Ban: ${player}, ${text || "Reason"}`,
+        tempban: `;/TempBan: ${player}, ${amount || "10m"}, ${text || "Reason"}`,
+        mute: `;/Mute: ${player}, ${amount || "10m"}, ${text || "Reason"}`,
+        unmute: `;/Unmute: ${player}`,
+        givecoins: `;/GiveCoins: ${player}, ${amount || "100"}`,
+        setcoins: `;/SetCoins: ${player}, ${amount || "0"}`,
+        givetokens: `;/GiveTokens: ${player}, ${amount || "1"}`,
+        settokens: `;/SetTokens: ${player}, ${amount || "0"}`,
+        givecrate: `+/GiveCrate: ${player}, ${amount || "chaos"}, 1\\`,
+        give: `+/Give: ${player}, ${amount || "CheeseRain"}, 1\\`,
+        admin: `;/Admin: ${player}, ${amount || "10m"}`,
+        cheeserng: "+/CheeseRNG\\",
+        cheesebank: "+/CheeseBank\\",
+        clearchat: ";/ClearChat:",
+        shutdown: `;/Shutdown: ${amount || "10m"}, ${text || "Maintenance"}`,
+        cancelshutdown: ";/CancelShutdown",
+        offline: ";/Offline",
+        online: ";/Online",
+        announcement: `;/Announcement: ${text || "Announcement"}`,
+        startpoll: `;/StartPoll: ${amount || "30"}, ${text || "Which chaos should happen?"}, ${events || "Cheese Rain|Cheesenado|Cheese Moon"}`,
+        addserverlifetime: `;/AddServerLifetime: ${text || "<TempServer>"}, ${amount || "30m"}`,
+        removeserver: `;/RemoveServer: ${text || "<TempServer>"}`,
+        setseason: `;/SetSeason: ${text || "halloween"}, ${amount || "10m"}`,
+        filter: `+/Filter: ${text || "Butter"}, ${amount || "On"}\\`,
+        setname: `+/SetName: ${text || "Cheese"}\\`,
+        clearname: "+/ClearName\\",
+        clearvisuals: "+/ClearVisuals\\",
+        cheeserain: "+/CheeseRain\\",
+        cheesestorm: "+/CheeseStorm\\",
+        singularicheese: "+/Singularicheese\\",
+        mouserun: "+/MouseRun\\",
+        meltui: "+/MeltUI\\",
+        butterflood: "+/ButterFlood\\",
+        butterbomb: "+/ButterBomb\\",
+        lactosebomb: "+/LactoseBomb\\",
+        cheesequake: "+/Cheesequake\\",
+        cheeseportal: "+/CheesePortal\\",
+        mouldtakeover: "+/MouldTakeover\\",
+        cheesemoon: "+/CheeseMoon\\",
+        giantmousetrap: "+/GiantMouseTrap\\",
+        cheesemeteor: "+/CheeseMeteor\\",
+        cheesenado: "+/Cheesenado\\"
+    };
+
+    if (commands[command]) {
+        commandInput.value = commands[command];
+    }
+}
+
+function quickAdmin(command) {
+    const select = document.getElementById("adminCommandSelect");
+
+    if (select) {
+        select.value = command;
+        buildAdminCommand();
+        return;
+    }
 
     const commandInput = document.getElementById("adminCommandInput");
-    if (!commandInput) return;
-
-    if (command === "warning") commandInput.value = `;/Warning: ${player}, ${text || "Reason"}`;
-    if (command === "ban") commandInput.value = `;/Ban: ${player}, ${text || "Reason"}`;
-    if (command === "tempban") commandInput.value = `;/TempBan: ${player}, ${amount || "10m"}, ${text || "Reason"}`;
-    if (command === "mute") commandInput.value = `;/Mute: ${player}, ${amount || "10m"}, ${text || "Reason"}`;
-    if (command === "unmute") commandInput.value = `;/Unmute: ${player}`;
-    if (command === "givecoins") commandInput.value = `;/GiveCoins: ${player}, ${amount || "100"}`;
-    if (command === "setcoins") commandInput.value = `;/SetCoins: ${player}, ${amount || "0"}`;
-    if (command === "givetokens") commandInput.value = `;/GiveTokens: ${player}, ${amount || "1"}`;
-    if (command === "settokens") commandInput.value = `;/SetTokens: ${player}, ${amount || "0"}`;
-    if (command === "givecrate") commandInput.value = `+/GiveCrate: ${player}, ${amount || "chaos"}, 1\\`;
-    if (command === "give") commandInput.value = `+/Give: ${player}, ${amount || "CheeseRain"}, 1\\`;
-    if (command === "admin") commandInput.value = `;/Admin: ${player}, ${amount || "10m"}`;
-    if (command === "cheeserng") commandInput.value = "+/CheeseRNG\\";
-    if (command === "cheesebank") commandInput.value = "+/CheeseBank\\";
-    if (command === "clearchat") commandInput.value = ";/ClearChat:";
-    if (command === "shutdown") commandInput.value = `;/Shutdown: ${amount || "10m"}, ${text || "Maintenance"}`;
-    if (command === "cancelshutdown") commandInput.value = ";/CancelShutdown";
-    if (command === "offline") commandInput.value = ";/Offline";
-    if (command === "online") commandInput.value = ";/Online";
-    if (command === "announcement") commandInput.value = `;/Announcement: ${text || "Announcement"}`;
-    if (command === "startpoll") commandInput.value = `;/StartPoll: ${amount || "30"}, ${text || "Which chaos should happen?"}, ${events || "Cheese Rain|Cheesenado|Cheese Moon"}`;
-    if (command === "addserverlifetime") commandInput.value = `;/AddServerLifetime: ${text || "<TempServer>"}, ${amount || "30m"}`;
-    if (command === "removeserver") commandInput.value = `;/RemoveServer: ${text || "<TempServer>"}`;
-    if (command === "setseason") commandInput.value = `;/SetSeason: ${text || "halloween"}, ${amount || "10m"}`;
+    if (commandInput) {
+        commandInput.value = command;
+    }
 }
+
 
 function renderScheduledEvents(events) {
     latestScheduledEvents = events || [];
@@ -4666,3 +4708,15 @@ function startTTCBBattle() {
     recordArcadeChallengeProgress("ttcbBattles", 1);
     showChatNotice("TTCB sandbox battle complete. Sandbox gives 0 rewards.");
 }
+
+
+(function setupCheddarCleanHeaderToggle() {
+    const update = () => {
+        const header = document.getElementById("cheddarCleanHeader");
+        if (!header) return;
+        header.classList.toggle("hidden", currentRoom !== "cheddar");
+    };
+
+    setInterval(update, 500);
+    document.addEventListener("DOMContentLoaded", update);
+})();

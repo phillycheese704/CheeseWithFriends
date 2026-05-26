@@ -324,6 +324,14 @@
 
             </section>
 
+            
+            <section id="cheddarCleanHeader" class="cheddar-clean-header hidden">
+                <div>
+                    <h2>🧀 Cheddar</h2>
+                    <p>Temp Servers, DMs, and Friends. No bots. No clutter.</p>
+                </div>
+            </section>
+
             <section id="cheddarSocialHub" class="cheddar-social-hub hidden">
                 <div class="cheddar-social-tabs">
                     <button class="cheddar-social-tab active" data-cheddar-tab="servers" onclick="switchCheddarTab('servers')">🧀 Temp Servers</button>
@@ -759,7 +767,7 @@
     <section id="adminPanel" class="admin-panel hidden">
 
         <div id="adminHeader" class="admin-header">
-            <strong>⚙️ Cheese Panel 🧀</strong>
+            <strong>⚙️ Cheese Panel 🧀</strong><span class="cheese-panel-subtitle">Commands, events, economy, moderation</span>
 
             <div class="admin-header-actions">
                 <button class="admin-existing-collapse" onclick="collapseAdminPanel()">−</button>
@@ -815,6 +823,7 @@
                         <button onclick="setAdminCommand('+/CheeseBank\\')"><strong>Cheese Bank</strong><span>Spawn clickable bank</span></button>
                         <button onclick="setAdminCommand('+/Singularicheese\\')"><strong>Singularicheese</strong><span>Pull the UI in</span></button>
                         <button onclick="setAdminCommand('+/CheeseMeteor\\')"><strong>Cheese Meteor</strong><span>Huge impact</span></button>
+                        <button onclick="setAdminCommand('+/ClearVisuals\')"><strong>Clear Visuals</strong><span>Clear active effects</span></button>
                     </div>
                 </section>
 
@@ -824,6 +833,7 @@
                         <button onclick="quickAdmin('announcement')"><strong>Announcement</strong><span>Broadcast message</span></button>
                         <button onclick="quickAdmin('startpoll')"><strong>Poll</strong><span>Start chaos vote</span></button>
                         <button onclick="quickAdmin('shutdown')"><strong>Shutdown</strong><span>Schedule downtime</span></button>
+                        <button onclick="quickAdmin('cancelshutdown')"><strong>Cancel Shutdown</strong><span>Stop downtime countdown</span></button>
                         <button onclick="quickAdmin('offline')"><strong>Offline</strong><span>Hide main admin</span></button>
                         <button onclick="quickAdmin('online')"><strong>Online</strong><span>Show main admin</span></button>
                         <button onclick="quickAdmin('addserverlifetime')"><strong>Add Server Lifetime</strong><span>Extend temp server</span></button>
@@ -831,6 +841,8 @@
                     </div>
                 </section>
             </div>
+
+            <div class="admin-command-rescue-note">🧀 Cheese Panel command rescue active: quick commands, manual commands, and scheduled events use the same handler.</div>
 
             <div class="admin-command-box">
                 <h3>Command Box</h3>
@@ -872,6 +884,25 @@
                         <option value="addserverlifetime">Add Server Lifetime</option>
                         <option value="removeserver">Remove Server</option>
                         <option value="setseason">Set Season</option>
+                        <option value="filter">Filter On/Off</option>
+                        <option value="setname">Set Visual Name</option>
+                        <option value="clearname">Clear Visual Name</option>
+                        <option value="clearvisuals">Clear Visuals</option>
+                        <option value="cheeserain">Chaos: Cheese Rain</option>
+                        <option value="cheesestorm">Chaos: Cheese Storm</option>
+                        <option value="singularicheese">Chaos: Singularicheese</option>
+                        <option value="mouserun">Chaos: Mouse Run</option>
+                        <option value="meltui">Chaos: Melt UI</option>
+                        <option value="butterflood">Chaos: Butter Flood</option>
+                        <option value="butterbomb">Chaos: Butter Bomb</option>
+                        <option value="lactosebomb">Chaos: Lactose Bomb</option>
+                        <option value="cheesequake">Chaos: Cheesequake</option>
+                        <option value="cheeseportal">Chaos: Cheese Portal</option>
+                        <option value="mouldtakeover">Chaos: Mould Takeover</option>
+                        <option value="cheesemoon">Chaos: Cheese Moon</option>
+                        <option value="giantmousetrap">Chaos: Giant Mouse Trap</option>
+                        <option value="cheesemeteor">Chaos: Cheese Meteor</option>
+                        <option value="cheesenado">Chaos: Cheesenado</option>
                     </select>
 
                     <select id="adminPlayerSelect" onchange="buildAdminCommand()">
@@ -917,6 +948,10 @@
                     <option value="+/CheeseRNG\">Cheese RNG</option>
                     <option value="+/CheeseBank\">Cheese Bank</option>
                     <option value="+/SetSeason: halloween, 10m\">Set Halloween Season</option>
+                                    <option value="+/ClearVisuals\">Clear Visuals</option>
+                    <option value=";/Announcement: Scheduled announcement">Announcement</option>
+                    <option value=";/SetSeason: halloween, 10m">Set Season</option>
+                    <option value=";/StartPoll: 30, Scheduled chaos poll, Cheese Rain|Cheesenado|Cheese Moon">Start Poll</option>
                 </select>
 
                 <input id="scheduleDelay" type="number" min="1" max="3600" value="10">

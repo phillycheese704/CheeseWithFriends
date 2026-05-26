@@ -6333,7 +6333,6 @@ body.console-friendly *:focus {
     background:linear-gradient(135deg,#ffb000,#ffe66d) !important;
     color:#322000 !important;
 }
-#cheeseBotMenu, .cheese-bot-menu, [id*="cheeseBot"], [class*="cheese-bot"] { display:none !important; }
 
 
 /* STABILITY BUGFIX LEADERBOARD CONSOLIDATION */
@@ -6351,4 +6350,207 @@ body.console-friendly *:focus {
     display: flex !important;
     flex-direction: column !important;
     gap: 28px !important;
+}
+
+
+/* =========================================================
+   CHEDDAR + CHEESE PANEL RESCUE
+========================================================= */
+
+/* Cheddar should be the clean social/server hub */
+.cheddar-clean-header {
+    position: sticky;
+    top: 0;
+    z-index: 140;
+    margin: 0 0 12px;
+    padding: 16px 18px;
+    border-radius: 0 0 24px 24px;
+    background:
+        radial-gradient(circle at top left, rgba(255, 230, 95, 0.32), transparent 34%),
+        linear-gradient(135deg, rgba(255, 249, 218, 0.96), rgba(255, 221, 113, 0.88));
+    border-bottom: 2px solid rgba(145, 89, 0, 0.18);
+    box-shadow: 0 12px 30px rgba(105, 65, 0, 0.12);
+}
+
+.cheddar-clean-header h2 {
+    margin: 0;
+    color: #3d2700;
+    font-size: 1.35rem;
+}
+
+.cheddar-clean-header p {
+    margin: 4px 0 0;
+    color: rgba(61, 39, 0, 0.74);
+    font-weight: 800;
+}
+
+body[data-current-room="cheddar"] #cheddarSocialHub,
+body[data-current-room="cheddar"] .cheddar-social-hub {
+    display: block !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 130 !important;
+    border-radius: 24px !important;
+    margin-bottom: 14px !important;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,0.78), rgba(255, 229, 125, 0.62)) !important;
+    border: 1px solid rgba(120, 74, 0, 0.14) !important;
+    box-shadow: 0 12px 28px rgba(90, 55, 0, 0.10) !important;
+}
+
+.cheddar-social-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+}
+
+.cheddar-social-tab {
+    min-height: 48px !important;
+    border-radius: 18px !important;
+    font-weight: 1000 !important;
+}
+
+/* Hide any old bot leftovers completely */
+#cheeseBotMenu,
+.cheese-bot-menu,
+[id*="cheeseBot"],
+[class*="cheese-bot"] {
+    display: none !important;
+}
+
+/* Cheese Panel V2 */
+.admin-panel {
+    background:
+        radial-gradient(circle at top left, rgba(255, 219, 77, 0.24), transparent 36%),
+        linear-gradient(135deg, #191105, #2d2008 52%, #4a3304) !important;
+    color: #fff2ac !important;
+    border: 1px solid rgba(255, 219, 77, 0.34) !important;
+    border-radius: 26px !important;
+    box-shadow: 0 24px 70px rgba(0,0,0,0.36), inset 0 0 0 1px rgba(255,255,255,0.06) !important;
+    overflow: hidden !important;
+}
+
+.admin-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    padding: 15px 16px !important;
+    background:
+        linear-gradient(135deg, rgba(255, 217, 71, 0.22), rgba(255, 166, 0, 0.12)),
+        rgba(0, 0, 0, 0.22) !important;
+    border-bottom: 1px solid rgba(255, 219, 77, 0.24) !important;
+}
+
+.admin-header strong {
+    font-size: 1.1rem !important;
+    color: #fff2ac !important;
+}
+
+.cheese-panel-subtitle {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.78rem;
+    color: rgba(255, 242, 172, 0.70);
+    font-weight: 800;
+}
+
+.admin-body {
+    display: grid !important;
+    gap: 14px !important;
+    padding: 14px !important;
+}
+
+.admin-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
+    gap: 8px !important;
+    padding: 8px !important;
+    border-radius: 18px !important;
+    background: rgba(0, 0, 0, 0.20) !important;
+}
+
+.admin-tab {
+    min-height: 42px !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(255, 219, 77, 0.18) !important;
+    background: rgba(255,255,255,0.07) !important;
+    color: #fff2ac !important;
+    font-weight: 1000 !important;
+}
+
+.admin-tab.active {
+    background: linear-gradient(135deg, #ffb000, #ffe66d) !important;
+    color: #332100 !important;
+}
+
+.admin-action-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+    gap: 10px !important;
+}
+
+.admin-action-grid button,
+.admin-command-box button,
+.event-scheduler button {
+    border-radius: 16px !important;
+    border: 1px solid rgba(255, 219, 77, 0.18) !important;
+    background:
+        linear-gradient(135deg, rgba(255, 219, 77, 0.16), rgba(255,255,255,0.06)),
+        rgba(0,0,0,0.24) !important;
+    color: #fff2ac !important;
+    font-weight: 900 !important;
+    transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease !important;
+}
+
+.admin-action-grid button:hover,
+.admin-command-box button:hover,
+.event-scheduler button:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.07);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+}
+
+.admin-command-box,
+.event-scheduler,
+.admin-tab-panel {
+    border-radius: 20px !important;
+    padding: 14px !important;
+    background: rgba(0, 0, 0, 0.22) !important;
+    border: 1px solid rgba(255, 219, 77, 0.15) !important;
+}
+
+.admin-command-box input,
+.admin-command-box select,
+.admin-command-box textarea,
+.event-scheduler input,
+.event-scheduler select,
+.event-scheduler textarea {
+    border-radius: 14px !important;
+    border: 1px solid rgba(255, 219, 77, 0.20) !important;
+    background: rgba(255,255,255,0.08) !important;
+    color: #fff2ac !important;
+}
+
+
+/* =========================================================
+   ADMIN COMMAND RESCUE
+========================================================= */
+.admin-command-rescue-note {
+    padding: 12px 14px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(255, 224, 93, 0.22), rgba(255, 255, 255, 0.08));
+    border: 1px solid rgba(255, 224, 93, 0.22);
+    color: #fff2ac;
+    font-weight: 900;
+}
+
+.event-scheduler select,
+.event-scheduler input,
+.event-scheduler button {
+    min-height: 42px;
+}
+
+.event-scheduler {
+    outline: 1px solid rgba(255, 224, 93, 0.16);
 }

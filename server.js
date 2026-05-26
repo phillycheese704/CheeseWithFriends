@@ -293,8 +293,7 @@ const rooms = {
         filterLevel: "grilled",
         allowLinks: true
     },
-        // Cheddar is read-only for normal users, but server-side bot/helper messages are intentionally injected here.
-
+        
     cheddar: {
         id: "cheddar",
         name: "Cheddar",
@@ -1828,6 +1827,7 @@ const chaosCommands = {
     meltui: "meltui",
     butterflood: "butterflood",
     butterbomb: "butterbomb",
+    lactosebomb: "lactosebomb",
     cheesequake: "cheesequake",
     cheeseportal: "cheeseportal",
     mouldtakeover: "mouldtakeover",
@@ -2203,33 +2203,16 @@ let activeTrivia = null;
 let triviaCooldownUntil = 0;
 
 
-function sendPrivateFetaBotMessage(socket, botName, text) {
-    const message = {
-        id: makeId(),
-        username: botName,
-        text,
-        room: "cheddar",
-        createdAt: Date.now(),
-        bot: true
-    };
-
-    socket.emit("chat message", message);
+function sendPrivateFetaBotMessage(socket, text) {
+    if (socket) {
+        socket.emit("message rejected", "Bot helpers are currently disabled 🧀");
+    }
 }
 
-function sendFetaBotMessage(botName, text) {
-    const message = {
-        id: makeId(),
-        username: botName,
-        text,
-        room: "cheddar",
-        createdAt: Date.now(),
-        bot: true
-    };
-
-    roomMessages.cheddar.push(message);
-    if (roomMessages.cheddar.length > 120) roomMessages.cheddar.shift();
-
-    io.to("cheddar").emit("chat message", message);
+function sendFetaBotMessage(socket, text) {
+    if (socket) {
+        socket.emit("message rejected", "Bot helpers are currently disabled 🧀");
+    }
 }
 
 
@@ -2508,6 +2491,11 @@ function getSessionFromSocketOrPayload(socket, payload) {
         return sessions.get(token);
     }
 
+    if (socket && socket.id) {
+        const socketSession = getSessionBySocketId(socket.id);
+        if (socketSession) return socketSession;
+    }
+
     return null;
 }
 
@@ -2705,8 +2693,31 @@ function removeTempServer(name) {
 function isSafeScheduledCommand(commandText) {
     const raw = String(commandText || "").trim();
     const lower = raw.toLowerCase();
+    const normalized = normaliseChaosCommand(raw);
 
-    if (lower.startsWith("+/")) return true;
+    const allowedChaos = new Set([
+        "cheeserain",
+        "cheesestorm",
+        "singularicheese",
+        "mouserun",
+        "meltui",
+        "butterflood",
+        "butterbomb",
+        "lactosebomb",
+        "cheesequake",
+        "cheeseportal",
+        "mouldtakeover",
+        "cheesemoon",
+        "giantmousetrap",
+        "cheesemeteor",
+        "cheesenado",
+        "clearvisuals",
+        "cheeserng",
+        "cheesebank"
+    ]);
+
+    if (lower.startsWith("+/setseason")) return true;
+    if (lower.startsWith("+/") && allowedChaos.has(normalized)) return true;
 
     return (
         lower.startsWith(";/announcement") ||
@@ -2729,7 +2740,9 @@ function executeScheduledCommand(commandText, scheduledBy = "Scheduler") {
         username: scheduledBy,
         isAdmin: false,
         isTempAdmin: false,
-        scheduledSystem: true
+        scheduledSystem: true,
+        admin: true,
+        limitedAdmin: false
     };
 
     if (!isSafeScheduledCommand(commandText)) {
@@ -3795,7 +3808,7 @@ function normalizeChaosEventType(value) {
         meltui: "meltUI",
         butterflood: "butterFlood",
         butterbomb: "butterBomb",
-        lactosebomb: "lactoseBomb",
+        lactosebomb: "lactosebomb",
         cheesequake: "cheeseQuake",
         cheeseportal: "cheesePortal",
         mouldtakeover: "mouldTakeover",
@@ -3804,7 +3817,7 @@ function normalizeChaosEventType(value) {
         giantmousetrap: "giantMouseTrap",
         cheesemeteor: "cheeseMeteor",
         cheesenado: "cheesenado",
-        clearvisuals: "clearVisuals"
+        clearvisuals: "clearvisuals"
     };
 
     return aliases[clean] || clean;
@@ -3866,7 +3879,7 @@ function handleSpecialChaosCommand(socket, command, session) {
     const setSeasonMatch = raw.match(/^\+\/SetSeason:\s*([^,]+),\s*([^\\]+)\\?$/i);
 
     if (setSeasonMatch) {
-        if (!hasFullAdmin(session)) {
+        if (!hasFullAdmin(session) && !session.scheduledSystem) {
             denyLimitedAdmin(socket);
             return true;
         }
@@ -4108,10 +4121,6 @@ io.on("connection", socket => {
         const joinedProfile = getPlayerProfile(session.username);
 
         if (!joinedProfile.tutorialSeen) {
-            socket.emit("tutorial nudge", {
-                room: "cheddar",
-                text: "New here? Visit Cheddar for a quick tutorial 🤖"
-            });
         }
 
     });
@@ -5103,91 +5112,20 @@ io.on("connection", socket => {
 
         socket.emit("admin log data", adminLog.slice(-100));
     });
-
-    socket.on("request tutorial", data => {
-        if (!session) return;
-        if (session.room !== "cheddar") {
-            socket.emit("message rejected", "That bot only works in Cheddar.");
-            return;
-        }
-        const topic = String(data && data.topic || "basics").slice(0, 30);
-        const profile = getPlayerProfile(session.username);
-        profile.tutorialSeen = true;
-        savePlayerProfile(profile);
-        const lines = [
-            `Welcome to CheeseWithFriends tutorial: ${topic}.`,
-            "Use rooms on the left, earn cheese coins, and watch for chaos.",
-            "Mozzarella is the shop. Cheddar is for temp servers. Cheddar is for robotic cheese helpers."
-        ];
-        lines.forEach((line, index) => setTimeout(() => sendPrivateFetaBotMessage(socket, "Tutorial Bot", line), 1200 * index));
+    socket.on("request tutorial", () => {
+        socket.emit("message rejected", "Bot helpers are currently disabled 🧀");
     });
-
-    socket.on("roll dice", data => {
-        if (!session) return;
-        if (session.room !== "cheddar") {
-            socket.emit("message rejected", "That bot only works in Cheddar.");
-            return;
-        }
-        const sides = Math.max(2, Math.min(100, Math.floor(Number(data && data.sides) || 6)));
-        const result = Math.floor(Math.random() * sides) + 1;
-        sendFetaBotMessage("Roller Bot", `${session.username} rolled d${sides}: ${result}`);
+    socket.on("roll dice", () => {
+        socket.emit("message rejected", "Bot helpers are currently disabled 🧀");
     });
-
     socket.on("ask trivia", () => {
-        if (!session) return;
-        if (session.room !== "cheddar") {
-            socket.emit("message rejected", "That bot only works in Cheddar.");
-            return;
-        }
-        if (Date.now() < triviaCooldownUntil) {
-            socket.emit("message rejected", "Trivia is cooling down.");
-            return;
-        }
-        triviaCooldownUntil = Date.now() + 30000;
-        activeTrivia = triviaQuestions[Math.floor(Math.random() * triviaQuestions.length)];
-        sendFetaBotMessage("Trivia Bot", `${activeTrivia.q} Options: ${activeTrivia.options.join(" / ")}`);
+        socket.emit("message rejected", "Bot helpers are currently disabled 🧀");
     });
-
-    socket.on("answer trivia", data => {
-        if (!session) return;
-
-        if (session.room !== "cheddar") {
-            socket.emit("message rejected", "That bot only works in Cheddar.");
-            return;
-        }
-
-        if (!activeTrivia) return;
-        const answer = String(data && data.answer || "").trim().toLowerCase();
-        if (answer === activeTrivia.a.toLowerCase()) {
-            addCoins(session.username, 25);
-            emitPlayerData(socket, session.username);
-            sendFetaBotMessage("Trivia Bot", `${session.username} got it right! +25 🧀`);
-            activeTrivia = null;
-        }
+    socket.on("answer trivia", () => {
+        socket.emit("message rejected", "Bot helpers are currently disabled 🧀");
     });
-
-    socket.on("coin flip", data => {
-        if (!session) return;
-        if (session.room !== "cheddar") {
-            socket.emit("message rejected", "That bot only works in Cheddar.");
-            return;
-        }
-        const wager = Math.max(0, Math.min(500, Math.floor(Number(data && data.wager) || 0)));
-        const win = Math.random() >= 0.5;
-        if (wager > 0) {
-            const profile = getPlayerProfile(session.username);
-            if (!isPhillyCheese(session.username) && profile.coins < wager) {
-                socket.emit("message rejected", "Not enough coins.");
-                return;
-            }
-            if (!isPhillyCheese(session.username)) {
-                profile.coins -= wager;
-                savePlayerProfile(profile);
-            }
-            if (win) addCoins(session.username, wager * 2);
-            emitPlayerData(socket, session.username);
-        }
-        sendFetaBotMessage("Coin Flip Bot", `${session.username} flipped ${win ? "HEADS" : "TAILS"}${wager ? win ? ` and won ${wager} 🧀` : ` and lost ${wager} 🧀` : ""}`);
+    socket.on("coin flip", () => {
+        socket.emit("message rejected", "Bot helpers are currently disabled 🧀");
     });
 
 
