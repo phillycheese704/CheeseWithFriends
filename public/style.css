@@ -6358,31 +6358,12 @@ body.console-friendly *:focus {
 ========================================================= */
 
 /* Cheddar should be the clean social/server hub */
-.cheddar-clean-header {
-    position: sticky;
-    top: 0;
-    z-index: 140;
-    margin: 0 0 12px;
-    padding: 16px 18px;
-    border-radius: 0 0 24px 24px;
-    background:
-        radial-gradient(circle at top left, rgba(255, 230, 95, 0.32), transparent 34%),
-        linear-gradient(135deg, rgba(255, 249, 218, 0.96), rgba(255, 221, 113, 0.88));
-    border-bottom: 2px solid rgba(145, 89, 0, 0.18);
-    box-shadow: 0 12px 30px rgba(105, 65, 0, 0.12);
-}
+.cheddar-clean-header { display: none !important; }
 
-.cheddar-clean-header h2 {
-    margin: 0;
-    color: #3d2700;
-    font-size: 1.35rem;
-}
 
-.cheddar-clean-header p {
-    margin: 4px 0 0;
-    color: rgba(61, 39, 0, 0.74);
-    font-weight: 800;
-}
+
+
+
 
 body[data-current-room="cheddar"] #cheddarSocialHub,
 body[data-current-room="cheddar"] .cheddar-social-hub {
@@ -6553,4 +6534,192 @@ body[data-current-room="cheddar"] .cheddar-social-hub {
 
 .event-scheduler {
     outline: 1px solid rgba(255, 224, 93, 0.16);
+}
+
+
+/* =========================================================
+   CHEDDAR LAYOUT + CHEESE PANEL FINAL REPAIR
+========================================================= */
+
+/* Cheddar should look like the old warm cheese server, not a white bot page */
+body[data-current-room="cheddar"] {
+    background:
+        radial-gradient(circle at 18% 8%, rgba(255, 230, 96, 0.36), transparent 32%),
+        linear-gradient(135deg, #ffe16b 0%, #ffd052 48%, #ffb339 100%) !important;
+}
+
+body[data-current-room="cheddar"] .chat-shell,
+body[data-current-room="cheddar"] .chat-layout,
+body[data-current-room="cheddar"] main,
+body[data-current-room="cheddar"] .chat-main,
+body[data-current-room="cheddar"] .messages,
+body[data-current-room="cheddar"] #messages {
+    background:
+        radial-gradient(circle at top, rgba(255, 255, 255, 0.22), transparent 34%),
+        linear-gradient(135deg, #fff2b8, #ffd35a 72%, #ffbb42) !important;
+}
+
+/* No duplicate Cheddar header */
+#cheddarCleanHeader,
+.cheddar-clean-header {
+    display: none !important;
+}
+
+/* Hide message input in Cheddar. Cheddar is tabs only. */
+body[data-current-room="cheddar"] .message-bar,
+body[data-current-room="cheddar"] #messageBar,
+body[data-current-room="cheddar"] .chat-input-area,
+body[data-current-room="cheddar"] .compose-bar {
+    display: none !important;
+}
+
+/* Cheddar social hub should be one clean panel, not a nested mess */
+body[data-current-room="cheddar"] #cheddarSocialHub,
+body[data-current-room="cheddar"] .cheddar-social-hub {
+    display: block !important;
+    position: static !important;
+    z-index: 20 !important;
+    width: min(980px, calc(100vw - 32px)) !important;
+    max-height: calc(100vh - 260px) !important;
+    overflow: auto !important;
+    margin: 16px auto 22px !important;
+    padding: 18px !important;
+    border-radius: 30px !important;
+    background:
+        radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.48), transparent 30%),
+        linear-gradient(135deg, rgba(255, 248, 214, 0.94), rgba(255, 218, 92, 0.86)) !important;
+    border: 2px solid rgba(143, 88, 0, 0.18) !important;
+    box-shadow: 0 18px 46px rgba(98, 61, 0, 0.18) !important;
+}
+
+body[data-current-room="cheddar"] #cheddarBrowser,
+body[data-current-room="cheddar"] .cheddar-browser {
+    max-height: none !important;
+    overflow: visible !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+/* Real tabs, not black blocks */
+.cheddar-social-tabs {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 30 !important;
+    display: flex !important;
+    gap: 10px !important;
+    padding: 10px !important;
+    margin: 0 0 16px !important;
+    border-radius: 22px !important;
+    background: rgba(255, 244, 193, 0.82) !important;
+    border: 1px solid rgba(138, 84, 0, 0.14) !important;
+    backdrop-filter: blur(8px);
+}
+
+.cheddar-social-tab {
+    flex: 1 !important;
+    min-height: 46px !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    background: rgba(255, 255, 255, 0.58) !important;
+    color: #4a2f00 !important;
+    font-weight: 1000 !important;
+    box-shadow: inset 0 0 0 1px rgba(116, 72, 0, 0.10) !important;
+}
+
+.cheddar-social-tab.active {
+    background: linear-gradient(135deg, #ffb000, #ffe66d) !important;
+    color: #2f1d00 !important;
+    box-shadow: 0 10px 22px rgba(105, 65, 0, 0.18) !important;
+}
+
+.cheddar-social-panel {
+    border-radius: 24px !important;
+    padding: 18px !important;
+    background: rgba(255, 252, 232, 0.72) !important;
+    border: 1px solid rgba(120, 74, 0, 0.14) !important;
+    color: #3f2800 !important;
+}
+
+/* Cheese Panel collapsed text target */
+#adminPanel.collapsed .admin-header strong,
+.admin-panel.collapsed .admin-header strong {
+    font-size: 1rem !important;
+    white-space: nowrap !important;
+}
+
+/* Put command box + scheduler on the right */
+.admin-body.cheese-panel-body,
+#adminBody.cheese-panel-body {
+    display: grid !important;
+    grid-template-columns: minmax(440px, 1fr) minmax(340px, 420px) !important;
+    grid-template-areas:
+        "tabs tabs"
+        "main command"
+        "main command" !important;
+    gap: 14px !important;
+    align-items: start !important;
+}
+
+.admin-body.cheese-panel-body .admin-tabs {
+    grid-area: tabs !important;
+}
+
+.admin-body.cheese-panel-body .admin-main-grid {
+    grid-area: main !important;
+    min-width: 0 !important;
+}
+
+.admin-command-column {
+    grid-area: command !important;
+    display: grid !important;
+    gap: 14px !important;
+    align-content: start !important;
+}
+
+.admin-body.cheese-panel-body > .admin-command-box,
+.admin-body.cheese-panel-body > .event-scheduler,
+.admin-body.cheese-panel-body > .admin-command-rescue-note {
+    grid-column: 2 !important;
+}
+
+.admin-body.cheese-panel-body > .admin-command-box {
+    grid-row: 2 !important;
+}
+
+.admin-body.cheese-panel-body > .event-scheduler {
+    grid-row: 3 !important;
+}
+
+.admin-body.cheese-panel-body > .admin-command-rescue-note {
+    grid-row: 1 / span 1 !important;
+    align-self: end !important;
+}
+
+.event-scheduler {
+    margin-top: 0 !important;
+}
+
+@media (max-width: 1050px) {
+    .admin-body.cheese-panel-body,
+    #adminBody.cheese-panel-body {
+        grid-template-columns: 1fr !important;
+        grid-template-areas:
+            "tabs"
+            "command"
+            "main" !important;
+    }
+
+    .admin-body.cheese-panel-body > .admin-command-box,
+    .admin-body.cheese-panel-body > .event-scheduler,
+    .admin-body.cheese-panel-body > .admin-command-rescue-note,
+    .admin-command-column {
+        grid-column: 1 !important;
+    }
+
+    body[data-current-room="cheddar"] #cheddarSocialHub,
+    body[data-current-room="cheddar"] .cheddar-social-hub {
+        width: calc(100vw - 20px) !important;
+        max-height: calc(100vh - 210px) !important;
+    }
 }

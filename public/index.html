@@ -324,14 +324,6 @@
 
             </section>
 
-            
-            <section id="cheddarCleanHeader" class="cheddar-clean-header hidden">
-                <div>
-                    <h2>🧀 Cheddar</h2>
-                    <p>Temp Servers, DMs, and Friends. No bots. No clutter.</p>
-                </div>
-            </section>
-
             <section id="cheddarSocialHub" class="cheddar-social-hub hidden">
                 <div class="cheddar-social-tabs">
                     <button class="cheddar-social-tab active" data-cheddar-tab="servers" onclick="switchCheddarTab('servers')">🧀 Temp Servers</button>
@@ -767,7 +759,7 @@
     <section id="adminPanel" class="admin-panel hidden">
 
         <div id="adminHeader" class="admin-header">
-            <strong>⚙️ Cheese Panel 🧀</strong><span class="cheese-panel-subtitle">Commands, events, economy, moderation</span>
+            <strong>🧀 Cheese Panel ⚙️</strong><span class="cheese-panel-subtitle">Commands, events, economy, moderation</span>
 
             <div class="admin-header-actions">
                 <button class="admin-existing-collapse" onclick="collapseAdminPanel()">−</button>
@@ -823,7 +815,7 @@
                         <button onclick="setAdminCommand('+/CheeseBank\\')"><strong>Cheese Bank</strong><span>Spawn clickable bank</span></button>
                         <button onclick="setAdminCommand('+/Singularicheese\\')"><strong>Singularicheese</strong><span>Pull the UI in</span></button>
                         <button onclick="setAdminCommand('+/CheeseMeteor\\')"><strong>Cheese Meteor</strong><span>Huge impact</span></button>
-                        <button onclick="setAdminCommand('+/ClearVisuals\')"><strong>Clear Visuals</strong><span>Clear active effects</span></button>
+                        <button onclick="setAdminCommand('+/ClearVisuals\\')"><strong>Clear Visuals</strong><span>Clear active effects</span></button>
                     </div>
                 </section>
 
@@ -842,7 +834,8 @@
                 </section>
             </div>
 
-            <div class="admin-command-rescue-note">🧀 Cheese Panel command rescue active: quick commands, manual commands, and scheduled events use the same handler.</div>
+            <div class="admin-command-column">
+<div class="admin-command-rescue-note">🧀 Cheese Panel command rescue active: quick commands, manual commands, and scheduled events use the same handler.</div>
 
             <div class="admin-command-box">
                 <h3>Command Box</h3>
@@ -948,7 +941,7 @@
                     <option value="+/CheeseRNG\">Cheese RNG</option>
                     <option value="+/CheeseBank\">Cheese Bank</option>
                     <option value="+/SetSeason: halloween, 10m\">Set Halloween Season</option>
-                                    <option value="+/ClearVisuals\">Clear Visuals</option>
+                                    <option value="+/ClearVisuals\\">Clear Visuals</option>
                     <option value=";/Announcement: Scheduled announcement">Announcement</option>
                     <option value=";/SetSeason: halloween, 10m">Set Season</option>
                     <option value=";/StartPoll: 30, Scheduled chaos poll, Cheese Rain|Cheesenado|Cheese Moon">Start Poll</option>
@@ -959,6 +952,7 @@
                 <button onclick="scheduleAdminEvent()">Schedule</button>
 
                 <div id="scheduledEvents" class="scheduled-events"></div>
+</div>
             </div>
 
         </div>

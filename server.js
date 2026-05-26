@@ -2205,13 +2205,13 @@ let triviaCooldownUntil = 0;
 
 function sendPrivateFetaBotMessage(socket, text) {
     if (socket) {
-        socket.emit("message rejected", "Bot helpers are currently disabled 🧀");
+        socket.emit("message rejected", "Cheddar is for temp servers, DMs, and friends 🧀");
     }
 }
 
 function sendFetaBotMessage(socket, text) {
     if (socket) {
-        socket.emit("message rejected", "Bot helpers are currently disabled 🧀");
+        socket.emit("message rejected", "Cheddar is for temp servers, DMs, and friends 🧀");
     }
 }
 
@@ -5113,19 +5113,19 @@ io.on("connection", socket => {
         socket.emit("admin log data", adminLog.slice(-100));
     });
     socket.on("request tutorial", () => {
-        socket.emit("message rejected", "Bot helpers are currently disabled 🧀");
+        socket.emit("message rejected", "Cheddar is for temp servers, DMs, and friends 🧀");
     });
     socket.on("roll dice", () => {
-        socket.emit("message rejected", "Bot helpers are currently disabled 🧀");
+        socket.emit("message rejected", "Cheddar is for temp servers, DMs, and friends 🧀");
     });
     socket.on("ask trivia", () => {
-        socket.emit("message rejected", "Bot helpers are currently disabled 🧀");
+        socket.emit("message rejected", "Cheddar is for temp servers, DMs, and friends 🧀");
     });
     socket.on("answer trivia", () => {
-        socket.emit("message rejected", "Bot helpers are currently disabled 🧀");
+        socket.emit("message rejected", "Cheddar is for temp servers, DMs, and friends 🧀");
     });
     socket.on("coin flip", () => {
-        socket.emit("message rejected", "Bot helpers are currently disabled 🧀");
+        socket.emit("message rejected", "Cheddar is for temp servers, DMs, and friends 🧀");
     });
 
 

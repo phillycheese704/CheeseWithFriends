@@ -380,8 +380,8 @@ function updateRoomUI(roomId, roomInfo) {
     }
 
     if (roomId === "cheddar") {
-        roomSubtitle.textContent = "Temporary server browser • no chat";
-        messageInput.placeholder = "Cheddar is a browser, not a chat.";
+        roomSubtitle.textContent = "Temp Servers • DMs • Friends";
+        messageInput.placeholder = "Use the Cheddar tabs.";
     }
 
     if (roomId === "mozzarella") {
@@ -390,8 +390,8 @@ function updateRoomUI(roomId, roomInfo) {
     }
 
     if (roomId === "cheddar") {
-        roomSubtitle.textContent = "Robotic cheese helpers • bots • mini games";
-        messageInput.placeholder = "Use the Cheddar panel.";
+        roomSubtitle.textContent = "Temp Servers • DMs • Friends";
+        messageInput.placeholder = "Use the Cheddar tabs.";
     }
 
     if (room.isTempServer) {
@@ -1777,6 +1777,21 @@ function cleanCommandName(command) {
    ADMIN PANEL
 ========================= */
 
+
+function updateCheesePanelCollapsedLabel() {
+    const panel = document.getElementById("adminPanel");
+    if (!panel) return;
+
+    const label = panel.querySelector(".admin-header strong, .panel-title, strong");
+    if (!label) return;
+
+    if (panel.classList.contains("collapsed")) {
+        label.textContent = "🧀 Cheese Panel ⚙️";
+    } else {
+        label.textContent = "🧀 Cheese Panel ⚙️";
+    }
+}
+
 function openAdminPanel() {
     socket.emit("request admin status", {
         token: loginToken
@@ -1786,6 +1801,7 @@ function openAdminPanel() {
     adminPanel.classList.remove("collapsed");
     adminBody.classList.remove("hidden");
     adminCollapsed = false;
+    updateCheesePanelCollapsedLabel();
 }
 
 function closeAdminPanel() {
@@ -1802,6 +1818,8 @@ function collapseAdminPanel() {
         adminBody.classList.remove("hidden");
         adminPanel.classList.remove("collapsed");
     }
+
+    updateCheesePanelCollapsedLabel();
 }
 
 function sendAdminCommand() {
@@ -1926,6 +1944,8 @@ function quickAdmin(command) {
         commandInput.value = command;
     }
 }
+
+
 
 
 function renderScheduledEvents(events) {
@@ -2581,6 +2601,7 @@ socket.on("admin status", data => {
 
 socket.on("room data", data => {
     currentRoom = data.room || currentRoom;
+    document.body.dataset.currentRoom = currentRoom;
     currentRoomInfo = data.roomInfo;
 
     updateRoomUI(data.room, data.roomInfo);
@@ -3451,10 +3472,8 @@ function setAdminCommand(command) {
     if (commandInput) commandInput.value = command;
 }
 
-function quickAdmin(command) {
-    if (adminCommandSelect) adminCommandSelect.value = command;
-    buildAdminCommand();
-}
+
+
 
 
 /* =========================
@@ -4710,13 +4729,6 @@ function startTTCBBattle() {
 }
 
 
-(function setupCheddarCleanHeaderToggle() {
-    const update = () => {
-        const header = document.getElementById("cheddarCleanHeader");
-        if (!header) return;
-        header.classList.toggle("hidden", currentRoom !== "cheddar");
-    };
 
-    setInterval(update, 500);
-    document.addEventListener("DOMContentLoaded", update);
-})();
+
+setInterval(updateCheesePanelCollapsedLabel, 800);
