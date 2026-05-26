@@ -339,6 +339,29 @@ function switchRoom(roomId) {
     renderSchedulePopup();
 }
 
+
+function forceCheddarLayoutState() {
+    const isCheddarRoom = currentRoom === "cheddar";
+
+    document.body.dataset.currentRoom = currentRoom || "";
+    document.body.classList.toggle("cheddar-room-active", isCheddarRoom);
+
+    const hub = document.getElementById("cheddarSocialHub");
+    const browser = document.getElementById("cheddarBrowser");
+    const messageArea = document.getElementById("messages") || document.querySelector(".messages");
+    const bar = document.getElementById("messageBar") || document.querySelector(".message-bar");
+
+    if (hub) hub.classList.toggle("hidden", !isCheddarRoom);
+    if (browser) browser.classList.toggle("hidden", !isCheddarRoom);
+    if (messageArea) messageArea.classList.toggle("hidden", isCheddarRoom);
+    if (bar) bar.classList.toggle("hidden", isCheddarRoom);
+
+    if (isCheddarRoom) {
+        if (roomSubtitle) roomSubtitle.textContent = "Temp Servers • DMs • Friends";
+        if (messageInput) messageInput.placeholder = "Use the Cheddar tabs.";
+    }
+}
+
 function updateRoomUI(roomId, roomInfo) {
     document.body.dataset.currentRoom = roomId;
     document
@@ -454,6 +477,7 @@ function updateRoomUI(roomId, roomInfo) {
     renderSchedulePopup();
     renderShop();
     renderInventory();
+    forceCheddarLayoutState();
 }
 
 function clearMessages() {
@@ -1783,13 +1807,7 @@ function updateCheesePanelCollapsedLabel() {
     if (!panel) return;
 
     const label = panel.querySelector(".admin-header strong, .panel-title, strong");
-    if (!label) return;
-
-    if (panel.classList.contains("collapsed")) {
-        label.textContent = "🧀 Cheese Panel ⚙️";
-    } else {
-        label.textContent = "🧀 Cheese Panel ⚙️";
-    }
+    if (label) label.textContent = "🧀 Cheese Panel ⚙️";
 }
 
 function openAdminPanel() {
@@ -2608,6 +2626,7 @@ socket.on("room data", data => {
     unreadCounts[data.room] = 0;
     renderUnreadBadges();
     renderRoomMessages(data.messages);
+    forceCheddarLayoutState();
 });
 
 socket.on("chat message", data => {
@@ -4546,15 +4565,38 @@ function openBlueStiltonCrate() {
 }
 
 function openTTCB() {
+    const page = document.getElementById("arcadePage");
     const game = document.getElementById("ttcbGame");
-    if (!game) return;
+
+    if (page) {
+        page.classList.remove("hidden");
+        document.body.classList.add("arcade-open");
+    }
+
+    if (!game) {
+        showChatNotice("TTCB could not open. Missing game panel.");
+        return;
+    }
+
     game.classList.remove("hidden");
-    renderTTCB();
+    game.classList.add("ttcb-open-overlay");
+
+    try {
+        renderTTCB();
+    } catch (error) {
+        console.error("TTCB render failed", error);
+        showChatNotice("TTCB opened, but the unit shop hit an error.");
+    }
+
+    setTimeout(() => game.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
 }
 
 function closeTTCB() {
     const game = document.getElementById("ttcbGame");
-    if (game) game.classList.add("hidden");
+    if (game) {
+        game.classList.add("hidden");
+        game.classList.remove("ttcb-open-overlay");
+    }
 }
 
 function getTTCBSpent() {
@@ -4732,3 +4774,15 @@ function startTTCBBattle() {
 
 
 setInterval(updateCheesePanelCollapsedLabel, 800);
+
+setInterval(forceCheddarLayoutState, 600);
+
+window.openTTCB = openTTCB;
+window.closeTTCB = closeTTCB;
+
+if (adminHeader) {
+    adminHeader.addEventListener("click", event => {
+        if (!adminPanel || !adminPanel.classList.contains("collapsed")) return;
+        collapseAdminPanel();
+    });
+}
