@@ -170,18 +170,6 @@
 
             <button
                 class="room-button"
-                id="room-feta"
-                onclick="switchRoom('feta')"
-            >
-                <span class="room-icon">🤖</span>
-                <span>
-                    <strong class="cheese-bots-room-label">Cheese Bots</strong>
-                </span>
-                <span class="unread-badge hidden" data-unread-for="feta">0</span>
-            </button>
-
-            <button
-                class="room-button"
                 id="room-mozzarella"
                 onclick="switchRoom('mozzarella')"
             >
@@ -401,27 +389,6 @@
                 </div>
             </section>
 
-            <section id="cheeseBotMenu" class="cheese-bot-menu hidden">
-                <div class="cheese-bot-tabs">
-                    <button onclick="socket.emit('request tutorial', { topic: 'basics' })">Tutorial Bot 🤖</button>
-                    <div class="cheese-bot-inline-control">
-                        <input id="diceSidesInput" type="number" min="2" max="100" value="20" placeholder="Dice sides">
-                        <button onclick="rollDicePrompt()">Roll 🎲</button>
-                    </div>
-                    <button onclick="socket.emit('ask trivia')">Trivia Bot 🧠</button>
-                    <div class="cheese-bot-inline-control trivia-answer-control">
-                        <input id="triviaAnswerInput" maxlength="40" placeholder="Trivia answer">
-                        <button onclick="submitTriviaAnswer()">Answer</button>
-                    </div>
-                    <div class="cheese-bot-inline-control">
-                        <input id="coinFlipWagerInput" type="number" min="0" max="500" value="0" placeholder="Wager">
-                        <button onclick="coinFlipPrompt()">Flip 🪙</button>
-                    </div>
-                    <button disabled>🔮 Oracle Bot 🔮</button>
-                    <button disabled>🎵 Vibe Bot 🎵</button>
-                </div>
-            </section>
-
             <button id="scrollLockBtn" class="scroll-lock-btn hidden" onclick="scrollToBottomFromButton()">
                 ↓ new messages
             </button>
@@ -506,25 +473,71 @@
                         Play Cheese Clicker
                     </button>
                 </section>
-
-                <section class="arcade-game-card locked">
-                    <div class="arcade-cover">
-                        <span class="arcade-cover-label">COMING SOON</span>
-                        <span class="arcade-cover-icon">🐭</span>
+                <section class="arcade-game-card playable ttcb-card">
+                    <div class="arcade-cover ttcb-cover">
+                        <span class="arcade-cover-label">PLAYABLE</span>
+                        <span class="arcade-cover-icon">⚔️</span>
                     </div>
 
                     <div class="arcade-game-info">
-                        <h2>Mouse Catcher</h2>
-                        <p>Tap mice before they steal the cheese.</p>
+                        <h2>Totally True Cheese Battle</h2>
+                        <p>Sandbox battles: everything works normally... until it doesn't.</p>
 
                         <div class="arcade-score-box">
-                            <span>Highest Score</span>
-                            <strong>0</strong>
+                            <span>Sandbox Rewards</span>
+                            <strong>0 🧀</strong>
+                        </div>
+                    </div>
+
+                    <button class="arcade-play-btn" onclick="openTTCB()">
+                        Play Sandbox ⚔️
+                    </button>
+                </section>
+
+                <section class="arcade-game-card locked snek-card">
+                    <div class="arcade-cover snek-cover">
+                        <span class="arcade-cover-label">COMING SOON</span>
+                        <span class="arcade-cover-icon">🐍</span>
+                    </div>
+
+                    <div class="arcade-game-info">
+                        <h2>Snek</h2>
+                        <p>Cheese-themed snake. Very hungry. Very slippery.</p>
+
+                        <div class="arcade-score-box">
+                            <span>Status</span>
+                            <strong>Coming Soon</strong>
                         </div>
                     </div>
 
                     <button class="arcade-play-btn" disabled>
                         Coming soon
+                    </button>
+                </section>
+
+
+
+
+                <section class="cheese-chaos-release-banner">
+                    <div>
+                        <strong>🧀⚔️ Cheese & Chaos V1 is installed</strong>
+                        <p>TTCB Sandbox, Snek Coming Soon, Daily Arcade Challenges, Arcade Crates, Blue Stilton Crates, and token fixes are active.</p>
+                    </div>
+                </section>
+
+                <section class="arcade-daily-panel">
+                    <div class="daily-panel-header">
+                        <div>
+                            <h2>🎯 Daily Arcade Challenges</h2>
+                            <p>Complete 3 daily challenges. Finish all 3 to earn a free Arcade Crate.</p>
+                        </div>
+                        <span id="dailyChallengeTimer" class="daily-timer-pill">Daily reset</span>
+                    </div>
+
+                    <div id="dailyArcadeChallenges" class="daily-challenge-list"></div>
+
+                    <button id="dailyArcadeBonusBtn" class="daily-bonus-btn" onclick="claimDailyArcadeBonus()">
+                        Claim 3/3 Bonus 📦
                     </button>
                 </section>
 
@@ -542,6 +555,73 @@
                 </section>
 
             </div>
+
+
+            <section id="ttcbGame" class="ttcb-game hidden">
+                <button class="arcade-back-btn" onclick="closeTTCB()">
+                    ← Back to Arcade
+                </button>
+
+                <div class="ttcb-header">
+                    <div>
+                        <h2>⚔️ Totally True Cheese Battle</h2>
+                        <p>Sandbox gives 0 rewards. Campaign and Daily Battle rewards are coming soon.</p>
+                    </div>
+                    <div class="ttcb-mode-pills">
+                        <span class="active">Sandbox</span>
+                        <span>Campaign: Coming Soon</span>
+                        <span>Daily Battle: Coming Soon</span>
+                    </div>
+                </div>
+
+                <div class="ttcb-layout">
+                    <aside class="ttcb-panel">
+                        <h3>🧀 Your Army</h3>
+                        <p class="ttcb-budget">Budget: <strong id="ttcbBudget">600</strong> 🪙</p>
+                        <div id="ttcbUnitShop" class="ttcb-unit-shop"></div>
+
+                        <div class="ttcb-actions">
+                            <button onclick="startTTCBBattle()">Start Sandbox Battle</button>
+                            <button onclick="clearTTCBArmy()">Clear Army</button>
+                        </div>
+
+                        <p class="ttcb-note">Sandbox battles are for testing chaos and give <strong>0 rewards</strong>.</p>
+                    </aside>
+
+                    <section class="ttcb-arena-card">
+                        <div class="ttcb-coming-row">
+                            <div>
+                                <strong>Campaign</strong>
+                                <span>Coming Soon — rewards enabled later</span>
+                            </div>
+                            <div>
+                                <strong>Daily Battle</strong>
+                                <span>Coming Soon — rewards enabled later</span>
+                            </div>
+                        </div>
+
+                        <div id="ttcbIntroCard" class="ttcb-intro-card hidden"></div>
+
+                        <div id="ttcbBattlefield" class="ttcb-battlefield">
+                            <div class="ttcb-side player-side">
+                                <h4>Blue Cheese Team</h4>
+                                <div id="ttcbPlayerUnits" class="ttcb-unit-row"></div>
+                            </div>
+
+                            <div class="ttcb-versus">VS</div>
+
+                            <div class="ttcb-side enemy-side">
+                                <h4>Red Mould Team</h4>
+                                <div id="ttcbEnemyUnits" class="ttcb-unit-row"></div>
+                            </div>
+                        </div>
+
+                        <div id="ttcbBattleLog" class="ttcb-battle-log">
+                            Place units, then start the sandbox battle.
+                        </div>
+                    </section>
+                </div>
+            </section>
 
             <section id="cheeseClickerGame" class="cheese-clicker-game hidden">
                 <button class="arcade-back-btn" onclick="closeCheeseClicker()">
@@ -681,9 +761,8 @@
         <div id="adminHeader" class="admin-header">
             <strong>⚙️ Cheese Panel 🧀</strong>
 
-            <div>
-                <button onclick="collapseAdminPanel()">_</button>
-                <button onclick="closeAdminPanel()">×</button>
+            <div class="admin-header-actions">
+                <button class="admin-existing-collapse" onclick="collapseAdminPanel()">−</button>
             </div>
         </div>
 

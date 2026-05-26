@@ -1,16 +1,5 @@
 
-function applyCheeseBotsVisualTheme(roomId) {
-    if (roomId === "feta") {
-        document.body.dataset.theme = "cheeseBots";
-        document.documentElement.dataset.theme = "cheeseBots";
-        document.body.classList.add("cheese-bots-active");
-    } else {
-        document.body.classList.remove("cheese-bots-active");
-        if (document.documentElement.dataset.theme === "cheeseBots") {
-            document.documentElement.removeAttribute("data-theme");
-        }
-    }
-}
+
 
 
 /* =========================================================
@@ -52,6 +41,7 @@ let replyingTo = null;
 let adminCollapsed = false;
 let latestScheduledEvents = [];
 let latestPlayerData = null;
+let currentProfileData = null;
 let latestLeaderboard = null;
 let currentLeaderboardTab = 'totalCoinsEarned';
 let selectedChaosAbility = "";
@@ -122,41 +112,7 @@ const schedulePopup = document.getElementById("schedulePopup");
 const pollBox = document.getElementById("pollBox");
 
 const mozzarellaShop = document.getElementById("mozzarellaShop");
-const cheeseBotMenu = document.getElementById("cheeseBotMenu");
-const shopCoins = document.getElementById("shopCoins");
-const chaosCrateList = document.getElementById("chaosCrateList");
-const swissCrateBox = document.getElementById("swissCrateBox");
-const inventorySelected = document.getElementById("inventorySelected");
-const runSelectedChaosBtn = document.getElementById("runSelectedChaosBtn");
-const chaosCooldownText = document.getElementById("chaosCooldownText");
-const inventoryList = document.getElementById("inventoryList");
-const shopReply = document.getElementById("shopReply");
 
-const crateOverlay = document.getElementById("crateOverlay");
-const crateOverlayCard = document.getElementById("crateOverlayCard");
-
-const miniProfileStats = document.getElementById("miniProfileStats");
-const profileModal = document.getElementById("profileModal");
-const profileContent = document.getElementById("profileContent");
-
-const indexModal = document.getElementById("indexModal");
-const bookCompletionText = document.getElementById("bookCompletionText");
-const indexContent = document.getElementById("indexContent");
-
-const adminCommandSelect = document.getElementById("adminCommandSelect");
-const adminPlayerSelect = document.getElementById("adminPlayerSelect");
-const adminAmountInput = document.getElementById("adminAmountInput");
-const adminTextInput = document.getElementById("adminTextInput");
-const adminEventsInput = document.getElementById("adminEventsInput");
-
-/* =========================
-   AUTH
-========================= */
-
-function setAuthMessage(text, type = "error") {
-    authMessage.textContent = text;
-    authMessage.className = type;
-}
 
 function togglePassword() {
     passwordInput.type =
@@ -348,7 +304,6 @@ function switchRoom(roomId) {
     if (roomId === currentRoom) return;
 
     currentRoom = roomId;
-    applyCheeseBotsVisualTheme(roomId);
     unreadCounts[roomId] = 0;
     renderUnreadBadges();
     scrollLockCount = 0;
@@ -398,10 +353,9 @@ function updateRoomUI(roomId, roomInfo) {
 
     const room = roomInfo || {};
     const isMozzarella = roomId === "mozzarella";
-    const isCheeseBots = roomId === "feta";
+    const isCheddar = roomId === "cheddar";
 
-    document.body.dataset.theme = roomId === "feta" ? "cheeseBots" : (room.theme || "cheese");
-    applyCheeseBotsVisualTheme(roomId);
+    document.body.dataset.theme = roomId === "cheddar" ? "cheddar" : (room.theme || "cheese");
 
     roomTitle.textContent = `${room.icon || "🧀"} ${room.name || "Room"}`;
 
@@ -435,9 +389,9 @@ function updateRoomUI(roomId, roomInfo) {
         messageInput.placeholder = "Mozzarella is no-chat.";
     }
 
-    if (roomId === "feta") {
+    if (roomId === "cheddar") {
         roomSubtitle.textContent = "Robotic cheese helpers • bots • mini games";
-        messageInput.placeholder = "Use the Cheese Bots panel.";
+        messageInput.placeholder = "Use the Cheddar panel.";
     }
 
     if (room.isTempServer) {
@@ -458,10 +412,10 @@ function updateRoomUI(roomId, roomInfo) {
     }
 
     if (cheeseBotMenu) {
-        cheeseBotMenu.classList.toggle("hidden", !isCheeseBots);
+        cheeseBotMenu.classList.toggle("hidden", !isCheddar);
     }
 
-    if (isCheeseBots) {
+    if (isCheddar) {
         messageBar.classList.add("hidden");
     }
 
@@ -494,7 +448,7 @@ function updateRoomUI(roomId, roomInfo) {
     const messageBar = document.querySelector(".message-bar");
 
     if (messageBar) {
-        messageBar.classList.toggle("hidden", isMozzarella || isCheeseBots);
+        messageBar.classList.toggle("hidden", isMozzarella || isCheddar);
     }
 
     renderSchedulePopup();
@@ -877,6 +831,7 @@ function updatePlayerData(data) {
     renderShop();
     renderInventory();
     renderIndexContent();
+    renderDailyArcadeChallenges();
 }
 
 function rarityLabel(rarity) {
@@ -1007,6 +962,63 @@ function renderShop() {
             <button class="token-use-btn" onclick="openSwissCrateWithToken()">
                 Use 1 🪙 Token
             </button>
+        </div>
+
+        ${renderArcadeShopCrates()}
+    `;
+}
+
+function renderArcadeShopCrates() {
+    if (!latestPlayerData) return "";
+
+    const arcade = latestPlayerData.arcadeCrate || { name: "Arcade Crate", price: 1000, tokenChance: 0.5 };
+    const blue = latestPlayerData.blueStiltonCrate || { name: "Blue Stilton Crate", price: 500, odds: [] };
+
+    return `
+        <div class="crate-card clean-crate-card arcade-crate-card">
+            <div class="crate-card-top">
+                <div class="crate-icon">🎮</div>
+                <div>
+                    <h4>${arcade.name}</h4>
+                    <p>Chaos ability, cosmetic, or 0.5% Cheese Token chance</p>
+                </div>
+            </div>
+            <div class="crate-price">${arcade.price} 🧀</div>
+            <p class="crate-note">No set rarity odds. Pure arcade chaos.</p>
+            <button onclick="buyArcadeCrate()">Open Arcade Crate</button>
+            <button class="token-use-btn" onclick="openArcadeCrateWithToken()">Use 1 🪙 Token</button>
+        </div>
+
+        <div class="crate-card clean-crate-card blue-stilton-crate-card">
+            <div class="crate-card-top">
+                <div class="crate-icon">🧀🔵</div>
+                <div>
+                    <h4>${blue.name}</h4>
+                    <p>Cosmetics only. Epic-heavy crate.</p>
+                </div>
+            </div>
+            <div class="crate-price">${blue.price} 🧀</div>
+            <div class="crate-odds-list">
+                ${(blue.odds || []).map(entry => `
+                    <div class="crate-odds-row ${rarityClass(entry.rarity)}">
+                        <span>${rarityEmoji(entry.rarity)} ${rarityLabel(entry.rarity)}</span>
+                        <strong>${entry.chance}%</strong>
+                    </div>
+                `).join("")}
+            </div>
+            <button onclick="openBlueStiltonCrate()">Open Blue Stilton Crate</button>
+            <button class="token-use-btn" onclick="openBlueStiltonCrateWithToken()">Use 1 🪙 Token</button>
+        </div>
+
+        <div class="crate-card clean-crate-card token-trade-card">
+            <div class="crate-card-top">
+                <div class="crate-icon">🪙</div>
+                <div>
+                    <h4>Cheese Token Exchange</h4>
+                    <p>Trade 1 Cheese Token for 1250 Cheese Coins.</p>
+                </div>
+            </div>
+            <button class="token-use-btn" onclick="tradeCheeseTokenForCoins()">Trade Token for 1250 🧀</button>
         </div>
     `;
 }
@@ -1533,11 +1545,17 @@ function openOwnProfile() {
     socket.emit("request profile", currentUser);
 }
 
+function openProfile(username) {
+    socket.emit("request profile", username);
+    socket.emit("request social data");
+}
+
 function closeProfile() {
     profileModal.classList.add("hidden");
 }
 
-function renderProfile(data) {
+function renderProfile(data, skipStore = false) {
+    if (!skipStore) currentProfileData = data;
     profileModal.classList.remove("hidden");
 
     const favourite =
@@ -1604,6 +1622,13 @@ function renderProfile(data) {
         <div class="profile-section">
             <h3>Achievements</h3>
             <p>${data.achievementsText || "Coming soon 🧀🏆"}</p>
+        </div>
+
+        <div class="profile-section profile-social-actions">
+            <h3>Social</h3>
+            <div class="profile-social-buttons">
+                ${renderProfileSocialActions(data.username)}
+            </div>
         </div>
     `;
 }
@@ -1685,7 +1710,9 @@ function openArcade() {
     document.body.classList.add("arcade-open");
     updateCheeseClickerCard();
     renderCheeseClicker();
+    renderDailyArcadeChallenges();
 }
+
 
 function closeArcade() {
     arcadePage.classList.add("hidden");
@@ -2511,8 +2538,7 @@ socket.on("admin status", data => {
 });
 
 socket.on("room data", data => {
-    applyCheeseBotsVisualTheme(data.roomId || data.room || currentRoom);
-    currentRoom = data.room;
+    currentRoom = data.room || currentRoom;
     currentRoomInfo = data.roomInfo;
 
     updateRoomUI(data.room, data.roomInfo);
@@ -2619,6 +2645,21 @@ socket.on("crate opened", data => {
     renderCrateResult(data);
 });
 
+socket.on("arcade crate opened", data => {
+    isOpeningCrate = false;
+    renderArcadeCrateReward(data);
+});
+
+socket.on("arcade challenge reward", data => {
+    renderArcadeChallengeReward(data.reward, "Daily Challenge Complete");
+    markArcadeChallengeClaimed(data.challengeId);
+});
+
+socket.on("daily arcade bonus reward", data => {
+    renderArcadeChallengeReward(data.reward, "3/3 Daily Bonus — Arcade Crate");
+    markArcadeBonusClaimed();
+});
+
 socket.on("cosmetic choice", data => {
     renderCosmeticChoice(data.choices || []);
 });
@@ -2628,6 +2669,7 @@ socket.on("player data", data => {
 });
 
 socket.on("profile data", data => {
+    socket.emit("request social data");
     renderProfile(data);
 });
 
@@ -2722,9 +2764,14 @@ const cheeseClickerCheeseUpgrades = [
     { id: "gouda", name: "Gouda", power: 10, cost: 300, description: "Smooth and smoky" },
     { id: "swiss", name: "Swiss", power: 20, cost: 850, description: "Full of holes; full of potential" },
     { id: "blueCheese", name: "Blue Cheese", power: 50, cost: 2500, description: "Bold, mouldy, and extremely rich" },
-    { id: "feta", name: "Cheese Bots", power: 75, cost: 4500, description: "Watery, crumbly, and great for salads" },
+    { id: "cheddar", name: "Cheddar", power: 75, cost: 4500, description: "Watery, crumbly, and great for salads" },
     { id: "mozzarella", name: "Mozzarella", power: 100, cost: 6000, description: "Mild, milky, and stretchy" },
     { id: "parmesan", name: "Parmesan", power: 125, cost: 7500, description: "Hard and salty" }
+    ,{ id: "pepperJack", name: "Pepper Jack", power: 180, cost: 12000, description: "Spicy clicks with a tiny kick" }
+    ,{ id: "stilton", name: "Blue Stilton", power: 260, cost: 22000, description: "Rich, powerful, and suspiciously blue" }
+    ,{ id: "fonduePot", name: "Fondue Pot", power: 420, cost: 50000, description: "Every click is melted chaos" }
+    ,{ id: "goldenCheddar", name: "Golden Cheddar", power: 900, cost: 150000, description: "Premium cheese pressure" }
+
 ];
 
 const cheeseClickerHelpers = [
@@ -2735,6 +2782,11 @@ const cheeseClickerHelpers = [
     { id: "mozzarellaStretcher", name: "Mozzarella Stretcher", cps: 90, cost: 5000, description: "Stretches cheese around the clock" },
     { id: "cheeseGoblin", name: "Cheese Goblin", cps: 250, cost: 18000, description: "Lives entirely off stolen cheese" },
     { id: "cheeseDragon", name: "Cheese Dragon", cps: 1000, cost: 100000, description: "Sleeps on mountains of molten cheese" }
+    ,{ id: "cheeseBotWorker", name: "CheeseBot Worker", cps: 2200, cost: 250000, description: "Calculates cheese at robot speed" }
+    ,{ id: "ratUnion", name: "Rat Union", cps: 6000, cost: 750000, description: "Collective bargaining, collective cheese" }
+    ,{ id: "fondueReactor", name: "Fondue Reactor", cps: 15000, cost: 2500000, description: "A dangerously warm income source" }
+    ,{ id: "chaosEngine", name: "Chaos Engine", cps: 50000, cost: 10000000, description: "Probably safe. Probably." }
+
 ];
 
 const cheeseifyMultipliers = [1.25, 1.5, 1.75, 2, 4];
@@ -2866,6 +2918,7 @@ function clickBigCheese() {
     if (save.cheese > save.highScore) save.highScore = save.cheese;
     saveCheeseClickerSave(save);
     spawnClickerFloat(`+${formatCheese(gain)} 🧀`);
+    recordArcadeChallengeProgress("clickerClicks", 1);
     const button = document.getElementById("cheeseClickButton");
     if (button) {
         button.classList.remove("clicked");
@@ -2894,6 +2947,7 @@ function buyCheeseUpgrade(id) {
     save.cheese -= upgrade.cost;
     save.cheeseUpgrades[id] = (save.cheeseUpgrades[id] || 0) + 1;
     saveCheeseClickerSave(save);
+    recordArcadeChallengeProgress("clickerUpgrades", 1);
     renderCheeseClicker();
 }
 
@@ -2904,6 +2958,7 @@ function buyHelperUpgrade(id) {
     save.cheese -= helper.cost;
     save.helpers[id] = (save.helpers[id] || 0) + 1;
     saveCheeseClickerSave(save);
+    recordArcadeChallengeProgress("clickerUpgrades", 1);
     renderCheeseClicker();
 }
 
@@ -3762,29 +3817,9 @@ function renderLeaderboard() {
    WAVE 3: PRIVATE TEMP SERVERS / FETA BOTS / CHAOS STACKING
 ========================= */
 
-function rollDicePrompt() {
-    const input = document.getElementById("diceSidesInput");
-    const sides = Number(input ? input.value : 20);
 
-    if (!Number.isFinite(sides)) {
-        showChatNotice("Enter a valid dice size.");
-        return;
-    }
 
-    socket.emit("roll dice", { sides });
-}
 
-function coinFlipPrompt() {
-    const input = document.getElementById("coinFlipWagerInput");
-    const wager = Number(input ? input.value : 0);
-
-    if (!Number.isFinite(wager)) {
-        showChatNotice("Enter a valid wager.");
-        return;
-    }
-
-    socket.emit("coin flip", { wager });
-}
 
 socket.on("chaos combo", data => {
     showChatNotice(`🌪️ ${data.text}`);
@@ -3813,7 +3848,7 @@ function submitTriviaAnswer() {
 
 
 socket.on("tutorial nudge", data => {
-    showChatNotice(data && data.text ? data.text : "Visit Cheese Bots for a quick tutorial 🤖");
+    showChatNotice(data && data.text ? data.text : "Visit Cheddar for a quick tutorial 🤖");
 });
 
 
@@ -3842,6 +3877,10 @@ function switchCheddarTab(tab) {
 socket.on("social data", data => {
     latestSocialData = data || latestSocialData;
     renderSocialHub();
+
+    if (currentProfileData && profileModal && !profileModal.classList.contains("hidden")) {
+        renderProfile(currentProfileData, true);
+    }
 });
 
 
@@ -3930,23 +3969,28 @@ function renderFriendsList() {
 
 function sendFriendRequest(username) {
     socket.emit("send friend request", { targetUsername: username });
+    setTimeout(() => socket.emit("request social data"), 300);
 }
 
 function acceptFriendRequest(username) {
     socket.emit("accept friend request", { username });
+    setTimeout(() => socket.emit("request social data"), 300);
 }
 
 function declineFriendRequest(username) {
     socket.emit("decline friend request", { username });
+    setTimeout(() => socket.emit("request social data"), 300);
 }
 
 function recallFriendRequest(username) {
     socket.emit("recall friend request", { username });
+    setTimeout(() => socket.emit("request social data"), 300);
 }
 
 function removeFriend(username) {
     if (!confirm(`Remove ${username} from friends?`)) return;
     socket.emit("remove friend", { username });
+    setTimeout(() => socket.emit("request social data"), 300);
 }
 
 function openDmWith(username) {
@@ -4205,3 +4249,420 @@ function renderProfileSocialActions(username) {
 
     setTimeout(bind, 700);
 })();
+
+
+
+/* =========================================================
+   CHEESE & CHAOS V1 — ARCADE CHALLENGES + TTCB
+========================================================= */
+
+const ARCADE_CHALLENGE_KEY = "cheeseArcadeChallengesV1";
+const TTCB_BUDGET = 600;
+
+const TTCB_UNITS = [
+    { id: "cheeseSoldier", icon: "🧀⚔️", name: "Cheese Soldier", className: "Basic", hp: 100, speed: 1, damage: 10, attackSpeed: 1, knockback: 1, cost: 100 },
+    { id: "mouse", icon: "🐭", name: "Mouse", className: "Swarm", hp: 50, speed: 2.5, damage: 5, attackSpeed: 2, knockback: 0.5, cost: 50 },
+    { id: "ratDefender", icon: "🐁🛡️", name: "Rat Defender", className: "Mini Tank", hp: 200, speed: 0.75, damage: 35, attackSpeed: 1, knockback: 3, cost: 250 },
+    { id: "butterBomber", icon: "🧈💣", name: "Butter Bomber", className: "Explosive", hp: 50, speed: 1.5, damage: 50, attackSpeed: 0, knockback: 0.9, cost: 175, special: "Explodes on death or near enemies" },
+    { id: "cheddarChucker", icon: "🧀🤾‍♀️", name: "Cheddar Chucker", className: "Ranged", hp: 75, speed: 1.1, damage: 15, attackSpeed: 1.5, knockback: 1, cost: 125 }
+];
+
+let ttcbArmy = {};
+let ttcbLastEnemy = {};
+
+function getArcadeDateKey() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function seededDailyChallenges() {
+    const today = getArcadeDateKey();
+    const dayNumber = Number(today.replace(/-/g, "")) || Date.now();
+    const pool = [
+        { id: `${today}:clicks100`, type: "clickerClicks", title: "Click 100 cheese", goal: 100, icon: "🧀", reward: "Coins / cosmetic / crate chance" },
+        { id: `${today}:upgrades1`, type: "clickerUpgrades", title: "Buy 1 Cheese Clicker upgrade", goal: 1, icon: "⬆️", reward: "Coins / cosmetic / crate chance" },
+        { id: `${today}:ttcb1`, type: "ttcbBattles", title: "Play 1 TTCB sandbox battle", goal: 1, icon: "⚔️", reward: "Coins / cosmetic / crate chance" },
+        { id: `${today}:clicks250`, type: "clickerClicks", title: "Click 250 cheese", goal: 250, icon: "🧀", reward: "Coins / cosmetic / crate chance" },
+        { id: `${today}:ttcb3units`, type: "ttcbUnitsPlaced", title: "Place 3 TTCB units", goal: 3, icon: "📍", reward: "Coins / cosmetic / crate chance" }
+    ];
+
+    return [
+        pool[dayNumber % pool.length],
+        pool[(dayNumber + 2) % pool.length],
+        pool[(dayNumber + 4) % pool.length]
+    ].filter((item, index, arr) => arr.findIndex(other => other.id === item.id) === index).slice(0, 3);
+}
+
+function loadArcadeChallengeState() {
+    try {
+        const state = JSON.parse(localStorage.getItem(ARCADE_CHALLENGE_KEY)) || {};
+        const today = getArcadeDateKey();
+
+        if (state.date !== today) {
+            return { date: today, progress: {}, claimed: {}, bonusClaimed: false };
+        }
+
+        return Object.assign({ date: today, progress: {}, claimed: {}, bonusClaimed: false }, state);
+    } catch {
+        return { date: getArcadeDateKey(), progress: {}, claimed: {}, bonusClaimed: false };
+    }
+}
+
+function saveArcadeChallengeState(state) {
+    localStorage.setItem(ARCADE_CHALLENGE_KEY, JSON.stringify(state));
+}
+
+function recordArcadeChallengeProgress(type, amount = 1) {
+    const state = loadArcadeChallengeState();
+    let changed = false;
+
+    seededDailyChallenges().forEach(challenge => {
+        if (challenge.type !== type || state.claimed[challenge.id]) return;
+        state.progress[challenge.id] = Math.min(challenge.goal, (state.progress[challenge.id] || 0) + amount);
+        changed = true;
+    });
+
+    if (changed) {
+        saveArcadeChallengeState(state);
+        renderDailyArcadeChallenges();
+    }
+}
+
+function renderDailyArcadeChallenges() {
+    const box = document.getElementById("dailyArcadeChallenges");
+    const timer = document.getElementById("dailyChallengeTimer");
+    const bonus = document.getElementById("dailyArcadeBonusBtn");
+
+    if (!box) return;
+
+    const state = loadArcadeChallengeState();
+    const challenges = seededDailyChallenges();
+    const completed = challenges.filter(challenge => (state.progress[challenge.id] || 0) >= challenge.goal);
+    const claimed = challenges.filter(challenge => state.claimed[challenge.id]);
+
+    box.innerHTML = challenges.map(challenge => {
+        const progress = Math.min(challenge.goal, state.progress[challenge.id] || 0);
+        const done = progress >= challenge.goal;
+        const isClaimed = !!state.claimed[challenge.id];
+
+        return `
+            <div class="daily-challenge-card ${done ? "complete" : ""} ${isClaimed ? "claimed" : ""}">
+                <div class="daily-challenge-icon">${challenge.icon}</div>
+                <div>
+                    <strong>${escapeHtml(challenge.title)}</strong>
+                    <span>${progress}/${challenge.goal} • ${challenge.reward}</span>
+                    <div class="daily-progress"><i style="width:${Math.round((progress / challenge.goal) * 100)}%"></i></div>
+                </div>
+                <button ${!done || isClaimed ? "disabled" : ""} onclick="claimArcadeChallenge('${challenge.id}')">
+                    ${isClaimed ? "Claimed" : done ? "Claim" : "Locked"}
+                </button>
+            </div>
+        `;
+    }).join("");
+
+    if (bonus) {
+        bonus.disabled = claimed.length < 3 || state.bonusClaimed;
+        bonus.textContent = state.bonusClaimed ? "3/3 Bonus Claimed ✅" : `Claim 3/3 Bonus 📦 (${claimed.length}/3)`;
+    }
+
+    if (timer) {
+        timer.textContent = "3 daily challenges";
+    }
+}
+
+function claimArcadeChallenge(challengeId) {
+    const state = loadArcadeChallengeState();
+    const challenge = seededDailyChallenges().find(item => item.id === challengeId);
+
+    if (!challenge) return;
+
+    if ((state.progress[challengeId] || 0) < challenge.goal) {
+        showChatNotice("Challenge not complete yet.");
+        return;
+    }
+
+    if (state.claimed[challengeId]) {
+        showChatNotice("Already claimed.");
+        return;
+    }
+
+    socket.emit("claim arcade challenge reward", { challengeId });
+}
+
+function markArcadeChallengeClaimed(challengeId) {
+    const state = loadArcadeChallengeState();
+    state.claimed[challengeId] = true;
+    saveArcadeChallengeState(state);
+    renderDailyArcadeChallenges();
+}
+
+function claimDailyArcadeBonus() {
+    const state = loadArcadeChallengeState();
+    const challenges = seededDailyChallenges();
+
+    if (challenges.some(challenge => !state.claimed[challenge.id])) {
+        showChatNotice("Claim all 3 daily challenges first.");
+        return;
+    }
+
+    if (state.bonusClaimed) {
+        showChatNotice("Daily bonus already claimed.");
+        return;
+    }
+
+    socket.emit("claim daily arcade bonus");
+}
+
+function markArcadeBonusClaimed() {
+    const state = loadArcadeChallengeState();
+    state.bonusClaimed = true;
+    saveArcadeChallengeState(state);
+    renderDailyArcadeChallenges();
+}
+
+function renderArcadeChallengeReward(reward, title = "Arcade Reward") {
+    isOpeningCrate = false;
+    const message = reward && reward.message ? reward.message : "Arcade reward claimed.";
+    showCrateOpeningAnimation(title, message, "arcade");
+    setTimeout(() => {
+        if (crateOverlayCard) {
+            crateOverlayCard.innerHTML = `
+                <div class="crate-result arcade-reward-result">
+                    <div class="crate-result-icon">${reward.icon || "🎮"}</div>
+                    <h2>${escapeHtml(reward.name || "Arcade Reward")}</h2>
+                    <p>${escapeHtml(message)}</p>
+                    ${reward.rarity ? `<span class="${rarityClass(reward.rarity)}">${rarityEmoji(reward.rarity)} ${rarityLabel(reward.rarity)}</span>` : ""}
+                    <button onclick="closeCrateOverlay()">Nice 🧀</button>
+                </div>
+            `;
+        }
+    }, 450);
+}
+
+function renderArcadeCrateReward(data) {
+    const reward = data && data.reward ? data.reward : {};
+    renderArcadeChallengeReward(reward, data && data.crate ? data.crate.name : "Arcade Crate");
+}
+
+
+function openArcadeCrateWithToken() {
+    if (isOpeningCrate) return;
+
+    if (!latestPlayerData || (latestPlayerData.cheeseTokens || 0) < 1) {
+        showShopReply("You need 1 Cheese Token.");
+        return;
+    }
+
+    isOpeningCrate = true;
+    showCrateOpeningAnimation("Token Arcade Crate", "Spending 1 Cheese Token...", "arcade");
+    socket.emit("open arcade crate with token");
+}
+
+function openBlueStiltonCrateWithToken() {
+    if (isOpeningCrate) return;
+
+    if (!latestPlayerData || (latestPlayerData.cheeseTokens || 0) < 1) {
+        showShopReply("You need 1 Cheese Token.");
+        return;
+    }
+
+    isOpeningCrate = true;
+    showCrateOpeningAnimation("Token Blue Stilton Crate", "Spending 1 Cheese Token...", "cosmetic");
+    socket.emit("open blue stilton crate with token");
+}
+
+function buyArcadeCrate() {
+    if (isOpeningCrate) return;
+    isOpeningCrate = true;
+    showCrateOpeningAnimation("Arcade Crate", "Rolling chaos, cosmetics, and a tiny token chance...", "arcade");
+    socket.emit("buy arcade crate");
+}
+
+function openBlueStiltonCrate() {
+    if (isOpeningCrate) return;
+    isOpeningCrate = true;
+    showCrateOpeningAnimation("Blue Stilton Crate", "Rolling epic-heavy cosmetics...", "cosmetic");
+    socket.emit("open blue stilton crate");
+}
+
+function openTTCB() {
+    const game = document.getElementById("ttcbGame");
+    if (!game) return;
+    game.classList.remove("hidden");
+    renderTTCB();
+}
+
+function closeTTCB() {
+    const game = document.getElementById("ttcbGame");
+    if (game) game.classList.add("hidden");
+}
+
+function getTTCBSpent() {
+    return Object.entries(ttcbArmy).reduce((sum, [id, count]) => {
+        const unit = TTCB_UNITS.find(item => item.id === id);
+        return sum + (unit ? unit.cost * count : 0);
+    }, 0);
+}
+
+function addTTCBUnit(id) {
+    const unit = TTCB_UNITS.find(item => item.id === id);
+    if (!unit) return;
+
+    if (getTTCBSpent() + unit.cost > TTCB_BUDGET) {
+        showChatNotice("Not enough sandbox budget.");
+        return;
+    }
+
+    ttcbArmy[id] = (ttcbArmy[id] || 0) + 1;
+    recordArcadeChallengeProgress("ttcbUnitsPlaced", 1);
+    renderTTCB();
+}
+
+function removeTTCBUnit(id) {
+    if (!ttcbArmy[id]) return;
+    ttcbArmy[id] -= 1;
+    if (ttcbArmy[id] <= 0) delete ttcbArmy[id];
+    renderTTCB();
+}
+
+function clearTTCBArmy() {
+    ttcbArmy = {};
+    renderTTCB();
+}
+
+function unitPower(unit) {
+    const attack = unit.attackSpeed ? unit.damage * unit.attackSpeed : unit.damage * 1.35;
+    const stability = unit.hp * 0.18 + unit.knockback * 18;
+    const speed = unit.speed * 12;
+    return attack + stability + speed + unit.cost * 0.08;
+}
+
+function buildRandomEnemyArmy() {
+    const army = {};
+    let budget = TTCB_BUDGET;
+    let guard = 0;
+
+    while (budget >= 50 && guard < 30) {
+        const affordable = TTCB_UNITS.filter(unit => unit.cost <= budget);
+        const unit = affordable[Math.floor(Math.random() * affordable.length)];
+        army[unit.id] = (army[unit.id] || 0) + 1;
+        budget -= unit.cost;
+        guard++;
+    }
+
+    return army;
+}
+
+function armyScore(army) {
+    return Object.entries(army).reduce((sum, [id, count]) => {
+        const unit = TTCB_UNITS.find(item => item.id === id);
+        return sum + (unit ? unitPower(unit) * count : 0);
+    }, 0);
+}
+
+function renderTTCBUnits(containerId, army, enemy = false) {
+    const box = document.getElementById(containerId);
+    if (!box) return;
+
+    const pieces = [];
+
+    Object.entries(army).forEach(([id, count]) => {
+        const unit = TTCB_UNITS.find(item => item.id === id);
+        if (!unit) return;
+        for (let i = 0; i < count; i++) {
+            pieces.push(`<span class="ttcb-battle-unit ${enemy ? "enemy" : "player"}" title="${unit.name}">${unit.icon}</span>`);
+        }
+    });
+
+    box.innerHTML = pieces.length ? pieces.join("") : `<em>No units placed</em>`;
+}
+
+function renderTTCB() {
+    const shop = document.getElementById("ttcbUnitShop");
+    const budget = document.getElementById("ttcbBudget");
+    const remaining = TTCB_BUDGET - getTTCBSpent();
+
+    if (budget) budget.textContent = remaining;
+
+    if (shop) {
+        shop.innerHTML = TTCB_UNITS.map(unit => {
+            const owned = ttcbArmy[unit.id] || 0;
+            return `
+                <div class="ttcb-unit-card">
+                    <div class="ttcb-unit-icon">${unit.icon}</div>
+                    <div>
+                        <strong>${unit.name}</strong>
+                        <span>${unit.className} • ${unit.cost} 🪙</span>
+                        <small>HP ${unit.hp} • SPD ${unit.speed} • DMG ${unit.damage} • KB ${unit.knockback}</small>
+                    </div>
+                    <div class="ttcb-unit-actions">
+                        <button onclick="addTTCBUnit('${unit.id}')">+</button>
+                        <b>${owned}</b>
+                        <button onclick="removeTTCBUnit('${unit.id}')">−</button>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    renderTTCBUnits("ttcbPlayerUnits", ttcbArmy);
+    renderTTCBUnits("ttcbEnemyUnits", ttcbLastEnemy, true);
+}
+
+function startTTCBBattle() {
+    if (Object.keys(ttcbArmy).length === 0) {
+        showChatNotice("Place at least one unit first.");
+        return;
+    }
+
+    ttcbLastEnemy = buildRandomEnemyArmy();
+    renderTTCB();
+
+    const intro = document.getElementById("ttcbIntroCard");
+    const log = document.getElementById("ttcbBattleLog");
+    const playerScore = armyScore(ttcbArmy) * (0.85 + Math.random() * 0.35);
+    const enemyScore = armyScore(ttcbLastEnemy) * (0.85 + Math.random() * 0.35);
+    const won = playerScore >= enemyScore;
+    const subtitles = [
+        "Probably balanced.",
+        "Everything is fine until it isn't.",
+        "The mice seem confident.",
+        "Physics are optional.",
+        "Cheddar trajectories calculated poorly."
+    ];
+
+    if (intro) {
+        intro.classList.remove("hidden");
+        intro.innerHTML = `<h2>⚔️ Blue Cheese Team VS Red Mould Team</h2><p>${subtitles[Math.floor(Math.random() * subtitles.length)]}</p>`;
+        setTimeout(() => intro.classList.add("hidden"), 1400);
+    }
+
+    const battlefield = document.getElementById("ttcbBattlefield");
+    if (battlefield) {
+        battlefield.classList.remove("ttcb-shake", "ttcb-slowmo");
+        void battlefield.offsetWidth;
+        battlefield.classList.add("ttcb-shake");
+        setTimeout(() => battlefield.classList.add("ttcb-slowmo"), 900);
+    }
+
+    const events = [
+        "🧀 Cheese Soldiers marched normally. Suspicious.",
+        "🐭 A Mouse achieved forbidden velocity.",
+        "🧈 Butter Bomber made everyone reconsider strategy.",
+        "🐁 Rat Defender refused to move.",
+        "🤾‍♀️ Cheddar Chucker threw cheese with confidence."
+    ];
+
+    if (log) {
+        setTimeout(() => {
+            log.innerHTML = `
+                <strong>${won ? "Victory!" : "Defeat!"}</strong>
+                <p>${won ? "Sandbox win recorded. Rewards: 0 🧀" : "Sandbox loss recorded. Rewards: 0 🧀"}</p>
+                <ul>${events.sort(() => Math.random() - 0.5).slice(0, 3).map(event => `<li>${event}</li>`).join("")}</ul>
+                <small>Campaign and Daily Battle rewards are coming soon.</small>
+            `;
+        }, 1200);
+    }
+
+    recordArcadeChallengeProgress("ttcbBattles", 1);
+    showChatNotice("TTCB sandbox battle complete. Sandbox gives 0 rewards.");
+}
