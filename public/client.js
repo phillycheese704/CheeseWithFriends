@@ -348,12 +348,12 @@ function forceCheddarLayoutState() {
 
     const hub = document.getElementById("cheddarSocialHub");
     const browser = document.getElementById("cheddarBrowser");
-    const messageArea = document.getElementById("messages") || document.querySelector(".messages");
+    const messages = document.getElementById("messages") || document.querySelector(".messages");
     const bar = document.getElementById("messageBar") || document.querySelector(".message-bar");
 
     if (hub) hub.classList.toggle("hidden", !isCheddarRoom);
     if (browser) browser.classList.toggle("hidden", !isCheddarRoom);
-    if (messageArea) messageArea.classList.toggle("hidden", isCheddarRoom);
+    if (messages) messages.classList.toggle("hidden", isCheddarRoom);
     if (bar) bar.classList.toggle("hidden", isCheddarRoom);
 
     if (isCheddarRoom) {
@@ -1827,16 +1827,10 @@ function closeAdminPanel() {
 }
 
 function collapseAdminPanel() {
-    adminCollapsed = !adminCollapsed;
+    const panel = document.getElementById("adminPanel");
+    if (!panel) return;
 
-    if (adminCollapsed) {
-        adminBody.classList.add("hidden");
-        adminPanel.classList.add("collapsed");
-    } else {
-        adminBody.classList.remove("hidden");
-        adminPanel.classList.remove("collapsed");
-    }
-
+    panel.classList.toggle("collapsed");
     updateCheesePanelCollapsedLabel();
 }
 
@@ -4565,30 +4559,7 @@ function openBlueStiltonCrate() {
 }
 
 function openTTCB() {
-    const page = document.getElementById("arcadePage");
-    const game = document.getElementById("ttcbGame");
-
-    if (page) {
-        page.classList.remove("hidden");
-        document.body.classList.add("arcade-open");
-    }
-
-    if (!game) {
-        showChatNotice("TTCB could not open. Missing game panel.");
-        return;
-    }
-
-    game.classList.remove("hidden");
-    game.classList.add("ttcb-open-overlay");
-
-    try {
-        renderTTCB();
-    } catch (error) {
-        console.error("TTCB render failed", error);
-        showChatNotice("TTCB opened, but the unit shop hit an error.");
-    }
-
-    setTimeout(() => game.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    showChatNotice("TTCB is coming soon 🧀⚔️");
 }
 
 function closeTTCB() {
@@ -4773,16 +4744,28 @@ function startTTCBBattle() {
 
 
 
-setInterval(updateCheesePanelCollapsedLabel, 800);
 
-setInterval(forceCheddarLayoutState, 600);
 
-window.openTTCB = openTTCB;
-window.closeTTCB = closeTTCB;
 
 if (adminHeader) {
     adminHeader.addEventListener("click", event => {
         if (!adminPanel || !adminPanel.classList.contains("collapsed")) return;
         collapseAdminPanel();
+    });
+}
+
+window.openTTCB = openTTCB;
+window.closeTTCB = closeTTCB;
+
+setInterval(forceCheddarLayoutState, 1000);
+
+setInterval(updateCheesePanelCollapsedLabel, 1500);
+
+if (adminHeader) {
+    adminHeader.addEventListener("click", () => {
+        const panel = document.getElementById("adminPanel");
+        if (panel && panel.classList.contains("collapsed")) {
+            collapseAdminPanel();
+        }
     });
 }

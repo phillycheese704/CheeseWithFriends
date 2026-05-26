@@ -6943,3 +6943,166 @@ body[data-current-room="cheddar"] #messages {
         max-height: calc(100vh - 210px) !important;
     }
 }
+
+
+/* =========================================================
+   CHEESEWITHFRIENDS STABILITY RESET
+========================================================= */
+
+/* TTCB is paused until rebuilt */
+.ttcb-coming-soon-card {
+    opacity: 0.92 !important;
+}
+
+#ttcbGame.ttcb-disabled,
+.ttcb-game.ttcb-disabled,
+.ttcb-game.ttcb-open-overlay {
+    display: none !important;
+}
+
+/* Cheddar = clean social hub only */
+body.cheddar-room-active,
+body[data-current-room="cheddar"] {
+    background:
+        radial-gradient(circle at 18% 8%, rgba(255, 236, 122, 0.38), transparent 32%),
+        linear-gradient(135deg, #ffe36f 0%, #ffd052 48%, #ffb339 100%) !important;
+}
+
+body.cheddar-room-active .message-bar,
+body.cheddar-room-active #messageBar,
+body.cheddar-room-active .chat-input-area,
+body.cheddar-room-active .compose-bar,
+body[data-current-room="cheddar"] .message-bar,
+body[data-current-room="cheddar"] #messageBar,
+body[data-current-room="cheddar"] .chat-input-area,
+body[data-current-room="cheddar"] .compose-bar {
+    display: none !important;
+}
+
+#cheddarCleanHeader,
+.cheddar-clean-header {
+    display: none !important;
+}
+
+body.cheddar-room-active #messages,
+body[data-current-room="cheddar"] #messages {
+    display: none !important;
+}
+
+body.cheddar-room-active #cheddarSocialHub,
+body[data-current-room="cheddar"] #cheddarSocialHub,
+body.cheddar-room-active .cheddar-social-hub,
+body[data-current-room="cheddar"] .cheddar-social-hub {
+    display: block !important;
+    position: relative !important;
+    width: min(980px, calc(100vw - 32px)) !important;
+    max-height: calc(100vh - 235px) !important;
+    overflow: auto !important;
+    margin: 16px auto 22px !important;
+    padding: 18px !important;
+    border-radius: 30px !important;
+    background:
+        radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.48), transparent 30%),
+        linear-gradient(135deg, rgba(255, 248, 214, 0.96), rgba(255, 218, 92, 0.88)) !important;
+    border: 2px solid rgba(143, 88, 0, 0.18) !important;
+    box-shadow: 0 18px 46px rgba(98, 61, 0, 0.18) !important;
+}
+
+.cheddar-social-tabs {
+    display: flex !important;
+    gap: 10px !important;
+    padding: 10px !important;
+    margin: 0 0 16px !important;
+    border-radius: 22px !important;
+    background: rgba(255, 244, 193, 0.88) !important;
+    border: 1px solid rgba(138, 84, 0, 0.14) !important;
+}
+
+.cheddar-social-tab {
+    flex: 1 !important;
+    min-height: 46px !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    background: rgba(255, 255, 255, 0.72) !important;
+    color: #4a2f00 !important;
+    font-weight: 1000 !important;
+    box-shadow: inset 0 0 0 1px rgba(116, 72, 0, 0.10) !important;
+}
+
+.cheddar-social-tab.active {
+    background: linear-gradient(135deg, #ffb000, #ffe66d) !important;
+    color: #2f1d00 !important;
+    box-shadow: 0 10px 22px rgba(105, 65, 0, 0.18) !important;
+}
+
+.cheddar-social-panel {
+    border-radius: 24px !important;
+    padding: 18px !important;
+    background: rgba(255, 252, 232, 0.80) !important;
+    border: 1px solid rgba(120, 74, 0, 0.14) !important;
+    color: #3f2800 !important;
+}
+
+/* Simple, reliable collapsed Cheese Panel */
+#adminPanel.collapsed,
+.admin-panel.collapsed {
+    width: 230px !important;
+    height: 54px !important;
+    min-height: 54px !important;
+    max-height: 54px !important;
+    overflow: hidden !important;
+    border-radius: 999px !important;
+    cursor: pointer !important;
+}
+
+#adminPanel.collapsed .admin-body,
+.admin-panel.collapsed .admin-body,
+#adminPanel.collapsed .cheese-panel-subtitle,
+.admin-panel.collapsed .cheese-panel-subtitle,
+#adminPanel.collapsed .admin-header-actions,
+.admin-panel.collapsed .admin-header-actions,
+#adminPanel.collapsed .admin-command-rescue-note,
+.admin-panel.collapsed .admin-command-rescue-note,
+#adminPanel.collapsed .admin-tabs,
+.admin-panel.collapsed .admin-tabs,
+#adminPanel.collapsed .admin-command-box,
+.admin-panel.collapsed .admin-command-box,
+#adminPanel.collapsed .event-scheduler,
+.admin-panel.collapsed .event-scheduler {
+    display: none !important;
+}
+
+#adminPanel.collapsed .admin-header,
+.admin-panel.collapsed .admin-header {
+    height: 54px !important;
+    min-height: 54px !important;
+    padding: 0 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 0 !important;
+}
+
+#adminPanel.collapsed .admin-header > *:not(strong),
+.admin-panel.collapsed .admin-header > *:not(strong) {
+    display: none !important;
+}
+
+#adminPanel.collapsed .admin-header strong,
+.admin-panel.collapsed .admin-header strong {
+    display: block !important;
+    font-size: 1rem !important;
+    white-space: nowrap !important;
+    color: #fff2ac !important;
+}
+
+/* Keep command and scheduler grouped without forcing fragile overlays */
+.admin-command-column {
+    display: grid !important;
+    gap: 14px !important;
+    align-content: start !important;
+}
+
+.admin-command-column .event-scheduler {
+    margin-top: 0 !important;
+}
